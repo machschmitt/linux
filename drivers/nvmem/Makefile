@@ -10,6 +10,8 @@ nvmem_layouts-y			:= layouts.o
 obj-y				+= layouts/
 
 # Devices
+obj-$(CONFIG_NVMEM_AXI_SYSID)	+= nvmem-axi-sysid.o
+nvmem-axi-sysid-y		:= adi_axi_sysid.o
 obj-$(CONFIG_EEPROM_AT24)		+= at24.o
 obj-$(CONFIG_EEPROM_AT25)		+= at25.o
 obj-$(CONFIG_EEPROM_93XX46)		+= eeprom_93xx46.o
