@@ -12,6 +12,15 @@ menuconfig NVMEM
 
 if NVMEM
 
+config NVMEM_AXI_SYSID
+	tristate "Analog Devices AXI System ID Support"
+	depends on ARCH_ZYNQMP || ARCH_ZYNQ
+	depends on HAS_IOMEM
+	help
+	  Say Y here to include AXI System ID support.
+	  To compile this driver as a module, choose M here: the module
+	  will be called axi_sysid.
+
 config NVMEM_SYSFS
 	bool "/sys/bus/nvmem/devices/*/nvmem (sysfs interface)"
 	depends on SYSFS
