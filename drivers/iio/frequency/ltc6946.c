@@ -51,6 +51,14 @@ struct ltc6946 {
 	unsigned int o_div;
 };
 
+static const struct iio_chan_spec ltc6946_channels[] = {
+	{
+		.type = IIO_ALTVOLTAGE,
+		.output = 1,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_FREQUENCY),
+	},
+};
+
 static const struct regmap_config ltc6946_regmap_config = {
 	.reg_bits = 7,
 	.pad_bits = 1,
@@ -101,9 +109,15 @@ static int ltc6946_reg_access(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static const struct iio_info ltc6946_info = {
-	.debugfs_reg_access = &ltc6946_reg_access,
-};
+static int ltc6946_calc_dividers(struct ltc6946 *dev, unsigned long rate)
+{
+
+	/* Limit the rate to the frequency range allowed by hardware */
+	rate = clamp_t(unsigned long, rate, LTC6946_FRF_MIN, LTC6946_FRF_MAX);
+
+	//TODO calculate the dividers to scale Fref to a value close to rate.
+	return 0;
+}
 
 static unsigned long ltc6946_recalc_rate(struct clk_hw *clk_hw,
 	unsigned long parent_rate)
@@ -165,6 +179,36 @@ static const struct clk_ops ltc6946_clk_ops = {
 	.set_rate = ltc6946_set_rate,
 };
 
+
+static int ltc6946_write_raw(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     int val,
+			     int val2,
+			     long mask)
+{
+	struct ltc6946 *dev = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_FREQUENCY:
+		dev_info(&indio_dev->dev, "%s write_raw\n", indio_dev->name);
+		ltc6946_calc_dividers(dev, val);
+		dev->r_div = 1;
+		dev->n_div = 1;
+		dev->o_div = 1;
+		ltc6946_set_rate(&dev->clk_hw, val, 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct iio_info ltc6946_info = {
+	.write_raw = &ltc6946_write_raw,
+	.debugfs_reg_access = &ltc6946_reg_access,
+};
+
 static int ltc6946_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -190,6 +234,8 @@ static int ltc6946_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ltc6946_info;
 	indio_dev->name = spi->dev.of_node->name;
+	indio_dev->channels = ltc6946_channels;
+	indio_dev->num_channels = ARRAY_SIZE(ltc6946_channels);
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
