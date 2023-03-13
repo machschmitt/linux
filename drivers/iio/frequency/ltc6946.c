@@ -5,12 +5,38 @@
  * Copyright 2021 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/regmap.h>
 #include <linux/clk-provider.h>
+
+#define LTC6946_RD_LB_REG		0x04
+#define LTC6946_RD_HB_REG		0x03
+#define LTC6946_RD_HB_MSK		GENMASK(1, 0)
+#define LTC6946_RD(x)			FIELD_PREP(LTC6946_RD_HB_MSK, (x))
+
+#define LTC6946_ND_LB_REG		0x06
+#define LTC6946_ND_HB_REG		0x05
+
+#define LTC6946_OD_REG			0x08
+#define LTC6946_OD_REG_MSK		GENMASK(2, 0)
+#define LTC6946_OD(x)			FIELD_PREP(LTC6946_OD_REG_MSK, (x))
+
+#define LTC6946_RD_MAX			1023
+
+#define LTC6946_OD_MIN			1
+#define LTC6946_OD_MAX			6
+
+#define LTC6946_FREF_MAX		250000000
+#define LTC6946_FREF_MIN		10000000
+
+#define LTC6946_FVCO_MAX		3740000000
+#define LTC6946_FRF_MAX			LTC6946_FVCO_MAX
+#define LTC6946_FRF_MIN			373333333
 
 enum supported_parts {
 	LTC6946,
@@ -19,6 +45,10 @@ enum supported_parts {
 struct ltc6946 {
     struct regmap *regmap;
     struct clk_hw clk_hw;
+	unsigned int fref;
+	unsigned int r_div;
+	unsigned int n_div;
+	unsigned int o_div;
 };
 
 static const struct regmap_config ltc6946_regmap_config = {
@@ -90,6 +120,42 @@ static long ltc6946_round_rate(struct clk_hw *clk_hw,
 static int ltc6946_set_rate(struct clk_hw *clk_hw, unsigned long rate,
 	unsigned long parent_rate)
 {
+	struct ltc6946 *dev = container_of(clk_hw, struct ltc6946, clk_hw);
+	unsigned int r_div_reg, o_div_reg;
+	int ret;
+
+	ret = regmap_write(dev->regmap, LTC6946_ND_LB_REG, dev->n_div);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_write(dev->regmap, LTC6946_ND_HB_REG, dev->n_div >> 8);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(dev->regmap, LTC6946_OD_REG, &o_div_reg);
+	if (ret < 0)
+		return ret;
+
+	o_div_reg &= ~LTC6946_OD_REG_MSK;
+	o_div_reg |= LTC6946_OD(dev->o_div);
+	ret = regmap_write(dev->regmap, LTC6946_OD_REG, o_div_reg);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_write(dev->regmap, LTC6946_RD_LB_REG, dev->r_div);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(dev->regmap, LTC6946_RD_HB_REG, &r_div_reg);
+	if (ret < 0)
+		return ret;
+
+	r_div_reg &= ~LTC6946_RD_HB_MSK;
+	r_div_reg |= LTC6946_RD(dev->r_div >> 8);
+	ret = regmap_write(dev->regmap, LTC6946_RD_HB_REG, r_div_reg);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
