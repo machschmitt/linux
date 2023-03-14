@@ -166,7 +166,38 @@ static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
 static unsigned long ltc6946_recalc_rate(struct clk_hw *clk_hw,
 	unsigned long parent_rate)
 {
-	return 0;
+	struct ltc6946 *dev = container_of(clk_hw, struct ltc6946, clk_hw);
+	unsigned int n_div_reg, r_div_reg, o_div_reg, aux;
+	unsigned long n_div, r_div, o_div;
+	int ret;
+
+	ret = regmap_read(dev->regmap, LTC6946_ND_LB_REG, &n_div_reg);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(dev->regmap, LTC6946_ND_HB_REG, &aux);
+	if (ret < 0)
+		return ret;
+
+	n_div = aux << 8 | n_div_reg;
+
+	ret = regmap_read(dev->regmap, LTC6946_RD_LB_REG, &r_div_reg);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(dev->regmap, LTC6946_RD_HB_REG, &aux);
+	if (ret < 0)
+		return ret;
+
+	r_div = FIELD_GET(LTC6946_RD_HB_MSK, aux) << 8 | r_div_reg;
+
+	ret = regmap_read(dev->regmap, LTC6946_OD_REG, &o_div_reg);
+	if (ret < 0)
+		return ret;
+
+	o_div = FIELD_GET(LTC6946_OD_REG_MSK, o_div_reg);
+
+	return ((dev->fref * n_div) / r_div) / o_div;
 }
 
 static long ltc6946_round_rate(struct clk_hw *clk_hw,
