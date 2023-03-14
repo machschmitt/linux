@@ -172,7 +172,9 @@ static unsigned long ltc6946_recalc_rate(struct clk_hw *clk_hw,
 static long ltc6946_round_rate(struct clk_hw *clk_hw,
 	unsigned long rate, unsigned long *parent_rate)
 {
-	return 0;
+	struct ltc6946 *dev = container_of(clk_hw, struct ltc6946, clk_hw);
+
+	return ltc6946_calc_dividers(dev, rate);
 }
 
 static int ltc6946_set_rate(struct clk_hw *clk_hw, unsigned long rate,
