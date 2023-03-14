@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/device.h>
+#include <linux/gcd.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
@@ -45,7 +46,7 @@ enum supported_parts {
 struct ltc6946 {
     struct regmap *regmap;
     struct clk_hw clk_hw;
-	unsigned int fref;
+	unsigned long fref;
 	unsigned int r_div;
 	unsigned int n_div;
 	unsigned int o_div;
@@ -109,14 +110,57 @@ static int ltc6946_reg_access(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static int ltc6946_calc_dividers(struct ltc6946 *dev, unsigned long rate)
+static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
+					   unsigned long rate)
 {
+	unsigned long goal_rate, rate_fref_gcd, rd_times_od;
+	int i;
 
 	/* Limit the rate to the frequency range allowed by hardware */
-	rate = clamp_t(unsigned long, rate, LTC6946_FRF_MIN, LTC6946_FRF_MAX);
+	goal_rate = clamp_t(unsigned long, rate, LTC6946_FRF_MIN, LTC6946_FRF_MAX);
 
-	//TODO calculate the dividers to scale Fref to a value close to rate.
-	return 0;
+	/*
+	 * Calculate the dividers to scale Fref to a value close to goal_rate.
+	 * If we're lucky, goal_rate and Fref will have a common divisor.
+	 * If so, we might be able to output the exact goal_rate frequency by
+	 * finding a common divisor and setting the appropriate ND, RD, and OD.
+	 * First we find the Greatest Common Divisor (GCD) between Fref and
+	 * goal_rate.
+	 */
+	rate_fref_gcd = gcd(goal_rate, dev->fref);
+	/*
+	 * We want to find RD and OD such that RD * OD = rate_fref_gcd.
+	 * However, maximum RD * OD is 6138, so we look for the greatest common
+	 * factor (divisor) of 6138 and rate_fref_gcd.
+	 */
+	rd_times_od = gcd(LTC6946_RD_MAX * LTC6946_OD_MAX, rate_fref_gcd);
+	/* We take the greatest possible OD value that is a factor of rd_times_od */
+	for (i = LTC6946_OD_MAX; i > 0; i--) {
+		if (rd_times_od % i == 0) {
+			dev->o_div = i;
+			break;
+		}
+	}
+	dev->r_div = rd_times_od / dev->o_div;
+	/* Now, ND is given by: goal_rate / (Fref / (RD * OD)) */
+	dev->n_div = goal_rate / (dev->fref / rd_times_od);
+
+	/* Output for debug/test */
+	pr_info("ltc6946: rate %lu\n", rate);
+	pr_info("ltc6946: goal_rate %lu\n", goal_rate);
+	pr_info("ltc6946: Fref %lu\n", dev->fref);
+	pr_info("ltc6946: rate_fref_gcd %lu\n", rate_fref_gcd);
+	pr_info("ltc6946: rd_times_od %lu\n", rd_times_od);
+
+	pr_info("ltc6946: o_div %u\n", dev->o_div);
+	pr_info("ltc6946: r_div %u\n", dev->r_div);
+	pr_info("ltc6946: n_div %u\n", dev->n_div);
+
+	pr_info("ltc6946: Fvco %lu\n", (dev->fref * dev->n_div) / dev->r_div);
+	pr_info("ltc6946: Frf %lu\n", ((dev->fref * dev->n_div) / dev->r_div) / dev->o_div);
+	pr_info("==================\n\n");
+
+	return ((dev->fref * dev->n_div) / dev->r_div) / dev->o_div;
 }
 
 static unsigned long ltc6946_recalc_rate(struct clk_hw *clk_hw,
@@ -192,9 +236,6 @@ static int ltc6946_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_FREQUENCY:
 		dev_info(&indio_dev->dev, "%s write_raw\n", indio_dev->name);
 		ltc6946_calc_dividers(dev, val);
-		dev->r_div = 1;
-		dev->n_div = 1;
-		dev->o_div = 1;
 		ltc6946_set_rate(&dev->clk_hw, val, 0);
 		break;
 	default:
