@@ -13,6 +13,7 @@
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/regmap.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 
 #define LTC6946_RD_LB_REG		0x04
@@ -46,6 +47,7 @@ enum supported_parts {
 struct ltc6946 {
     struct regmap *regmap;
     struct clk_hw clk_hw;
+	struct clk *fref_clk;
 	unsigned long fref;
 	unsigned int r_div;
 	unsigned int n_div;
@@ -256,6 +258,12 @@ static const struct clk_ops ltc6946_clk_ops = {
 	.set_rate = ltc6946_set_rate,
 };
 
+static void ltc6946_clk_disable(void *data)
+{
+	struct ltc6946 *dev = data;
+
+	clk_disable_unprepare(dev->fref_clk);
+}
 
 static int ltc6946_write_raw(struct iio_dev *indio_dev,
 			     struct iio_chan_spec const *chan,
@@ -289,6 +297,7 @@ static int ltc6946_probe(struct spi_device *spi)
 	struct clk_init_data init;
 	struct regmap *regmap;
 	struct ltc6946 *dev;
+	struct clk *fref_clk;
 	struct clk *clk;
 	int ret;
 
@@ -316,6 +325,23 @@ static int ltc6946_probe(struct spi_device *spi)
 		return ret;
 
 	ltc6946_setup(indio_dev);
+
+	fref_clk = devm_clk_get(&spi->dev, "fref");
+
+	if (IS_ERR(fref_clk))
+		return PTR_ERR(fref_clk);
+
+	ret = clk_prepare_enable(fref_clk);
+	if (ret < 0)
+		return ret;
+
+	dev->fref = clk_get_rate(fref_clk);
+
+	ret = devm_add_action_or_reset(&spi->dev, ltc6946_clk_disable, dev);
+	if (ret)
+		return ret;
+
+	dev->fref_clk = fref_clk;
 
 	init.name = spi->dev.of_node->name;
 	init.ops = &ltc6946_clk_ops;
