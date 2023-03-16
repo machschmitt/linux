@@ -342,6 +342,8 @@ static int ltc6946_probe(struct spi_device *spi)
 		return ret;
 
 	dev->fref_clk = fref_clk;
+	if (dev->fref < LTC6946_FREF_MIN || dev->fref > LTC6946_FREF_MAX)
+		return -EINVAL;
 
 	init.name = spi->dev.of_node->name;
 	init.ops = &ltc6946_clk_ops;
