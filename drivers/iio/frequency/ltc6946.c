@@ -44,14 +44,19 @@ enum supported_parts {
 	LTC6946,
 };
 
-struct ltc6946 {
-    struct regmap *regmap;
-    struct clk_hw clk_hw;
-	struct clk *fref_clk;
-	unsigned long fref;
+struct ltc6946_config {
 	unsigned int r_div;
 	unsigned int n_div;
 	unsigned int o_div;
+};
+
+struct ltc6946 {
+	struct regmap *regmap;
+	struct clk_hw clk_hw;
+	struct clk *fref_clk;
+	struct ltc6946_config cfg;
+	unsigned long fref;
+	struct mutex lock; /* Protects cfg and write operations */
 };
 
 static const struct iio_chan_spec ltc6946_channels[] = {
@@ -113,7 +118,8 @@ static int ltc6946_reg_access(struct iio_dev *indio_dev,
 }
 
 static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
-					   unsigned long rate)
+					   unsigned long rate,
+					   struct ltc6946_config *cfg)
 {
 	unsigned long goal_rate, rate_fref_gcd, rd_times_od, out_rate;
 	int i;
@@ -139,17 +145,17 @@ static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
 	/* We take the greatest possible OD value that is a factor of rd_times_od */
 	for (i = LTC6946_OD_MAX; i > 0; i--) {
 		if (rd_times_od % i == 0) {
-			dev->o_div = i;
+			cfg->o_div = i;
 			break;
 		}
 	}
-	dev->r_div = rd_times_od / dev->o_div;
+	cfg->r_div = rd_times_od / cfg->o_div;
 	/* Now, ND is given by: goal_rate / (Fref / (RD * OD)) */
-	dev->n_div = goal_rate / (dev->fref / rd_times_od);
+	cfg->n_div = goal_rate / (dev->fref / rd_times_od);
 
-	out_rate = ((dev->fref * dev->n_div) / dev->r_div) / dev->o_div;
+	out_rate = ((dev->fref * cfg->n_div) / cfg->r_div) / cfg->o_div;
 	if (out_rate < LTC6946_FRF_MIN)
-		dev->n_div = dev->n_div + 1;
+		cfg->n_div = cfg->n_div + 1;
 
 	/* Output for debug/test */
 	pr_info("ltc6946: rate %lu\n", rate);
@@ -158,15 +164,15 @@ static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
 	pr_info("ltc6946: rate_fref_gcd %lu\n", rate_fref_gcd);
 	pr_info("ltc6946: rd_times_od %lu\n", rd_times_od);
 
-	pr_info("ltc6946: o_div %u\n", dev->o_div);
-	pr_info("ltc6946: r_div %u\n", dev->r_div);
-	pr_info("ltc6946: n_div %u\n", dev->n_div);
+	pr_info("ltc6946: o_div %u\n", cfg->o_div);
+	pr_info("ltc6946: r_div %u\n", cfg->r_div);
+	pr_info("ltc6946: n_div %u\n", cfg->n_div);
 
-	pr_info("ltc6946: Fvco %lu\n", (dev->fref * dev->n_div) / dev->r_div);
-	pr_info("ltc6946: Frf %lu\n", ((dev->fref * dev->n_div) / dev->r_div) / dev->o_div);
+	pr_info("ltc6946: Fvco %lu\n", (dev->fref * cfg->n_div) / cfg->r_div);
+	pr_info("ltc6946: Frf %lu\n", ((dev->fref * cfg->n_div) / cfg->r_div) / cfg->o_div);
 	pr_info("==================\n\n");
 
-	return ((dev->fref * dev->n_div) / dev->r_div) / dev->o_div;
+	return ((dev->fref * cfg->n_div) / cfg->r_div) / cfg->o_div;
 }
 
 static unsigned long ltc6946_recalc_rate(struct clk_hw *clk_hw,
@@ -210,8 +216,9 @@ static long ltc6946_round_rate(struct clk_hw *clk_hw,
 	unsigned long rate, unsigned long *parent_rate)
 {
 	struct ltc6946 *dev = container_of(clk_hw, struct ltc6946, clk_hw);
+	struct ltc6946_config cfg;
 
-	return ltc6946_calc_dividers(dev, rate);
+	return ltc6946_calc_dividers(dev, rate, &cfg);
 }
 
 static int ltc6946_set_rate(struct clk_hw *clk_hw, unsigned long rate,
@@ -221,39 +228,41 @@ static int ltc6946_set_rate(struct clk_hw *clk_hw, unsigned long rate,
 	unsigned int r_div_reg, o_div_reg;
 	int ret;
 
-	ret = regmap_write(dev->regmap, LTC6946_ND_LB_REG, dev->n_div);
+	mutex_lock(&dev->lock);
+	ret = regmap_write(dev->regmap, LTC6946_ND_LB_REG, dev->cfg.n_div);
 	if (ret < 0)
-		return ret;
+		goto err_unlock;
 
-	ret = regmap_write(dev->regmap, LTC6946_ND_HB_REG, dev->n_div >> 8);
+	ret = regmap_write(dev->regmap, LTC6946_ND_HB_REG, dev->cfg.n_div >> 8);
 	if (ret < 0)
-		return ret;
+		goto err_unlock;
 
 	ret = regmap_read(dev->regmap, LTC6946_OD_REG, &o_div_reg);
 	if (ret < 0)
-		return ret;
+		goto err_unlock;
 
 	o_div_reg &= ~LTC6946_OD_REG_MSK;
-	o_div_reg |= LTC6946_OD(dev->o_div);
+	o_div_reg |= LTC6946_OD(dev->cfg.o_div);
 	ret = regmap_write(dev->regmap, LTC6946_OD_REG, o_div_reg);
 	if (ret < 0)
-		return ret;
+		goto err_unlock;
 
-	ret = regmap_write(dev->regmap, LTC6946_RD_LB_REG, dev->r_div);
+	ret = regmap_write(dev->regmap, LTC6946_RD_LB_REG, dev->cfg.r_div);
 	if (ret < 0)
-		return ret;
+		goto err_unlock;
 
 	ret = regmap_read(dev->regmap, LTC6946_RD_HB_REG, &r_div_reg);
 	if (ret < 0)
-		return ret;
+		goto err_unlock;
 
 	r_div_reg &= ~LTC6946_RD_HB_MSK;
-	r_div_reg |= LTC6946_RD(dev->r_div >> 8);
+	r_div_reg |= LTC6946_RD(dev->cfg.r_div >> 8);
 	ret = regmap_write(dev->regmap, LTC6946_RD_HB_REG, r_div_reg);
-	if (ret < 0)
-		return ret;
 
-	return 0;
+err_unlock:
+	mutex_unlock(&dev->lock);
+
+	return ret;
 }
 
 static const struct clk_ops ltc6946_clk_ops = {
@@ -276,11 +285,15 @@ static int ltc6946_write_raw(struct iio_dev *indio_dev,
 			     long mask)
 {
 	struct ltc6946 *dev = iio_priv(indio_dev);
+	struct ltc6946_config cfg;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_FREQUENCY:
 		dev_info(&indio_dev->dev, "%s write_raw\n", indio_dev->name);
-		ltc6946_calc_dividers(dev, val);
+		ltc6946_calc_dividers(dev, val, &cfg);
+		mutex_lock(&dev->lock);
+		dev->cfg = cfg;
+		mutex_unlock(&dev->lock);
 		ltc6946_set_rate(&dev->clk_hw, val, 0);
 		break;
 	default:
@@ -317,6 +330,7 @@ static int ltc6946_probe(struct spi_device *spi)
 
 	dev = iio_priv(indio_dev);
 	dev->regmap = regmap;
+	mutex_init(&dev->lock);
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ltc6946_info;
