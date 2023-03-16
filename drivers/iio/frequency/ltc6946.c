@@ -115,7 +115,7 @@ static int ltc6946_reg_access(struct iio_dev *indio_dev,
 static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
 					   unsigned long rate)
 {
-	unsigned long goal_rate, rate_fref_gcd, rd_times_od;
+	unsigned long goal_rate, rate_fref_gcd, rd_times_od, out_rate;
 	int i;
 
 	/* Limit the rate to the frequency range allowed by hardware */
@@ -146,6 +146,10 @@ static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
 	dev->r_div = rd_times_od / dev->o_div;
 	/* Now, ND is given by: goal_rate / (Fref / (RD * OD)) */
 	dev->n_div = goal_rate / (dev->fref / rd_times_od);
+
+	out_rate = ((dev->fref * dev->n_div) / dev->r_div) / dev->o_div;
+	if (out_rate < LTC6946_FRF_MIN)
+		dev->n_div = dev->n_div + 1;
 
 	/* Output for debug/test */
 	pr_info("ltc6946: rate %lu\n", rate);
