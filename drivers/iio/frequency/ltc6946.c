@@ -28,8 +28,10 @@
 #define LTC6946_OD_REG_MSK		GENMASK(2, 0)
 #define LTC6946_OD(x)			FIELD_PREP(LTC6946_OD_REG_MSK, (x))
 
+#define LTC6946_ND_MAX			65535
+#define LTC6946_ND_MIN			32
 #define LTC6946_RD_MAX			1023
-
+#define LTC6946_RD_MIN			1
 #define LTC6946_OD_MIN			1
 #define LTC6946_OD_MAX			6
 
@@ -117,6 +119,51 @@ static int ltc6946_reg_access(struct iio_dev *indio_dev,
 	return 0;
 }
 
+/* Lowest common factor */
+unsigned long lcf(unsigned long a, unsigned long b)
+{
+	unsigned long min_nr;
+	int sqrt_min, i;
+
+	min_nr = a < b ? a : b;
+	if (min_nr == 1)
+		return 1;
+
+	sqrt_min = int_sqrt(min_nr);
+	for (i = 2; i <= sqrt_min; i++)
+		if (a % i == 0 && b % i == 0)
+			return i;
+
+	return min_nr;
+}
+
+/* If n_div is below or above the limit, try to multiply or to divide it. */
+static void ltc6946_check_n_div(struct ltc6946_config *cfg)
+{
+	unsigned long lcf_nr;
+
+	while (cfg->n_div < LTC6946_ND_MIN) {
+		lcf_nr = lcf(cfg->n_div, cfg->r_div);
+		lcf_nr = lcf_nr == 1 ? 2 : lcf_nr;
+		if (cfg->r_div * lcf_nr <= LTC6946_RD_MAX) {
+			cfg->n_div *= lcf_nr;
+			cfg->r_div *= lcf_nr;
+		} else {
+			cfg->n_div = LTC6946_ND_MIN;
+		}
+	}
+	while (cfg->n_div > LTC6946_ND_MAX) {
+		lcf_nr = lcf(cfg->n_div, cfg->r_div);
+		lcf_nr = lcf_nr == 1 ? 2 : lcf_nr;
+		if (cfg->r_div / lcf_nr >= LTC6946_RD_MIN) {
+			cfg->n_div /= lcf_nr;
+			cfg->r_div /= lcf_nr;
+		} else {
+			cfg->n_div = LTC6946_ND_MAX;
+		}
+	}
+}
+
 static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
 					   unsigned long rate,
 					   struct ltc6946_config *cfg)
@@ -156,6 +203,8 @@ static unsigned long ltc6946_calc_dividers(struct ltc6946 *dev,
 	out_rate = ((dev->fref * cfg->n_div) / cfg->r_div) / cfg->o_div;
 	if (out_rate < LTC6946_FRF_MIN)
 		cfg->n_div = cfg->n_div + 1;
+
+	ltc6946_check_n_div(cfg);
 
 	/* Output for debug/test */
 	pr_info("ltc6946: rate %lu\n", rate);
