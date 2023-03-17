@@ -352,7 +352,23 @@ static int ltc6946_write_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static int ltc6946_read_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan, int *val,
+			    int *val2, long mask)
+{
+	struct ltc6946 *dev = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_FREQUENCY:
+		*val = ltc6946_recalc_rate(&dev->clk_hw, 0);
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info ltc6946_info = {
+	.read_raw = &ltc6946_read_raw,
 	.write_raw = &ltc6946_write_raw,
 	.debugfs_reg_access = &ltc6946_reg_access,
 };
