@@ -154,14 +154,8 @@
 #define ADF4355_2_MAX_OUT_FREQ		4400000000ULL /* Hz */
 #define ADF4355_2_MIN_OUT_FREQ		(ADF4355_2_MIN_VCO_FREQ / 64) /* Hz */
 
-/*
- * FIXME: Register update sequence for fPFD > 75MHz not yet implemented
- *	  Limtit max PFD to 75MHz for now.
- *
- * #define ADF5355_MAX_FREQ_PFD		125000000UL
- */
-
-#define ADF5355_MAX_FREQ_PFD		75000000UL /* Hz */
+#define ADF5355_MAX_FREQ_PFD		125000000UL
+#define ADF5355_LOW_FREQ_PFD		75000000UL /* Hz */
 #define ADF5355_MAX_FREQ_REFIN		600000000UL /* Hz */
 #define ADF5355_MAX_MODULUS2		16384
 #define ADF5356_MAX_MODULUS2		268435456
@@ -251,10 +245,162 @@ static int adf5355_spi_write(struct adf5355_state *st, u32 val)
 	return spi_write(st->spi, &st->val, 4);
 }
 
+static int adf5355_pll_fract_n_compute(unsigned long long vco,
+				       unsigned long long pfd,
+				       unsigned int *integer, unsigned int *fract1,
+				       unsigned int *fract2, unsigned int *mod2,
+				       unsigned int max_modulus2)
+{
+	unsigned long long tmp;
+	u32 gcd_div;
+
+	tmp = do_div(vco, pfd);
+	tmp = tmp * ADF5355_MODULUS1;
+	*fract2 = do_div(tmp, pfd);
+
+	*integer = vco;
+	*fract1 = tmp;
+
+	*mod2 = pfd;
+
+	while (*mod2 > max_modulus2) {
+		*mod2 >>= 1;
+		*fract2 >>=1;
+	}
+
+	gcd_div = gcd(*fract2, *mod2);
+	*mod2 /= gcd_div;
+	*fract2 /= gcd_div;
+
+	return 0;
+}
+
+static int adf5355_compute_config(struct adf5355_state *st,
+				   unsigned long long freq, u32 channel)
+{
+	struct adf5355_platform_data *pdata = st->pdata;
+	bool prescaler, cp_neg_bleed_en;
+	u32 cp_bleed;
+
+	if (channel == 0) {
+		if ((freq > st->max_out_freq) || (freq < st->min_out_freq))
+			return -EINVAL;
+
+		st->rf_div_sel = 0;
+
+		while (freq < st->min_vco_freq) {
+			freq <<= 1;
+			st->rf_div_sel++;
+		}
+	} else {
+		/* ADF5355 RFoutB 6800...13600 MHz */
+		if ((freq > ADF5355_MAX_OUTB_FREQ) || (freq < ADF5355_MIN_OUTB_FREQ))
+			return -EINVAL;
+
+		freq >>= 1;
+	}
+
+	adf5355_pll_fract_n_compute(freq, st->fpfd, &st->integer, &st->fract1,
+			&st->fract2, &st->mod2,
+			st->is_5356 ? ADF5356_MAX_MODULUS2 : ADF5355_MAX_MODULUS2);
+
+	prescaler = (st->integer >= ADF5355_MIN_INT_PRESCALER_89);
+
+
+	/*
+	 * Do not use negative bleed when operating in integer N mode,
+	 * that is, FRAC1 = FRAC2 = 0. Do not use negative bleed for fPFD
+	 * values greater than 100 MHz.
+	 */
+
+	if (st->fpfd > 100000000UL || ((st->fract1 == 0) && (st->fract2 == 0)))
+		cp_neg_bleed_en = false;
+	else
+		cp_neg_bleed_en = pdata->cp_neg_bleed_en;
+
+	if (st->is_5356)
+		/* Bleed Value = floor(24 × (fPFD/61.44 MHz) × (ICP/0.9 mA)) */
+		cp_bleed = (24U * (st->fpfd / 1000) * pdata->cp_curr_uA) / (61440 * 900);
+	else
+		/* 4/N < IBLEED/ICP < 10/N */
+		cp_bleed = DIV_ROUND_UP(400 * pdata->cp_curr_uA, st->integer * 375);
+
+	cp_bleed = clamp(cp_bleed, 1U, 255U);
+
+	st->regs[ADF5355_REG0] = ADF5355_REG0_INT(st->integer) |
+				 ADF5355_REG0_PRESCALER(prescaler) |
+				 ADF5355_REG0_AUTOCAL(1);
+
+	st->regs[ADF5355_REG1] = ADF5355_REG1_FRACT(st->fract1);
+	st->regs[ADF5355_REG2] = ADF5355_REG2_MOD2(st->mod2) |
+				ADF5355_REG2_FRAC2(st->fract2);
+
+	if (st->is_5356)
+		st->regs[ADF5356_REG13] = ADF5356_REG13_MOD2_MSB(st->mod2 >> 14) |
+					 ADF5356_REG13_FRAC2_MSB(st->fract2 >> 14);
+
+
+	st->regs[ADF5355_REG6] =
+		ADF5355_REG6_OUTPUT_PWR(pdata->outa_power) |
+		ADF5355_REG6_RF_OUT_EN(pdata->outa_en) |
+		(st->is_5355 ? ADF5355_REG6_RF_OUTB_EN(!pdata->outb_en) :
+			ADF4355_REG6_OUTPUTB_PWR(pdata->outb_power) |
+			ADF4355_REG6_RF_OUTB_EN(pdata->outb_en)) |
+		ADF5355_REG6_MUTE_TILL_LOCK_EN(pdata->mute_till_lock_detect_en) |
+		ADF5355_REG6_CP_BLEED_CURR(cp_bleed) |
+		ADF5355_REG6_RF_DIV_SEL(st->rf_div_sel) |
+		ADF5355_REG6_FEEDBACK_FUND(1) |
+		ADF5355_REG6_NEG_BLEED_EN(cp_neg_bleed_en) |
+		ADF5355_REG6_GATED_BLEED_EN(pdata->cp_gated_bleed_en) |
+		ADF5356_REG6_BLEED_POLARITY(st->is_5356 ?
+			pdata->cp_bleed_current_polarity_en : 0) |
+		ADF5355_REG6_DEFAULT;
+
+	st->freq_req = freq;
+	st->freq_req_chan = channel;
+
+	dev_dbg(&st->spi->dev, "VCO: %llu Hz, PFD %lu Hz\n"
+		"INT %d, FRACT1 %d, FRACT2 %d\n"
+		"MOD2 %d, RF_DIV %d\nPRESCALER %s\n",
+		freq, st->fpfd, st->integer, st->fract1,st->fract2, st->mod2,
+		1 << st->rf_div_sel, prescaler ? "8/9" : "4/5");
+
+	return 0;
+}
+
+static int adf5355_sync_high_freq_pfd_config(struct adf5355_state *st)
+{
+	int ret;
+
+	if (st->is_5356) {
+		ret = adf5355_spi_write(st, st->regs[13] | 13);
+		if (ret < 0)
+			return ret;
+	}
+	ret = adf5355_spi_write(st, st->regs[4] |
+		ADF5355_REG4_COUNTER_RESET_EN(1) | 4);
+	if (ret < 0)
+		return ret;
+	ret = adf5355_spi_write(st, st->regs[2] | 2);
+	if (ret < 0)
+		return ret;
+	ret = adf5355_spi_write(st, st->regs[1] | 1);
+	if (ret < 0)
+		return ret;
+	ret = adf5355_spi_write(st, st->regs[0] &
+		~ADF5355_REG0_AUTOCAL(1));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int adf5355_sync_config(struct adf5355_state *st, bool sync_all)
 {
+	unsigned long full_fpfd;
 	int ret, i;
 
+	full_fpfd = st->fpfd;
 	if (sync_all || !st->all_synced) {
 		for (i = st->is_5356 ? ADF5356_REG13 : ADF5355_REG12;
 			i >= ADF5355_REG0; i--) {
@@ -264,6 +410,11 @@ static int adf5355_sync_config(struct adf5355_state *st, bool sync_all)
 		}
 		st->all_synced = true;
 	} else {
+		if (st->fpfd > ADF5355_LOW_FREQ_PFD) {
+			ret = adf5355_compute_config(st, st->fpfd >> 1, 0);
+			if (ret < 0)
+				return ret;
+		}
 		if (st->is_5356) {
 			ret = adf5355_spi_write(st, st->regs[13] | 13);
 			if (ret < 0)
@@ -295,6 +446,17 @@ static int adf5355_sync_config(struct adf5355_state *st, bool sync_all)
 		ret = adf5355_spi_write(st, st->regs[0]);
 		if (ret < 0)
 			return ret;
+
+		if (full_fpfd > ADF5355_LOW_FREQ_PFD) {
+			st->fpfd = full_fpfd;
+			ret = adf5355_compute_config(st, st->fpfd, 0);
+			if (ret < 0)
+				return ret;
+
+			ret = adf5355_sync_high_freq_pfd_config(st);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -321,36 +483,6 @@ static int adf5355_reg_access(struct iio_dev *indio_dev,
 	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
-}
-
-static int adf5355_pll_fract_n_compute(unsigned long long vco,
-				       unsigned long long pfd,
-				       unsigned int *integer, unsigned int *fract1,
-				       unsigned int *fract2, unsigned int *mod2,
-				       unsigned int max_modulus2)
-{
-	unsigned long long tmp;
-	u32 gcd_div;
-
-	tmp = do_div(vco, pfd);
-	tmp = tmp * ADF5355_MODULUS1;
-	*fract2 = do_div(tmp, pfd);
-
-	*integer = vco;
-	*fract1 = tmp;
-
-	*mod2 = pfd;
-
-	while (*mod2 > max_modulus2) {
-		*mod2 >>= 1;
-		*fract2 >>=1;
-	}
-
-	gcd_div = gcd(*fract2, *mod2);
-	*mod2 /= gcd_div;
-	*fract2 /= gcd_div;
-
-	return 0;
 }
 
 static unsigned long long adf5355_pll_fract_n_get_rate(struct adf5355_state *st,
@@ -457,92 +589,11 @@ static int adf5355_setup(struct adf5355_state *st, unsigned long parent_rate)
 static int adf5355_set_freq(struct adf5355_state *st, unsigned long long freq,
 			    u32 channel)
 {
-	struct adf5355_platform_data *pdata = st->pdata;
-	bool prescaler, cp_neg_bleed_en;
-	u32 cp_bleed;
+	int ret;
 
-	if (channel == 0) {
-		if ((freq > st->max_out_freq) || (freq < st->min_out_freq))
-			return -EINVAL;
-
-		st->rf_div_sel = 0;
-
-		while (freq < st->min_vco_freq) {
-			freq <<= 1;
-			st->rf_div_sel++;
-		}
-	} else {
-		/* ADF5355 RFoutB 6800...13600 MHz */
-		if ((freq > ADF5355_MAX_OUTB_FREQ) || (freq < ADF5355_MIN_OUTB_FREQ))
-			return -EINVAL;
-
-		freq >>= 1;
-	}
-
-	adf5355_pll_fract_n_compute(freq, st->fpfd, &st->integer, &st->fract1,
-			&st->fract2, &st->mod2,
-			st->is_5356 ? ADF5356_MAX_MODULUS2 : ADF5355_MAX_MODULUS2);
-
-	prescaler = (st->integer >= ADF5355_MIN_INT_PRESCALER_89);
-
-
-	/*
-	 * Do not use negative bleed when operating in integer N mode,
-	 * that is, FRAC1 = FRAC2 = 0. Do not use negative bleed for fPFD
-	 * values greater than 100 MHz.
-	 */
-
-	if (st->fpfd > 100000000UL || ((st->fract1 == 0) && (st->fract2 == 0)))
-		cp_neg_bleed_en = false;
-	else
-		cp_neg_bleed_en = pdata->cp_neg_bleed_en;
-
-	if (st->is_5356)
-		/* Bleed Value = floor(24 × (fPFD/61.44 MHz) × (ICP/0.9 mA)) */
-		cp_bleed = (24U * (st->fpfd / 1000) * pdata->cp_curr_uA) / (61440 * 900);
-	else
-		/* 4/N < IBLEED/ICP < 10/N */
-		cp_bleed = DIV_ROUND_UP(400 * pdata->cp_curr_uA, st->integer * 375);
-
-	cp_bleed = clamp(cp_bleed, 1U, 255U);
-
-	st->regs[ADF5355_REG0] = ADF5355_REG0_INT(st->integer) |
-				 ADF5355_REG0_PRESCALER(prescaler) |
-				 ADF5355_REG0_AUTOCAL(1);
-
-	st->regs[ADF5355_REG1] = ADF5355_REG1_FRACT(st->fract1);
-	st->regs[ADF5355_REG2] = ADF5355_REG2_MOD2(st->mod2) |
-				ADF5355_REG2_FRAC2(st->fract2);
-
-	if (st->is_5356)
-		st->regs[ADF5356_REG13] = ADF5356_REG13_MOD2_MSB(st->mod2 >> 14) |
-					 ADF5356_REG13_FRAC2_MSB(st->fract2 >> 14);
-
-
-	st->regs[ADF5355_REG6] =
-		ADF5355_REG6_OUTPUT_PWR(pdata->outa_power) |
-		ADF5355_REG6_RF_OUT_EN(pdata->outa_en) |
-		(st->is_5355 ? ADF5355_REG6_RF_OUTB_EN(!pdata->outb_en) :
-			ADF4355_REG6_OUTPUTB_PWR(pdata->outb_power) |
-			ADF4355_REG6_RF_OUTB_EN(pdata->outb_en)) |
-		ADF5355_REG6_MUTE_TILL_LOCK_EN(pdata->mute_till_lock_detect_en) |
-		ADF5355_REG6_CP_BLEED_CURR(cp_bleed) |
-		ADF5355_REG6_RF_DIV_SEL(st->rf_div_sel) |
-		ADF5355_REG6_FEEDBACK_FUND(1) |
-		ADF5355_REG6_NEG_BLEED_EN(cp_neg_bleed_en) |
-		ADF5355_REG6_GATED_BLEED_EN(pdata->cp_gated_bleed_en) |
-		ADF5356_REG6_BLEED_POLARITY(st->is_5356 ?
-			pdata->cp_bleed_current_polarity_en : 0) |
-		ADF5355_REG6_DEFAULT;
-
-	st->freq_req = freq;
-	st->freq_req_chan = channel;
-
-	dev_dbg(&st->spi->dev, "VCO: %llu Hz, PFD %lu Hz\n"
-		"INT %d, FRACT1 %d, FRACT2 %d\n"
-		"MOD2 %d, RF_DIV %d\nPRESCALER %s\n",
-		freq, st->fpfd, st->integer, st->fract1,st->fract2, st->mod2,
-		1 << st->rf_div_sel, prescaler ? "8/9" : "4/5");
+	ret = adf5355_compute_config(st, freq, channel);
+	if (ret < 0)
+		return ret;
 
 	return adf5355_sync_config(st, false);
 }
