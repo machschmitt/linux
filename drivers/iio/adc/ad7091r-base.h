@@ -53,6 +53,7 @@ struct ad7091r_state {
 enum ad7091r_device_type {
 	AD7091R2,
 	AD7091R4,
+	AD7091R5,
 	AD7091R8,
 };
 

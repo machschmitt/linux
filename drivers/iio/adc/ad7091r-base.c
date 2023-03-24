@@ -44,10 +44,14 @@ static int ad7091r_set_mode(struct ad7091r_state *st, enum ad7091r_mode mode)
 		return -EINVAL;
 	}
 
-	ret = regmap_update_bits(st->map, AD7091R_REG_CONF,
-				 AD7091R_REG_CONF_MODE_MASK, conf);
-	if (ret)
-		return ret;
+	/* AD7091R-2/4/8 don't set normal, command, autocycle modes in conf reg */
+	if (st->chip_info->type == AD7091R5) {
+		return 0;
+		ret = regmap_update_bits(st->map, AD7091R_REG_CONF,
+					 AD7091R_REG_CONF_MODE_MASK, conf);
+		if (ret)
+			return ret;
+	}
 
 	st->mode = mode;
 
