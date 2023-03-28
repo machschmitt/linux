@@ -215,6 +215,7 @@ dtbo-$(CONFIG_ARCH_BCM2835) += \
 	rpi-ad5686.dtbo \
 	rpi-ad5679r.dtbo \
 	rpi-ad5766.dtbo \
+	rpi-ad7091r8.dtbo \
 	rpi-ad7124.dtbo \
 	rpi-ad7124-8-all-diff-cs0-int25.dtbo \
 	rpi-ad7173.dtbo \
