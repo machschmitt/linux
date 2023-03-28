@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
+// Definitions for Analog Devices AD7091R-8 ADC
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2711";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			ad7091r8@0 {
+				compatible = "adi,ad7091r8";
+				reg = <0x0>;
+				status = "okay";
+				spi-max-frequency = <45454545>;
+			};
+		};
+	};
+};
