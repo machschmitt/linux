@@ -169,6 +169,16 @@ static struct regmap_bus ad7091r8_regmap_bus = {
 	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
+int ad7091r8_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct device *dev = context;
+	struct spi_device *spi = to_spi_device(dev);
+
+	dev_info(&spi->dev, "reg_read");
+	*val = 666;
+	return 0;
+}
+
 int ad7091r8_reg_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct device *dev = context;
@@ -193,12 +203,14 @@ static const struct regmap_config ad7091r_spi_regmap_config[] = {
 		.wr_table = &ad7091r2_writable_regs_table,
 		.max_register = AD7091R_REG_CH_HYSTERESIS(2),
 	},
-	[AD7091R4] = {
+	[AD7091R4] = { //reg_shift = 11 % 8 = 3
+		// 16 + 3 = 19
 		.reg_bits = 16,
 		.val_bits = 16,
 		.write_flag_mask = BIT(10),
-		.pad_bits = 11,
+		//.pad_bits = 11,
 		.reg_write = &ad7091r8_reg_write,
+		.reg_read = &ad7091r8_reg_read,
 		.rd_table = &ad7091r4_readable_regs_table,
 		.wr_table = &ad7091r4_writable_regs_table,
 		.max_register = AD7091R_REG_CH_HYSTERESIS(4),
@@ -206,8 +218,9 @@ static const struct regmap_config ad7091r_spi_regmap_config[] = {
 	[AD7091R8] = {
 		.reg_bits = 16,
 		.val_bits = 16,
-		.write_flag_mask = BIT(10),
-		.pad_bits = 11,
+		//.write_flag_mask = BIT(10),
+		//.pad_bits = 11,
+		.reg_read = &ad7091r8_reg_read,
 		.reg_write = &ad7091r8_reg_write,
 		.rd_table = &ad7091r8_readable_regs_table,
 		.wr_table = &ad7091r8_writable_regs_table,
