@@ -17,7 +17,12 @@
 #define AD7091R8_RD_WR_FLAG_MSK				BIT(10)
 #define AD7091R8_REG_DATA_MSK				GENMASK(9, 0)
 
+#define AD7091R2_DEV_NAME				"ad7091r-2"
+#define AD7091R4_DEV_NAME				"ad7091r-4"
+#define AD7091R8_DEV_NAME				"ad7091r-8"
+
 #define AD7091R_SPI_CHIP_INFO(n) {					\
+	.name = AD7091R##n##_DEV_NAME,					\
 	.type =	AD7091R##n,						\
 	.channels = ad7091r##n##_channels,				\
 	.num_channels = ARRAY_SIZE(ad7091r##n##_channels),		\
@@ -219,8 +224,7 @@ static int ad7091r8_spi_probe(struct spi_device *spi)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	return ad7091r_probe(iio_dev, spi_get_device_id(spi)->name, chip_info,
-			     map, 0);
+	return ad7091r_probe(iio_dev, chip_info->name, chip_info, map, 0);
 }
 
 static const struct of_device_id ad7091r8_of_match[] = {
