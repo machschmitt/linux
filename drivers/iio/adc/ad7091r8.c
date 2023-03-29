@@ -221,8 +221,11 @@ static int ad7091r8_spi_probe(struct spi_device *spi)
 	map = devm_regmap_init(&spi->dev, &ad7091r8_regmap_bus, st,
 			       &ad7091r_spi_regmap_config[chip_info->type]);
 
-	if (IS_ERR(map))
+	if (IS_ERR(map)) {
+		dev_err(&spi->dev, "Error initializing spi regmap: %ld\n",
+			PTR_ERR(map));
 		return PTR_ERR(map);
+	}
 
 	return ad7091r_probe(iio_dev, spi_get_device_id(spi)->name, chip_info,
 			     map, 0);
