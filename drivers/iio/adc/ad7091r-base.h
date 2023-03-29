@@ -58,6 +58,7 @@ enum ad7091r_device_type {
 };
 
 struct ad7091r_chip_info {
+	const char *name;
 	enum ad7091r_device_type type;
 	unsigned int num_channels;
 	const struct iio_chan_spec *channels;
