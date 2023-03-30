@@ -33,13 +33,6 @@
 	.scan_type.realbits = bits,					\
 }
 
-extern const struct regmap_access_table ad7091r2_readable_regs_table;
-extern const struct regmap_access_table ad7091r4_readable_regs_table;
-extern const struct regmap_access_table ad7091r8_readable_regs_table;
-
-extern const struct regmap_access_table ad7091r2_writable_regs_table;
-extern const struct regmap_access_table ad7091r4_writable_regs_table;
-extern const struct regmap_access_table ad7091r8_writable_regs_table;
 
 struct device;
 

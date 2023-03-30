@@ -42,6 +42,69 @@ static const struct iio_chan_spec ad7091r8_channels[] = {
 	AD7091R_CHANNEL(7, 12, NULL, 0),
 };
 
+static const struct regmap_range ad7091r2_readable_ranges[] = {
+	regmap_reg_range(AD7091R_REG_RESULT,
+			 AD7091R_REG_CH_HYSTERESIS(AD7091R2_NUM_CHANNELS)),
+};
+
+static const struct regmap_range ad7091r4_readable_ranges[] = {
+	regmap_reg_range(AD7091R_REG_RESULT,
+			 AD7091R_REG_CH_HYSTERESIS(AD7091R4_NUM_CHANNELS)),
+};
+
+static const struct regmap_range ad7091r8_readable_ranges[] = {
+	regmap_reg_range(AD7091R_REG_RESULT,
+			 AD7091R_REG_CH_HYSTERESIS(AD7091R8_NUM_CHANNELS)),
+};
+
+static const struct regmap_access_table ad7091r2_readable_regs_table = {
+	.yes_ranges = ad7091r2_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ad7091r2_readable_ranges),
+};
+
+static const struct regmap_access_table ad7091r4_readable_regs_table = {
+	.yes_ranges = ad7091r4_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ad7091r4_readable_ranges),
+};
+
+static const struct regmap_access_table ad7091r8_readable_regs_table = {
+	.yes_ranges = ad7091r8_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ad7091r8_readable_ranges),
+};
+
+static const struct regmap_range ad7091r2_writable_ranges[] = {
+	regmap_reg_range(AD7091R_REG_CHANNEL, AD7091R_REG_CONF),
+	regmap_reg_range(AD7091R_REG_CH_LOW_LIMIT(0),
+			 AD7091R_REG_CH_HYSTERESIS(AD7091R2_NUM_CHANNELS)),
+};
+
+static const struct regmap_range ad7091r4_writable_ranges[] = {
+	regmap_reg_range(AD7091R_REG_CHANNEL, AD7091R_REG_CONF),
+	regmap_reg_range(AD7091R_REG_CH_LOW_LIMIT(0),
+			 AD7091R_REG_CH_HYSTERESIS(AD7091R4_NUM_CHANNELS)),
+};
+
+static const struct regmap_range ad7091r8_writable_ranges[] = {
+	regmap_reg_range(AD7091R_REG_CHANNEL, AD7091R_REG_CONF),
+	regmap_reg_range(AD7091R_REG_CH_LOW_LIMIT(0),
+			 AD7091R_REG_CH_HYSTERESIS(AD7091R8_NUM_CHANNELS)),
+};
+
+static const struct regmap_access_table ad7091r2_writable_regs_table = {
+	.yes_ranges = ad7091r2_writable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ad7091r2_writable_ranges),
+};
+
+static const struct regmap_access_table ad7091r4_writable_regs_table = {
+	.yes_ranges = ad7091r4_writable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ad7091r4_writable_ranges),
+};
+
+static const struct regmap_access_table ad7091r8_writable_regs_table = {
+	.yes_ranges = ad7091r8_writable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ad7091r8_writable_ranges),
+};
+
 static const struct ad7091r_chip_info ad7091r_spi_chip_info[] = {
 	[AD7091R2] = AD7091R_SPI_CHIP_INFO(2),
 	[AD7091R4] = AD7091R_SPI_CHIP_INFO(4),
