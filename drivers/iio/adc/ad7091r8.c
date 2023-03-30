@@ -173,9 +173,20 @@ int ad7091r8_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct device *dev = context;
 	struct spi_device *spi = to_spi_device(dev);
+	unsigned int tx_buf, rx_buf;
+	int ret;
 
 	dev_info(&spi->dev, "reg_read");
-	*val = 666;
+
+	tx_buf = FIELD_PREP(AD7091R_SPI_WR_REG_MSK, reg) |
+		 FIELD_PREP(AD7091R_SPI_WR_FLAG_MSK, 0);
+
+	ret = spi_write_then_read(spi, &tx_buf, 16, &rx_buf, 16);
+	if (ret < 0)
+		return ret;
+
+	*val = rx_buf;
+
 	return 0;
 }
 
@@ -183,13 +194,14 @@ int ad7091r8_reg_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct device *dev = context;
 	struct spi_device *spi = to_spi_device(dev);
-	unsigned int wr_buf;
+	unsigned int tx_buf;
 
-	wr_buf = FIELD_PREP(AD7091R8_REG_ADDR_MSK, reg) |
+	dev_info(&spi->dev, "reg_write");
+	tx_buf = FIELD_PREP(AD7091R8_REG_ADDR_MSK, reg) |
 		 FIELD_PREP(AD7091R8_RD_WR_FLAG_MSK, 1) |
 		 FIELD_PREP(AD7091R8_REG_DATA_MSK, val);
 
-	return spi_write(spi, &wr_buf, 16);
+	return spi_write(spi, &tx_buf, 16);
 }
 
 static const struct regmap_config ad7091r_spi_regmap_config[] = {
