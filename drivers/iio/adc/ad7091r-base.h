@@ -17,6 +17,10 @@
 #define AD7091R_REG_CH_HIGH_LIMIT(ch) ((ch) * 3 + 5)
 #define AD7091R_REG_CH_HYSTERESIS(ch) ((ch) * 3 + 6)
 
+#define AD7091R2_NUM_CHANNELS				2
+#define AD7091R4_NUM_CHANNELS				4
+#define AD7091R8_NUM_CHANNELS				8
+
 #define AD7091R_CHANNEL(idx, bits, ev, num_ev) {			\
 	.type = IIO_VOLTAGE,						\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
@@ -46,7 +50,16 @@ struct ad7091r_state {
 	struct mutex lock; /*lock to prevent concurent reads */
 };
 
+enum ad7091r_device_type {
+	AD7091R2,
+	AD7091R4,
+	AD7091R5,
+	AD7091R8,
+};
+
 struct ad7091r_chip_info {
+	const char *name;
+	enum ad7091r_device_type type;
 	unsigned int num_channels;
 	const struct iio_chan_spec *channels;
 	unsigned int vref_mV;
