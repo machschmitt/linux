@@ -33,7 +33,6 @@
 	.scan_type.realbits = bits,					\
 }
 
-
 struct device;
 
 enum ad7091r_mode {
