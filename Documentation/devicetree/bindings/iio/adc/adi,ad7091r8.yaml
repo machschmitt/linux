@@ -23,9 +23,7 @@ properties:
   reg:
     maxItems: 1
 
-  vref-supply:
-    description:
-      Phandle to the vref power supply
+  vref-supply: true
 
   spi-max-frequency: true
 
@@ -33,7 +31,22 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+patternProperties:
+  "^channel@[0-7]$":
+    $ref: "adc.yaml"
+    type: object
+    description: Represents the external channels which are connected to the ADC.
+
+    properties:
+      reg:
+        description: The channel number in single-ended mode.
+        minimum: 0
+        maximum: 7
+
+    required:
+      - reg
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -41,7 +54,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        ad7091r8: adc@0 {
+        adc@0 {
                 compatible = "adi,ad7091r8";
                 reg = <0x0>;
                 spi-max-frequency = <45454545>;
