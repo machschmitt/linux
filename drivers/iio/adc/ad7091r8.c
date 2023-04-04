@@ -208,8 +208,11 @@ static int ad7091r8_spi_probe(struct spi_device *spi)
 	struct regmap *map;
 
 	chip_info = device_get_match_data(&spi->dev);
-	if (!chip_info)
+	if (!chip_info) {
 		chip_info = (const struct ad7091r_chip_info *)spi_get_device_id(spi)->driver_data;
+		if (!chip_info)
+			return -EINVAL;
+	}
 
 	iio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!iio_dev)
@@ -221,11 +224,10 @@ static int ad7091r8_spi_probe(struct spi_device *spi)
 	map = devm_regmap_init(&spi->dev, &ad7091r8_regmap_bus, st,
 			       &ad7091r_spi_regmap_config[chip_info->type]);
 
-	if (IS_ERR(map)) {
-		dev_err(&spi->dev, "Error initializing spi regmap: %ld\n",
-			PTR_ERR(map));
-		return PTR_ERR(map);
-	}
+	if (IS_ERR(map))
+		return dev_err_probe(&spi->dev, PTR_ERR(map),
+				     "Error initializing spi regmap: %ld\n",
+				     PTR_ERR(map));
 
 	return ad7091r_probe(iio_dev, spi_get_device_id(spi)->name, chip_info,
 			     map, 0);
