@@ -5,12 +5,17 @@
  * Copyright 2023 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
 #include "ad7091r-base.h"
+
+#define AD7091R8_REG_ADDR_MSK				GENMASK(15, 11)
+#define AD7091R8_RD_WR_FLAG_MSK				BIT(10)
+#define AD7091R8_REG_DATA_MSK				GENMASK(9, 0)
 
 #define AD7091R_SPI_CHIP_INFO(n) {					\
 	.type =	AD7091R##n,						\
@@ -111,6 +116,59 @@ static const struct ad7091r_chip_info ad7091r_spi_chip_info[] = {
 	[AD7091R8] = AD7091R_SPI_CHIP_INFO(8),
 };
 
+static int ad7091r_spi_read(void *context, const void *reg, size_t reg_size,
+			    void *val, size_t val_size)
+{
+	struct ad7091r_state *st = context;
+	struct spi_device *spi = container_of(st->dev, struct spi_device, dev);
+	unsigned int reg_add = *(unsigned int *)reg & 0x1f;
+	__be16 rx;
+	u16 tx;
+	int ret;
+
+	/* No need to prepare a read command if reading from conv res reg */
+	if (reg_add != AD7091R_REG_RESULT) {
+		tx = cpu_to_be16(FIELD_PREP(AD7091R8_RD_WR_FLAG_MSK, 0) |
+				 FIELD_PREP(AD7091R8_REG_ADDR_MSK, reg_add));
+
+		ret = spi_write(spi, &tx, 2);
+		if (ret)
+			return ret;
+	}
+
+	ret = spi_read(spi, &rx, val_size);
+	if (ret)
+		return ret;
+
+	memcpy(val, &rx, val_size);
+	return 0;
+}
+
+static int ad7091r_spi_write(void *context, const void *data, size_t count)
+{
+	struct ad7091r_state *st = context;
+	struct spi_device *spi = container_of(st->dev, struct spi_device, dev);
+	u32 tx_data = *((int *)data);
+	u16 tx;
+
+	/*
+	 * AD7091R-2/-4/-8 protocol (datasheet page 31) is to do a single SPI
+	 * transfer with reg address set in bits B15:B11 and value set in B9:B0.
+	 */
+	tx = cpu_to_be16(FIELD_PREP(AD7091R8_REG_DATA_MSK, cpu_to_be16(tx_data >> 8)) |
+			 FIELD_PREP(AD7091R8_RD_WR_FLAG_MSK, 1) |
+			 FIELD_PREP(AD7091R8_REG_ADDR_MSK, tx_data));
+
+	return spi_write(spi, &tx, 2);
+}
+
+static struct regmap_bus ad7091r8_regmap_bus = {
+	.read = ad7091r_spi_read,
+	.write = ad7091r_spi_write,
+	.reg_format_endian_default = REGMAP_ENDIAN_BIG,
+	.val_format_endian_default = REGMAP_ENDIAN_BIG,
+};
+
 static const struct regmap_config ad7091r_spi_regmap_config[] = {
 	[AD7091R2] = {
 		.reg_bits = 8,
@@ -153,8 +211,8 @@ static int ad7091r8_spi_probe(struct spi_device *spi)
 	st = iio_priv(iio_dev);
 	st->dev = &spi->dev;
 
-	map = devm_regmap_init_spi(spi,
-				   &ad7091r_spi_regmap_config[chip_info->type]);
+	map = devm_regmap_init(&spi->dev, &ad7091r8_regmap_bus, st,
+			       &ad7091r_spi_regmap_config[chip_info->type]);
 
 	if (IS_ERR(map))
 		return PTR_ERR(map);
