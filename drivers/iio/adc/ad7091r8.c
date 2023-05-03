@@ -176,7 +176,7 @@ static struct regmap_bus ad7091r8_regmap_bus = {
 
 static const struct regmap_config ad7091r_spi_regmap_config[] = {
 	[AD7091R2] = {
-		.reg_bits = 16,
+		.reg_bits = 8,
 		.val_bits = 16,
 		.write_flag_mask = BIT(10),
 		.rd_table = &ad7091r2_readable_regs_table,
@@ -184,7 +184,7 @@ static const struct regmap_config ad7091r_spi_regmap_config[] = {
 		.max_register = AD7091R_REG_CH_HYSTERESIS(2),
 	},
 	[AD7091R4] = {
-		.reg_bits = 16,
+		.reg_bits = 8,
 		.val_bits = 16,
 		.write_flag_mask = BIT(10),
 		.rd_table = &ad7091r4_readable_regs_table,
@@ -192,8 +192,9 @@ static const struct regmap_config ad7091r_spi_regmap_config[] = {
 		.max_register = AD7091R_REG_CH_HYSTERESIS(4),
 	},
 	[AD7091R8] = {
-		.reg_bits = 16,
+		.reg_bits = 8,
 		.val_bits = 16,
+		.write_flag_mask = BIT(10),
 		.rd_table = &ad7091r8_readable_regs_table,
 		.wr_table = &ad7091r8_writable_regs_table,
 		.max_register = AD7091R_REG_CH_HYSTERESIS(8),
