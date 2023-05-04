@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-only
+// Definitions for Analog Devices ADAQ4003 ADC
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2711";
+};
+
+&{/} {
+	adc_vref: fixed-regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-supply";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	adaq4003@0 {
+		compatible = "adi,adaq4003";
+		reg = <0x0>;
+
+		spi-max-frequency = <100000000>;
+
+		vref-supply = <&adc_vref>;
+
+		channel@0 {
+			reg = <0>;
+			diff-channels = <0 1>;
+		};
+	};
+};
+
+&spidev0 {
+	status = "disabled";
+};
+
+&spidev1 {
+	status = "disabled";
+};
