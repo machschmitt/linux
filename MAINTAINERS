@@ -1111,6 +1111,13 @@ S:	Supported
 F:	drivers/iio/dac/ad400x.c
 F:	Documentation/devicetree/bindings/iio/adc/ad400x.txt
 
+ANALOG DEVICES INC AXI-AD3552R DRIVER
+M:	Marcelo Schmitt <marcelo.schmitt@analog.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+W:	https://ez.analog.com/linux-software-drivers
+F:	Documentation/devicetree/bindings/iio/dac/adi,axi-ad3552r.yaml
+
 AMD SENSOR FUSION HUB DRIVER
 M:	Basavaraj Natikar <basavaraj.natikar@amd.com>
 L:	linux-input@vger.kernel.org
