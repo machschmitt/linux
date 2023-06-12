@@ -1210,19 +1210,9 @@ struct reg_addr_poll {
 	u8 reg;
 };
 
-static void axi_ad3552r_write(struct cf_axi_dds_state *st, u32 reg, u32 val)
-{
-	iowrite32(val, st->regs + reg);
-}
-
-static u32 axi_ad3552r_read(struct cf_axi_dds_state *st, u32 reg)
-{
-	return ioread32(st->regs + reg);
-}
-
 static u32 axi_ad3552r_read_wrapper(struct reg_addr_poll *addr)
 {
-	return axi_ad3552r_read(addr->st, addr->reg);
+	return dds_read(addr->st, addr->reg);
 }
 
 static void axi_ad3552r_update_bits(struct cf_axi_dds_state *st, u32 reg,
@@ -1230,12 +1220,12 @@ static void axi_ad3552r_update_bits(struct cf_axi_dds_state *st, u32 reg,
 {
 	u32 tmp, orig;
 
-	orig = axi_ad3552r_read(st, reg);
+	orig = dds_read(st, reg);
 	tmp = orig & ~mask;
 	tmp |= val & mask;
 
 	if (tmp != orig)
-		axi_ad3552r_write(st, reg, tmp);
+		dds_write(st, reg, tmp);
 }
 
 static void axi_ad3552r_spi_write(struct cf_axi_dds_state *st, u32 reg, u32 val,
@@ -1245,11 +1235,11 @@ static void axi_ad3552r_spi_write(struct cf_axi_dds_state *st, u32 reg, u32 val,
 	u32 check;
 
 	if (transfer_params & AXI_MSK_SYMB_8B)
-		axi_ad3552r_write(st, AXI_REG_CNTRL_DATA_WR, CNTRL_DATA_WR_8(val));
+		dds_write(st, AXI_REG_CNTRL_DATA_WR, CNTRL_DATA_WR_8(val));
 	else
-		axi_ad3552r_write(st, AXI_REG_CNTRL_DATA_WR, CNTRL_DATA_WR_16(val));
+		dds_write(st, AXI_REG_CNTRL_DATA_WR, CNTRL_DATA_WR_16(val));
 
-	axi_ad3552r_write(st, AXI_REG_CNTRL_2, transfer_params);
+	dds_write(st, AXI_REG_CNTRL_2, transfer_params);
 
 	axi_ad3552r_update_bits(st, AXI_REG_CNTRL_CSTM, AXI_MSK_ADDRESS,
 				CNTRL_CSTM_ADDR(reg));
@@ -1270,7 +1260,7 @@ static u32 axi_ad3552r_spi_read(struct cf_axi_dds_state *st, u32 reg,
 	u32 val;
 
 	axi_ad3552r_spi_write(st, RD_ADDR(reg), 0x00, transfer_params);
-	val = axi_ad3552r_read(st, AXI_REG_CNTRL_DATA_RD);
+	val = dds_read(st, AXI_REG_CNTRL_DATA_RD);
 
 	return val;
 }
@@ -1322,8 +1312,8 @@ static int ad3552r_set_input_source(struct iio_dev *indio_dev,
 {
 	struct cf_axi_dds_state *st = iio_priv(indio_dev);
 
-	axi_ad3552r_write(st, AXI_REG_CHAN_CNTRL_7_CH0, mode);
-	axi_ad3552r_write(st, AXI_REG_CHAN_CNTRL_7_CH1, mode);
+	dds_write(st, AXI_REG_CHAN_CNTRL_7_CH0, mode);
+	dds_write(st, AXI_REG_CHAN_CNTRL_7_CH1, mode);
 
 	return 0;
 }
@@ -1333,7 +1323,7 @@ static int ad3552r_get_input_source(struct iio_dev *indio_dev,
 {
 	struct cf_axi_dds_state *st = iio_priv(indio_dev);
 
-	return axi_ad3552r_read(st, AXI_REG_CHAN_CNTRL_7_CH0);
+	return dds_read(st, AXI_REG_CHAN_CNTRL_7_CH0);
 }
 
 static int ad3552r_set_stream_state(struct iio_dev *indio_dev,
@@ -1344,15 +1334,15 @@ static int ad3552r_set_stream_state(struct iio_dev *indio_dev,
 
 	if (mode == 2) {
 		st->synced_transfer = true;
-		axi_ad3552r_write(st, AXI_REG_CNTRL_1, AXI_EXT_SYNC_ARM);
-		axi_ad3552r_write(st, AXI_REG_CNTRL_2, (u32)(AXI_MSK_USIGN_DATA |
+		dds_write(st, AXI_REG_CNTRL_1, AXI_EXT_SYNC_ARM);
+		dds_write(st, AXI_REG_CNTRL_2, (u32)(AXI_MSK_USIGN_DATA |
 							     ~AXI_MSK_SDR_DDR_N));
 		axi_ad3552r_update_bits(st, AXI_REG_CNTRL_CSTM,
 					AD3552R_STREAM_SATRT,
 					AD3552R_STREAM_SATRT);
 	} else if (mode == 1) {
 		st->synced_transfer = false;
-		axi_ad3552r_write(st, AXI_REG_CNTRL_2, (u32)(AXI_MSK_USIGN_DATA |
+		dds_write(st, AXI_REG_CNTRL_2, (u32)(AXI_MSK_USIGN_DATA |
 							     ~AXI_MSK_SDR_DDR_N));
 		axi_ad3552r_update_bits(st, AXI_REG_CNTRL_CSTM,
 					AD3552R_STREAM_SATRT,
@@ -1372,7 +1362,7 @@ static int ad3552r_get_stream_state(struct iio_dev *indio_dev,
 	struct cf_axi_dds_state *st = iio_priv(indio_dev);
 	u32 val;
 
-	val = axi_ad3552r_read(st, AXI_REG_CNTRL_CSTM);
+	val = dds_read(st, AXI_REG_CNTRL_CSTM);
 
 	if ((val & AXI_MSK_STREAM) == 2 && st->synced_transfer)
 		return 2;
