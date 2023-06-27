@@ -2302,6 +2302,8 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 	info = id->data;
 
+	dev_info(&pdev->dev, "Start dds Probing ... np->name: \'%s\'\n",
+			np->name);
 	dev_dbg(&pdev->dev, "Device Tree Probing \'%s\'\n",
 			np->name);
 
@@ -2365,6 +2367,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 		mutex_init(&st->lock);
 	} else {
+		dev_info(&pdev->dev, "Find dds converter frontend ...");
 		st->dev_spi = dds_converter_find(&pdev->dev);
 		if (IS_ERR(st->dev_spi))
 			return PTR_ERR(st->dev_spi);
@@ -2395,7 +2398,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 			st->chip_info = &st->chip_info_generated;
 		} else {
-			pr_info("search conv->id %d\n", conv->id);
+			dev_info(&pdev->dev, "search conv->id %d\n", conv->id);
 			st->chip_info = &cf_axi_dds_chip_info_tbl[conv->id];
 		}
 	}
@@ -2550,6 +2553,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 	}
 
+	dev_info(&pdev->dev, "enable dds\n");
 	st->enable = true;
 	cf_axi_dds_start_sync(st, 0);
 	cf_axi_dds_sync_frame(indio_dev);
@@ -2592,6 +2596,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 			st->master_regs = ioremap(regs[0], regs[1]);
 	}
 
+	dev_info(&pdev->dev, "register dds iio device\n");
 	ret = devm_iio_device_register(&pdev->dev, indio_dev);
 	if (ret)
 		return ret;
