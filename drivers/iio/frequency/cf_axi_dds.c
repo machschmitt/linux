@@ -100,7 +100,7 @@ static const char * const dds_extend_names[] = {
 };
 
 struct cf_axi_dds_state {
-	struct device			*dev_spi;
+	struct device			*conv_dev;
 	struct axi_data_offload_state	*data_offload;
 	struct clk			*clk;
 	struct clock_scale		clkscale;
@@ -322,7 +322,7 @@ static int cf_axi_get_parent_sampling_frequency(struct cf_axi_dds_state *st,
 	if (st->standalone) {
 		*freq = st->dac_clk = clk_get_rate_scaled(st->clk, &st->clkscale);
 	} else {
-		conv = to_converter(st->dev_spi);
+		conv = to_converter(st->conv_dev);
 		if (!conv->get_data_clk)
 			return -ENODEV;
 
@@ -403,7 +403,7 @@ static int cf_axi_dds_sync_frame(struct iio_dev *indio_dev)
 	if (st->standalone)
 		return 0;
 
-	conv = to_converter(st->dev_spi);
+	conv = to_converter(st->conv_dev);
 	if (conv->get_fifo_status) {
 		/* Check FIFO status */
 		stat = conv->get_fifo_status(conv);
@@ -720,7 +720,7 @@ static int cf_axi_dds_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_VOLTAGE) {
 			if (!st->standalone) {
-				conv = to_converter(st->dev_spi);
+				conv = to_converter(st->conv_dev);
 				if (!conv->read_raw) {
 					ret = -ENODEV;
 				} else {
@@ -782,7 +782,7 @@ static int cf_axi_dds_read_raw(struct iio_dev *indio_dev,
 		return cf_axi_dds_signed_mag_fmt_to_iio(reg, val, val2);
 	default:
 		if (!st->standalone) {
-			conv = to_converter(st->dev_spi);
+			conv = to_converter(st->conv_dev);
 			if (!conv->read_raw) {
 				ret = -ENODEV;
 			} else {
@@ -811,8 +811,8 @@ static int cf_axi_dds_write_raw(struct iio_dev *indio_dev,
 	unsigned int reg, i, channel, phase = 0;
 	int ret = 0;
 
-	if (st->dev_spi)
-		conv = to_converter(st->dev_spi);
+	if (st->conv_dev)
+		conv = to_converter(st->conv_dev);
 	else
 		conv = ERR_PTR(-ENODEV);
 
@@ -995,8 +995,8 @@ static int cf_axi_dds_reg_access(struct iio_dev *indio_dev,
 	    ((reg & 0xffff) >= st->regs_size || (reg & 0x3)))
 		return -EINVAL;
 
-	if (st->dev_spi)
-		conv = to_converter(st->dev_spi);
+	if (st->conv_dev)
+		conv = to_converter(st->conv_dev);
 
 	cf_axi_dds_lock(st);
 	if (readval == NULL) {
@@ -2384,15 +2384,15 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 		mutex_init(&st->lock);
 	} else {
 		dev_info(&pdev->dev, "Find dds converter frontend ...");
-		st->dev_spi = dds_converter_find(&pdev->dev);
-		if (IS_ERR(st->dev_spi))
-			return PTR_ERR(st->dev_spi);
+		st->conv_dev = dds_converter_find(&pdev->dev);
+		if (IS_ERR(st->conv_dev))
+			return PTR_ERR(st->conv_dev);
 
-		ret = devm_add_action_or_reset(&pdev->dev, dds_converter_put, st->dev_spi);
+		ret = devm_add_action_or_reset(&pdev->dev, dds_converter_put, st->conv_dev);
 		if (ret)
 			return ret;
 
-		conv = to_converter(st->dev_spi);
+		conv = to_converter(st->conv_dev);
 		if (IS_ERR(conv))
 			return PTR_ERR(conv);
 
