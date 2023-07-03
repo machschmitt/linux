@@ -238,6 +238,8 @@ struct cf_axi_dds_chip_info {
 	struct iio_chan_spec channel[AXIDDS_MAX_NUM_CHANNELS];
 };
 
+extern struct cf_axi_dds_chip_info cf_axi_dds_chip_info_tbl[];
+
 struct cf_axi_dds_state;
 
 enum {

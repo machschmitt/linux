@@ -1137,14 +1137,13 @@ static void cf_axi_dds_update_chan_spec(struct cf_axi_dds_state *st,
 	} \
 }
 
-#define CF_AXI_DDS_CHAN_BUF_NO_CALIB(_chan, _ext_info, _sign) { \
+#define CF_AXI_DDS_CHAN_BUF_NO_CALIB(_chan, _sign) { \
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
 	.channel = _chan, \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ), \
 	.output = 1, \
 	.scan_index = _chan, \
-	.ext_info = _ext_info, \
 	.scan_type = { \
 		.sign = _sign, \
 		.storagebits = 16, \
@@ -1205,14 +1204,12 @@ static const unsigned long adrv9002_available_scan_masks[] = {
 	0x01, 0x02, 0x03, 0x00
 };
 
-static struct cf_axi_dds_chip_info cf_axi_dds_chip_info_tbl[] = {
+struct cf_axi_dds_chip_info cf_axi_dds_chip_info_tbl[] = {
 	[ID_AD3552R] = {
 		.name = "AD3552R",
 		.channel = {
-			//CF_AXI_DDS_CHAN_BUF_NO_CALIB(0, ad3552r_ext_info, 'u'),
-			//CF_AXI_DDS_CHAN_BUF_NO_CALIB(1, ad3552r_ext_info, 'u'),
-			CF_AXI_DDS_CHAN_BUF_NO_CALIB(0, NULL, 'u'),
-			CF_AXI_DDS_CHAN_BUF_NO_CALIB(1, NULL, 'u'),
+			CF_AXI_DDS_CHAN_BUF_NO_CALIB(0, 'u'),
+			CF_AXI_DDS_CHAN_BUF_NO_CALIB(1, 'u'),
 			CF_AXI_DDS_CHAN(0, 0, "1A"),
 			CF_AXI_DDS_CHAN(1, 0, "1B"),
 			CF_AXI_DDS_CHAN(2, 0, "2A"),
@@ -1235,8 +1232,8 @@ static struct cf_axi_dds_chip_info cf_axi_dds_chip_info_tbl[] = {
 					BIT(IIO_CHAN_INFO_PROCESSED) |
 					BIT(IIO_CHAN_INFO_CALIBBIAS),
 			},
-			CF_AXI_DDS_CHAN_BUF_NO_CALIB(0, NULL, 's'),
-			CF_AXI_DDS_CHAN_BUF_NO_CALIB(1, NULL, 's'),
+			CF_AXI_DDS_CHAN_BUF_NO_CALIB(0, 's'),
+			CF_AXI_DDS_CHAN_BUF_NO_CALIB(1, 's'),
 			CF_AXI_DDS_CHAN(0, 0, "1A"),
 			CF_AXI_DDS_CHAN(1, 0, "1B"),
 			CF_AXI_DDS_CHAN(2, 0, "2A"),
@@ -1406,6 +1403,7 @@ static struct cf_axi_dds_chip_info cf_axi_dds_chip_info_tbl[] = {
 		.num_buf_channels = 2,
 	},
 };
+EXPORT_SYMBOL(cf_axi_dds_chip_info_tbl);
 
 static struct cf_axi_dds_chip_info cf_axi_dds_chip_info_ad9361 = {
 	.name = "AD9361",
