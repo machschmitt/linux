@@ -318,15 +318,23 @@ static const struct iio_event_spec max31827_events[] = {
 	},
 };
 
-static const struct iio_chan_spec max31827_channel = {
-	{
-		.type = IIO_TEMP,
-		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_RAW) |
-					   BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-					   BIT(IIO_CHAN_INFO_ENABLE) |
-					   BIT(IIO_CHAN_INFO_SCALE),
-		.output = 0,
-	},
+#define  MAX31827_CHANNEL(ev, num_ev) {					\
+	.type = IIO_TEMP,						\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_RAW) |		\
+				   BIT(IIO_CHAN_INFO_SAMP_FREQ) |	\
+				   BIT(IIO_CHAN_INFO_ENABLE) |		\
+				   BIT(IIO_CHAN_INFO_SCALE),		\
+	.output = 0,							\
+	.event_spec = ev,						\
+	.num_event_specs = num_ev,					\
+}
+
+static const struct iio_chan_spec max31827_channel_irq[] = {
+	MAX31827_CHANNEL(max31827_events, ARRAY_SIZE(max31827_events)),
+};
+
+static const struct iio_chan_spec max31827_channel_noirq[] = {
+	MAX31827_CHANNEL(NULL, 0),
 };
 
 static int max31827_probe(struct i2c_client *client,
@@ -362,9 +370,6 @@ static int max31827_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &max31827_info;
 
-	indio_dev->channels = max31827_channel;
-	indio_dev->num_channels = ARRAY_SIZE(max31827_channel);
-
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL,
@@ -376,8 +381,11 @@ static int max31827_probe(struct i2c_client *client,
 		if (ret)
 			return ret;
 
-		indio_dev->channels->event_spec = max31827_events;
-		indio_dev->channels->num_event_specs = ARRAY_SIZE(max31827_events);
+		indio_dev->channels = max31827_channel_irq;
+		indio_dev->num_channels = ARRAY_SIZE(max31827_channel_irq);
+	} else {
+		indio_dev->channels = max31827_channel_noirq;
+		indio_dev->num_channels = ARRAY_SIZE(max31827_channel_noirq);
 	}
 
 	return devm_iio_device_register(&client->dev, indio_dev);
