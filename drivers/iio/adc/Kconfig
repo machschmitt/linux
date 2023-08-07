@@ -346,6 +346,19 @@ config AD9963
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad9963.
 
+config ADAQ_ADC
+	tristate "Analog Devices ADAQ ADC data acquisition micro module devices"
+	depends on SPI
+	depends on I2C
+	select AD4630
+	select MAX31827
+	help
+	  Say yes here to build support for Analog Devices ADAQ4224
+	  24-Bit, 2 MSPS, high-speed data acquisition (DAQ) uModule solution.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adaq4224.
+
 config ADAQ8092
 	tristate "Analog Devices ADAQ8092 uModule Data Acquisition Module"
 	depends on SPI

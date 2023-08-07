@@ -1498,7 +1498,7 @@ static const struct spi_device_id ad4630_id_table[] = {
 	{ "ad4030-24", (kernel_ulong_t)&ad4630_chip_info[ID_AD4030_24] },
 	{ "ad4630-16", (kernel_ulong_t)&ad4630_chip_info[ID_AD4630_16] },
 	{ "ad4630-24", (kernel_ulong_t)&ad4630_chip_info[ID_AD4630_24] },
-	{ "adaq4224", (kernel_ulong_t)&ad4630_chip_info[ID_ADAQ4224] },
+	//{ "adaq4224", (kernel_ulong_t)&ad4630_chip_info[ID_ADAQ4224] },
 	{ "ad463x", (kernel_ulong_t)&ad463x_chip_info },
 	{}
 };
@@ -1508,7 +1508,7 @@ static const struct of_device_id ad4630_of_match[] = {
 	{ .compatible = "adi,ad4630-24", .data = &ad4630_chip_info[ID_AD4030_24] },
 	{ .compatible = "adi,ad4630-16", .data = &ad4630_chip_info[ID_AD4630_16] },
 	{ .compatible = "adi,ad4030-24", .data = &ad4630_chip_info[ID_AD4630_24] },
-	{ .compatible = "adi,adaq4224", .data = &ad4630_chip_info[ID_ADAQ4224] },
+	//{ .compatible = "adi,adaq4224", .data = &ad4630_chip_info[ID_ADAQ4224] },
 	{ .compatible = "adi,ad463x", .data = &ad463x_chip_info},
 	{}
 };
