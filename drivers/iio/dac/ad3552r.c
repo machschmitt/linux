@@ -14,6 +14,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
@@ -127,11 +128,55 @@
 #define AD3552R_READ_BIT				BIT(7)
 #define AD3552R_ADDR_MASK				GENMASK(6, 0)
 #define AD3552R_MASK_DAC_12B				0xFFF0
+#define AD3552R_DEFAULT_CONFIG_A_VALUE			0x10
 #define AD3552R_DEFAULT_CONFIG_B_VALUE			0x8
 #define AD3552R_SCRATCH_PAD_TEST_VAL1			0x34
 #define AD3552R_SCRATCH_PAD_TEST_VAL2			0xB2
 #define AD3552R_GAIN_SCALE				1000
 #define AD3552R_LDAC_PULSE_US				100
+
+enum ad3552r_fields {
+	/* INTERFACE_CONFIG_A */
+	F_ADDR_DIR,
+	/* INTERFACE_CONFIG_D */
+	F_SDO_STR,
+	/* REFERENCE_CONFIG */
+	F_REF_SEL,
+	/* POWERDOWN_CONFIG */
+	F_CH0_AMP_PWDW,
+	F_CH1_AMP_PWDW,
+	F_CH0_PWDW,
+	F_CH1_PWDW,
+	/* OUTPUT_RANGE */
+	F_CH0_OUT_RANGE,
+	F_CH1_OUT_RANGE,
+	/* CH_SELECT */
+	F_CH0_SEL,
+	F_CH1_SEL,
+	/* MAX FIELDS */
+	F_MAX_FIELDS,
+};
+
+static const struct reg_field ad3552r_reg_fields[] = {
+	[F_ADDR_DIR] = REG_FIELD(AD3552R_REG_ADDR_INTERFACE_CONFIG_A, 5, 5),
+	[F_CH0_AMP_PWDW] = REG_FIELD(AD3552R_REG_ADDR_POWERDOWN_CONFIG, 0, 0),
+	[F_CH1_AMP_PWDW] = REG_FIELD(AD3552R_REG_ADDR_POWERDOWN_CONFIG, 1, 1),
+	[F_SDO_STR] = REG_FIELD(AD3552R_REG_ADDR_INTERFACE_CONFIG_D, 2, 3),
+	[F_REF_SEL] = REG_FIELD(AD3552R_REG_ADDR_SH_REFERENCE_CONFIG, 0, 1),
+	[F_CH0_PWDW] = REG_FIELD(AD3552R_REG_ADDR_POWERDOWN_CONFIG, 4, 4),
+	[F_CH1_PWDW] = REG_FIELD(AD3552R_REG_ADDR_POWERDOWN_CONFIG, 5, 5),
+	[F_CH0_OUT_RANGE] = REG_FIELD(AD3552R_REG_ADDR_CH0_CH1_OUTPUT_RANGE, 0, 3),
+	[F_CH1_OUT_RANGE] = REG_FIELD(AD3552R_REG_ADDR_CH0_CH1_OUTPUT_RANGE, 4, 7),
+	[F_CH0_SEL] = REG_FIELD(AD3552R_REG_ADDR_CH_SELECT_16B, 0, 0),
+	[F_CH1_SEL] = REG_FIELD(AD3552R_REG_ADDR_CH_SELECT_16B, 1, 1),
+};
+
+static const struct regmap_config ad3552r_regmap_conf = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.read_flag_mask = BIT(7),
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+};
 
 enum ad3552r_ch_vref_select {
 	/* Internal source with Vref I/O floating */
@@ -275,20 +320,22 @@ struct ad3552r_desc {
 	unsigned long		enabled_ch;
 	unsigned int		num_ch;
 	enum ad3542r_id		chip_id;
+	struct regmap *regmap;
+	struct regmap_field *regmap_fields[F_MAX_FIELDS];
 };
 
 static const u16 addr_mask_map[][2] = {
 	[AD3552R_ADDR_ASCENSION] = {
 			AD3552R_REG_ADDR_INTERFACE_CONFIG_A,
-			AD3552R_MASK_ADDR_ASCENSION
+			F_ADDR_DIR
 	},
 	[AD3552R_SDO_DRIVE_STRENGTH] = {
 			AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
-			AD3552R_MASK_SDO_DRIVE_STRENGTH
+			F_SDO_STR
 	},
 	[AD3552R_VREF_SELECT] = {
 			AD3552R_REG_ADDR_SH_REFERENCE_CONFIG,
-			AD3552R_MASK_REFERENCE_VOLTAGE_SEL
+			F_REF_SEL
 	},
 };
 
@@ -296,23 +343,23 @@ static const u16 addr_mask_map[][2] = {
 static const u16 addr_mask_map_ch[][3] = {
 	[AD3552R_CH_DAC_POWERDOWN] = {
 			AD3552R_REG_ADDR_POWERDOWN_CONFIG,
-			AD3552R_MASK_CH_DAC_POWERDOWN(0),
-			AD3552R_MASK_CH_DAC_POWERDOWN(1)
+			F_CH0_PWDW,
+			F_CH1_PWDW
 	},
 	[AD3552R_CH_AMPLIFIER_POWERDOWN] = {
 			AD3552R_REG_ADDR_POWERDOWN_CONFIG,
-			AD3552R_MASK_CH_AMPLIFIER_POWERDOWN(0),
-			AD3552R_MASK_CH_AMPLIFIER_POWERDOWN(1)
+			F_CH0_AMP_PWDW,
+			F_CH1_AMP_PWDW
 	},
 	[AD3552R_CH_OUTPUT_RANGE_SEL] = {
 			AD3552R_REG_ADDR_CH0_CH1_OUTPUT_RANGE,
-			AD3552R_MASK_CH_OUTPUT_RANGE_SEL(0),
-			AD3552R_MASK_CH_OUTPUT_RANGE_SEL(1)
+			F_CH0_OUT_RANGE,
+			F_CH1_OUT_RANGE
 	},
 	[AD3552R_CH_SELECT] = {
 			AD3552R_REG_ADDR_CH_SELECT_16B,
-			AD3552R_MASK_CH(0),
-			AD3552R_MASK_CH(1)
+			F_CH0_SEL,
+			F_CH1_SEL
 	}
 };
 
@@ -396,21 +443,10 @@ static u16 ad3552r_field_prep(u16 val, u16 mask)
 	return (val << __ffs(mask)) & mask;
 }
 
-/* Update field of a register, shift val if needed */
-static int ad3552r_update_reg_field(struct ad3552r_desc *dac, u8 addr, u16 mask,
-				    u16 val)
+static int ad3552r_update_reg_field(struct ad3552r_desc *dac,
+				    enum ad3552r_fields field, u16 val)
 {
-	int ret;
-	u16 reg;
-
-	ret = ad3552r_read_reg(dac, addr, &reg);
-	if (ret < 0)
-		return ret;
-
-	reg &= ~mask;
-	reg |= ad3552r_field_prep(val, mask);
-
-	return ad3552r_write_reg(dac, addr, reg);
+	return regmap_field_write(dac->regmap_fields[field], val);
 }
 
 static int ad3552r_set_ch_value(struct ad3552r_desc *dac,
@@ -419,8 +455,7 @@ static int ad3552r_set_ch_value(struct ad3552r_desc *dac,
 				u16 val)
 {
 	/* Update register related to attributes in chip */
-	return ad3552r_update_reg_field(dac, addr_mask_map_ch[attr][0],
-				       addr_mask_map_ch[attr][ch + 1], val);
+	return ad3552r_update_reg_field(dac, addr_mask_map_ch[attr][ch + 1], val);
 }
 
 #define AD3552R_CH_DAC(_idx) ((struct iio_chan_spec) {		\
@@ -657,6 +692,17 @@ static int ad3552r_read_reg_wrapper(struct reg_addr_pool *addr)
 	return val;
 }
 
+static int ad3552r_sw_reset(struct ad3552r_desc *dac)
+{
+	__be16 spi_msg;
+
+	spi_msg = cpu_to_be16((AD3552R_REG_ADDR_INTERFACE_CONFIG_A << 8) |
+			      AD3552R_DEFAULT_CONFIG_A_VALUE |
+			      AD3552R_MASK_SOFTWARE_RESET);
+
+	return spi_write(dac->spi, &spi_msg, 2);
+}
+
 static int ad3552r_reset(struct ad3552r_desc *dac)
 {
 	struct reg_addr_pool addr;
@@ -675,10 +721,7 @@ static int ad3552r_reset(struct ad3552r_desc *dac)
 		gpiod_set_value_cansleep(dac->gpio_reset, 1);
 	} else {
 		/* Perform software reset if no GPIO provided */
-		ret = ad3552r_update_reg_field(dac,
-					       AD3552R_REG_ADDR_INTERFACE_CONFIG_A,
-					       AD3552R_MASK_SOFTWARE_RESET,
-					       AD3552R_MASK_SOFTWARE_RESET);
+		ret = ad3552r_sw_reset(dac);
 		if (ret < 0)
 			return ret;
 
@@ -709,7 +752,6 @@ static int ad3552r_reset(struct ad3552r_desc *dac)
 	}
 
 	return ad3552r_update_reg_field(dac,
-					addr_mask_map[AD3552R_ADDR_ASCENSION][0],
 					addr_mask_map[AD3552R_ADDR_ASCENSION][1],
 					val);
 }
@@ -927,7 +969,6 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 	}
 
 	err = ad3552r_update_reg_field(dac,
-				       addr_mask_map[AD3552R_VREF_SELECT][0],
 				       addr_mask_map[AD3552R_VREF_SELECT][1],
 				       val);
 	if (err)
@@ -941,7 +982,6 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 		}
 
 		err = ad3552r_update_reg_field(dac,
-					       addr_mask_map[AD3552R_SDO_DRIVE_STRENGTH][0],
 					       addr_mask_map[AD3552R_SDO_DRIVE_STRENGTH][1],
 					       val);
 		if (err)
@@ -1076,6 +1116,8 @@ static int ad3552r_probe(struct spi_device *spi)
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct ad3552r_desc *dac;
 	struct iio_dev *indio_dev;
+	struct regmap_field *f;
+	int i;
 	int err;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*dac));
@@ -1085,6 +1127,21 @@ static int ad3552r_probe(struct spi_device *spi)
 	dac = iio_priv(indio_dev);
 	dac->spi = spi;
 	dac->chip_id = id->driver_data;
+
+	dac->regmap = devm_regmap_init_spi(spi, &ad3552r_regmap_conf);
+	if (IS_ERR(dac->regmap))
+		return dev_err_probe(&spi->dev, PTR_ERR(dac->regmap),
+				     "Failed to register regmap: %ld\n",
+				     PTR_ERR(dac->regmap));
+
+	for (i = 0; i < F_MAX_FIELDS; i++) {
+		f = devm_regmap_field_alloc(&spi->dev, dac->regmap,
+					    ad3552r_reg_fields[i]);
+		if (IS_ERR(f))
+			return PTR_ERR(f);
+
+		dac->regmap_fields[i] = f;
+	}
 
 	mutex_init(&dac->lock);
 
