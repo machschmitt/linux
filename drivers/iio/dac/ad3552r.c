@@ -489,19 +489,25 @@ static int ad3552r_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&dac->lock);
+		err = iio_device_claim_direct_mode(indio_dev);
+		if (err)
+			return err;
+
 		err = ad3552r_read_reg(dac, AD3552R_REG_ADDR_CH_DAC_24B(ch),
 				       &tmp_val);
-		mutex_unlock(&dac->lock);
+		iio_device_release_direct_mode(indio_dev);
 		if (err < 0)
 			return err;
 		*val = tmp_val;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_ENABLE:
-		mutex_lock(&dac->lock);
+		err = iio_device_claim_direct_mode(indio_dev);
+		if (err)
+			return err;
+
 		err = ad3552r_read_reg(dac, AD3552R_REG_ADDR_POWERDOWN_CONFIG,
 				       &tmp_val);
-		mutex_unlock(&dac->lock);
+		iio_device_release_direct_mode(indio_dev);
 		if (err < 0)
 			return err;
 		*val = !((tmp_val & AD3552R_MASK_CH_DAC_POWERDOWN(ch)) >>
