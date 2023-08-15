@@ -387,15 +387,12 @@ static u8 _ad3552r_reg_len(u8 addr)
 
 /* SPI transfer to device */
 static int ad3552r_transfer(struct ad3552r_desc *dac, u8 addr, u32 len,
-			    u8 *data, bool is_read)
+			    u8 *data)
 {
 	/* Maximum transfer: Addr (1B) + 2 * (Data Reg (3B)) + SW LDAC(1B) */
 	u8 buf[8];
 
 	buf[0] = addr & AD3552R_ADDR_MASK;
-	buf[0] |= is_read ? AD3552R_READ_BIT : 0;
-	if (is_read)
-		return spi_write_then_read(dac->spi, buf, 1, data, len);
 
 	memcpy(buf + 1, data, len);
 	return spi_write_then_read(dac->spi, buf, len + 1, NULL, 0);
@@ -416,25 +413,32 @@ static int ad3552r_write_reg(struct ad3552r_desc *dac, u8 addr, u16 val)
 		/* reg_len can be 2 or 3, but 3rd bytes needs to be set to 0 */
 		put_unaligned_be16(val, buf);
 
-	return ad3552r_transfer(dac, addr, reg_len, buf, false);
+	return ad3552r_transfer(dac, addr, reg_len, buf);
 }
 
 static int ad3552r_read_reg(struct ad3552r_desc *dac, u8 addr, u16 *val)
 {
+	u8  reg_len, rx_buf[AD3552R_MAX_REG_SIZE] = { 0 };
+	u8 tx_buf;
 	int err;
-	u8  reg_len, buf[AD3552R_MAX_REG_SIZE] = { 0 };
 
 	reg_len = _ad3552r_reg_len(addr);
-	err = ad3552r_transfer(dac, addr, reg_len, buf, true);
+	tx_buf = (addr & AD3552R_ADDR_MASK) | AD3552R_READ_BIT;
+	err = spi_write_then_read(dac->spi, &tx_buf, 1, rx_buf, reg_len);
 	if (err)
 		return err;
 
-	if (reg_len == 1)
-		*val = buf[0];
-	else
-		/* reg_len can be 2 or 3, but only first 2 bytes are relevant */
-		*val = get_unaligned_be16(buf);
-
+	switch (reg_len) {
+	case 1:
+		*val = rx_buf[0];
+		break;
+	case 2:
+		*val = get_unaligned_be16(rx_buf);
+		break;
+	case 3:
+		*val = get_unaligned_be24(rx_buf);
+		break;
+	}
 	return 0;
 }
 
@@ -587,7 +591,7 @@ static int ad3552r_write_all_channels(struct ad3552r_desc *dac, u8 *data)
 		buff[6] = AD3552R_MASK_ALL_CH;
 		++len;
 	}
-	err = ad3552r_transfer(dac, addr, len, buff, false);
+	err = ad3552r_transfer(dac, addr, len, buff);
 	if (err)
 		return err;
 
@@ -613,7 +617,7 @@ static int ad3552r_write_codes(struct ad3552r_desc *dac, u32 mask, u8 *data)
 
 	memcpy(buff, data, 2);
 	buff[2] = 0;
-	err = ad3552r_transfer(dac, addr, 3, data, false);
+	err = ad3552r_transfer(dac, addr, 3, data);
 	if (err)
 		return err;
 
