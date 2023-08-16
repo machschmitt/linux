@@ -729,6 +729,8 @@ static int ad3552r_reset(struct ad3552r_desc *dac)
 		/* Perform hardware reset */
 		usleep_range(10, 20);
 		gpiod_set_value_cansleep(dac->gpio_reset, 1);
+		ndelay(10);
+		gpiod_set_value_cansleep(dac->gpio_reset, 0);
 	} else {
 		/* Perform software reset if no GPIO provided */
 		ret = ad3552r_sw_reset(dac);
