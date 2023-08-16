@@ -752,6 +752,7 @@ static int ad3552r_reset(struct ad3552r_desc *dac)
 		return ret;
 	}
 
+	addr.addr = AD3552R_REG_ADDR_INTERFACE_STATUS_A;
 	ret = readx_poll_timeout(ad3552r_read_reg_wrapper, &addr, val,
 				 !(val & AD3552R_MASK_INTERFACE_NOT_READY) ||
 				 val < 0,
