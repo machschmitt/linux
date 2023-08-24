@@ -134,25 +134,32 @@ static int ad7091r_spi_read(void *context, const void *reg, size_t reg_size,
 	struct spi_device *spi = container_of(st->dev, struct spi_device, dev);
 	unsigned int reg_add = *(unsigned int *)reg & 0x1f;
 	__be16 rx;
-	u16 tx;
+	__be16 tx;
 	int ret;
 
-	/* No need to prepare a read command if reading from conv res reg */
-	if (reg_add != AD7091R_REG_RESULT) {
-		tx = cpu_to_be16(FIELD_PREP(AD7091R8_RD_WR_FLAG_MSK, 0) |
-				 FIELD_PREP(AD7091R8_REG_ADDR_MSK, reg_add));
-
+	struct spi_transfer t[] = {
+		{
+			.tx_buf = &tx,
+			.len = val_size,
+			.cs_change = 1,
+		}, {
+			.rx_buf = &rx,
+			.len = val_size,
+		}
+	};
+	/* Only pulse CONVST if new readings are required */
+	if (reg_add == AD7091R_REG_RESULT)
 		ad7091r_pulse_convst(st);
-		ret = spi_write(spi, &tx, 2);
-		if (ret)
-			return ret;
-	}
 
-	ret = spi_read(spi, &rx, val_size);
-	if (ret)
+	/* A write command to a read only register is considered NOP. */
+	tx = cpu_to_be16(FIELD_PREP(AD7091R8_RD_WR_FLAG_MSK, 0) |
+			 FIELD_PREP(AD7091R8_REG_ADDR_MSK, reg_add));
+	ret = spi_sync_transfer(spi, t, ARRAY_SIZE(t));
+	if (ret < 0)
 		return ret;
 
-	memcpy(val, &rx, val_size);
+	ret = be16_to_cpu(rx);
+	memcpy(val, &ret, val_size);
 	return 0;
 }
 
@@ -160,33 +167,32 @@ static int ad7091r_spi_write(void *context, const void *data, size_t count)
 {
 	struct ad7091r_state *st = context;
 	struct spi_device *spi = container_of(st->dev, struct spi_device, dev);
-	u32 tx_data = *((int *)data);
-	u16 tx;
+	u32 write_data = *((int *)data);
+	u8 reg_add = write_data & 0xFF;
+	u16 tx_data = write_data >> 8;
+	__be16 tx;
 
 	/*
 	 * AD7091R-2/-4/-8 protocol (datasheet page 31) is to do a single SPI
 	 * transfer with reg address set in bits B15:B11 and value set in B9:B0.
 	 */
-	tx = cpu_to_be16(FIELD_PREP(AD7091R8_REG_DATA_MSK, cpu_to_be16(tx_data >> 8)) |
+	tx = cpu_to_be16(FIELD_PREP(AD7091R8_REG_DATA_MSK, tx_data) |
 			 FIELD_PREP(AD7091R8_RD_WR_FLAG_MSK, 1) |
-			 FIELD_PREP(AD7091R8_REG_ADDR_MSK, tx_data));
-
-	ad7091r_pulse_convst(st);
+			 FIELD_PREP(AD7091R8_REG_ADDR_MSK, reg_add));
 	return spi_write(spi, &tx, 2);
 }
 
 static struct regmap_bus ad7091r8_regmap_bus = {
 	.read = ad7091r_spi_read,
 	.write = ad7091r_spi_write,
-	.reg_format_endian_default = REGMAP_ENDIAN_BIG,
-	.val_format_endian_default = REGMAP_ENDIAN_BIG,
+	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
+	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
 };
 
 static const struct regmap_config ad7091r_spi_regmap_config[] = {
 	[AD7091R2] = {
 		.reg_bits = 8,
 		.val_bits = 16,
-		.write_flag_mask = BIT(10),
 		.rd_table = &ad7091r2_readable_regs_table,
 		.wr_table = &ad7091r2_writable_regs_table,
 		.max_register = AD7091R_REG_CH_HYSTERESIS(2),
@@ -194,7 +200,6 @@ static const struct regmap_config ad7091r_spi_regmap_config[] = {
 	[AD7091R4] = {
 		.reg_bits = 8,
 		.val_bits = 16,
-		.write_flag_mask = BIT(10),
 		.rd_table = &ad7091r4_readable_regs_table,
 		.wr_table = &ad7091r4_writable_regs_table,
 		.max_register = AD7091R_REG_CH_HYSTERESIS(4),
@@ -202,7 +207,6 @@ static const struct regmap_config ad7091r_spi_regmap_config[] = {
 	[AD7091R8] = {
 		.reg_bits = 8,
 		.val_bits = 16,
-		.write_flag_mask = BIT(10),
 		.rd_table = &ad7091r8_readable_regs_table,
 		.wr_table = &ad7091r8_writable_regs_table,
 		.max_register = AD7091R_REG_CH_HYSTERESIS(8),
