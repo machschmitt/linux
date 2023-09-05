@@ -159,9 +159,31 @@ static int ad7091r_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 			      unsigned int writeval, unsigned int *readval)
 {
 	struct ad7091r_state *st  = iio_priv(indio_dev);
+	int ret;
 
-	if (readval)
-		return regmap_read(st->map, reg, readval);
+	if (readval) {
+		ret = regmap_read(st->map, reg, readval);
+		if (ret < 0)
+			return ret;
+
+		if (reg == AD7091R_REG_CHANNEL) {
+			switch (st->chip_info->num_channels) {
+			case AD7091R2_NUM_CHANNELS:
+				*readval = FIELD_GET(AD7091R2_REG_CHANNEL_MSK,
+						     *readval);
+				break;
+			case AD7091R4_NUM_CHANNELS:
+				*readval = FIELD_GET(AD7091R4_REG_CHANNEL_MSK,
+						     *readval);
+				break;
+			case AD7091R8_NUM_CHANNELS:
+				*readval = FIELD_GET(AD7091R8_REG_CHANNEL_MSK,
+						     *readval);
+				break;
+			}
+		}
+		return 0;
+	}
 
 	return regmap_write(st->map, reg, writeval);
 }
