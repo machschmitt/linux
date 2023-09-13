@@ -29,6 +29,14 @@
 	.vref_mV = 2500,						\
 }
 
+#define AD7091R_SPI_CHIP_INFO_IRQ(n) {					\
+	.name = AD7091R##n##_DEV_NAME,					\
+	.type =	AD7091R##n,						\
+	.channels = ad7091r##n##_channels_irq,				\
+	.num_channels = ARRAY_SIZE(ad7091r##n##_channels_irq),		\
+	.vref_mV = 2500,						\
+}
+
 static const struct iio_chan_spec ad7091r2_channels[] = {
 	AD7091R_CHANNEL(0, 12, NULL, 0),
 	AD7091R_CHANNEL(1, 12, NULL, 0),
@@ -41,6 +49,13 @@ static const struct iio_chan_spec ad7091r4_channels[] = {
 	AD7091R_CHANNEL(3, 12, NULL, 0),
 };
 
+static const struct iio_chan_spec ad7091r4_channels_irq[] = {
+	AD7091R_CHANNEL(0, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(1, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(2, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(3, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+};
+
 static const struct iio_chan_spec ad7091r8_channels[] = {
 	AD7091R_CHANNEL(0, 12, NULL, 0),
 	AD7091R_CHANNEL(1, 12, NULL, 0),
@@ -50,6 +65,17 @@ static const struct iio_chan_spec ad7091r8_channels[] = {
 	AD7091R_CHANNEL(5, 12, NULL, 0),
 	AD7091R_CHANNEL(6, 12, NULL, 0),
 	AD7091R_CHANNEL(7, 12, NULL, 0),
+};
+
+static const struct iio_chan_spec ad7091r8_channels_irq[] = {
+	AD7091R_CHANNEL(0, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(1, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(2, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(3, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(4, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(5, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(6, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(7, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
 };
 
 static const struct regmap_range ad7091r2_readable_ranges[] = {
@@ -119,6 +145,11 @@ static const struct ad7091r_chip_info ad7091r_spi_chip_info[] = {
 	[AD7091R2] = AD7091R_SPI_CHIP_INFO(2),
 	[AD7091R4] = AD7091R_SPI_CHIP_INFO(4),
 	[AD7091R8] = AD7091R_SPI_CHIP_INFO(8),
+};
+
+static const struct ad7091r_chip_info ad7091r_spi_chip_info_irq[] = {
+	[AD7091R4] = AD7091R_SPI_CHIP_INFO_IRQ(4),
+	[AD7091R8] = AD7091R_SPI_CHIP_INFO_IRQ(8),
 };
 
 static void ad7091r_pulse_convst(struct ad7091r_state *st)
@@ -270,9 +301,12 @@ static int ad7091r8_spi_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
+	if (spi->irq)
+		chip_info = &ad7091r_spi_chip_info_irq[chip_info->type];
+
 	ad7091r_pulse_reset(st);
 
-	return ad7091r_probe(iio_dev, chip_info->name, chip_info, map, 0);
+	return ad7091r_probe(iio_dev, chip_info->name, chip_info, map, spi->irq);
 }
 
 static const struct of_device_id ad7091r8_of_match[] = {
