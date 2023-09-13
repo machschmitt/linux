@@ -27,9 +27,17 @@ properties:
 
   spi-max-frequency: true
 
+  adi,conversion-start-gpios:
+    description:
+      Device tree identifier of the CONVST pin.
+      This logic input is used to initiate conversions on the analog
+      input channels.
+    maxItems: 1
+
 required:
   - compatible
   - reg
+  - adi,conversion-start-gpios
 
 patternProperties:
   "^channel@[0-7]$":
@@ -50,6 +58,7 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -59,6 +68,7 @@ examples:
                 reg = <0x0>;
                 spi-max-frequency = <45454545>;
                 vref-supply = <&adc_vref>;
+                adi,conversion-start-gpios = <&gpio 25 GPIO_ACTIVE_LOW>;
         };
     };
 ...
