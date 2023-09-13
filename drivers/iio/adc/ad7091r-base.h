@@ -33,6 +33,8 @@
 	.scan_type.realbits = bits,					\
 }
 
+#include <linux/gpio/consumer.h>
+
 struct device;
 
 enum ad7091r_mode {
@@ -44,6 +46,7 @@ enum ad7091r_mode {
 struct ad7091r_state {
 	struct device *dev;
 	struct regmap *map;
+	struct gpio_desc *convst_gpio;
 	struct regulator *vref;
 	const struct ad7091r_chip_info *chip_info;
 	enum ad7091r_mode mode;
