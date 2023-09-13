@@ -34,10 +34,14 @@ properties:
       input channels.
     maxItems: 1
 
+  reset-gpios:
+    maxItems: 1
+
 required:
   - compatible
   - reg
   - adi,conversion-start-gpios
+  - reset-gpios
 
 patternProperties:
   "^channel@[0-7]$":
@@ -69,6 +73,7 @@ examples:
                 spi-max-frequency = <45454545>;
                 vref-supply = <&adc_vref>;
                 adi,conversion-start-gpios = <&gpio 25 GPIO_ACTIVE_LOW>;
+                reset-gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
         };
     };
 ...
