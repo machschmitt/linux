@@ -127,6 +127,12 @@ static void ad7091r_pulse_convst(struct ad7091r_state *st)
 	gpiod_set_value_cansleep(st->convst_gpio, 0);
 }
 
+static void ad7091r_pulse_reset(struct ad7091r_state *st)
+{
+	gpiod_set_value_cansleep(st->reset_gpio, 1);
+	gpiod_set_value_cansleep(st->reset_gpio, 0);
+}
+
 static int ad7091r_spi_read(void *context, const void *reg, size_t reg_size,
 			    void *val, size_t val_size)
 {
@@ -213,12 +219,30 @@ static const struct regmap_config ad7091r_spi_regmap_config[] = {
 	},
 };
 
+static int ad7091r8_gpio_setup(struct ad7091r_state *st)
+{
+	st->reset_gpio = devm_gpiod_get(st->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(st->reset_gpio))
+		return dev_err_probe(st->dev, PTR_ERR(st->reset_gpio),
+				     "Error getting reset GPIO: %ld\n",
+				     PTR_ERR(st->reset_gpio));
+
+	st->convst_gpio = devm_gpiod_get(st->dev, "adi,conversion-start",
+					 GPIOD_OUT_LOW);
+	if (IS_ERR(st->convst_gpio))
+		return dev_err_probe(st->dev, PTR_ERR(st->convst_gpio),
+				     "Error getting convst GPIO: %ld\n",
+				     PTR_ERR(st->convst_gpio));
+	return 0;
+}
+
 static int ad7091r8_spi_probe(struct spi_device *spi)
 {
 	const struct ad7091r_chip_info *chip_info;
 	struct ad7091r_state *st;
 	struct iio_dev *iio_dev;
 	struct regmap *map;
+	int ret;
 
 	chip_info = device_get_match_data(&spi->dev);
 	if (!chip_info) {
@@ -242,12 +266,11 @@ static int ad7091r8_spi_probe(struct spi_device *spi)
 				     "Error initializing spi regmap: %ld\n",
 				     PTR_ERR(map));
 
-	st->convst_gpio = devm_gpiod_get(&spi->dev, "adi,conversion-start",
-					 GPIOD_OUT_LOW);
-	if (IS_ERR(st->convst_gpio))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->convst_gpio),
-				     "Error getting convst GPIO: %ld\n",
-				     PTR_ERR(st->convst_gpio));
+	ret = ad7091r8_gpio_setup(st);
+	if (ret < 0)
+		return ret;
+
+	ad7091r_pulse_reset(st);
 
 	return ad7091r_probe(iio_dev, chip_info->name, chip_info, map, 0);
 }
