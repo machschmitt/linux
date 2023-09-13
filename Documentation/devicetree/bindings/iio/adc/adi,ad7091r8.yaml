@@ -37,6 +37,11 @@ properties:
   reset-gpios:
     maxItems: 1
 
+  interrupts:
+    description: |
+      IRQ line for the ADC ALERT/BUSY/GPO pin.
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -58,10 +63,29 @@ patternProperties:
     required:
       - reg
 
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+  # AD7091R-2 does not have ALERT/BUSY/GPO pin
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7091r4
+              - adi,ad7091r8
+    then:
+      properties:
+        interrupts: true
+    else:
+      properties:
+        interrupts: false
+
 unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/gpio/gpio.h>
     spi {
         #address-cells = <1>;
@@ -74,6 +98,8 @@ examples:
                 vref-supply = <&adc_vref>;
                 adi,conversion-start-gpios = <&gpio 25 GPIO_ACTIVE_LOW>;
                 reset-gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
+                interrupts = <22 IRQ_TYPE_EDGE_RISING>;
+                interrupt-parent = <&gpio>;
         };
     };
 ...
