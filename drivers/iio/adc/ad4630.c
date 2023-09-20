@@ -758,7 +758,7 @@ static const struct iio_chan_spec_ext_info ad4630_ext_info[] = {
 	{}
 };
 
-#define AD4630_CHAN(_idx, _storage, _real, _shift, _info) {		\
+#define AD4630_CHAN(_idx, _storage, _real, _shift, _info, _ds_name) {	\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_CALIBSCALE) |		\
 			BIT(IIO_CHAN_INFO_CALIBBIAS),			\
 	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
@@ -768,6 +768,7 @@ static const struct iio_chan_spec_ext_info ad4630_ext_info[] = {
 	.channel = _idx,						\
 	.scan_index = _idx,						\
 	.ext_info = _info,						\
+	.datasheet_name = _ds_name,					\
 	.scan_type = {							\
 		.sign = 's',						\
 		.storagebits = _storage,				\
@@ -787,25 +788,25 @@ static const struct iio_chan_spec_ext_info ad4630_ext_info[] = {
 static const struct ad4630_out_mode ad4030_24_modes[] = {
 	[AD4630_24_DIFF] = {
 		.channels = {
-			AD4630_CHAN(0, 64, 24, 0, NULL),
+			AD4630_CHAN(0, 64, 24, 0, NULL, "CH0"),
 		},
 		.data_width = 24,
 	},
 	[AD4630_16_DIFF_8_COM] = {
 		.channels = {
-			AD4630_CHAN(0, 64, 16, 8, NULL),
+			AD4630_CHAN(0, 64, 16, 8, NULL, "CH0"),
 		},
 		.data_width = 24,
 	},
 	[AD4630_24_DIFF_8_COM] = {
 		.channels = {
-			AD4630_CHAN(0, 64, 24, 8, NULL),
+			AD4630_CHAN(0, 64, 24, 8, NULL, "CH0"),
 		},
 		.data_width = 32,
 	},
 	[AD4630_30_AVERAGED_DIFF] = {
 		.channels = {
-			AD4630_CHAN(0, 64, 30, 2, ad4630_ext_info),
+			AD4630_CHAN(0, 64, 30, 2, ad4630_ext_info, "CH0"),
 		},
 		.data_width = 32,
 	}
@@ -814,22 +815,22 @@ static const struct ad4630_out_mode ad4030_24_modes[] = {
 static const struct ad4630_out_mode ad4630_16_modes[] = {
 	[AD4630_16_DIFF] = {
 		.channels = {
-			AD4630_CHAN(0, 32, 16, 0, NULL),
-			AD4630_CHAN(1, 32, 16, 0, NULL),
+			AD4630_CHAN(0, 32, 16, 0, NULL, "CH0"),
+			AD4630_CHAN(1, 32, 16, 0, NULL, "CH1"),
 		},
 		.data_width = 16,
 	},
 	[AD4630_16_DIFF_8_COM] = {
 		.channels = {
-			AD4630_CHAN(0, 32, 16, 8, NULL),
-			AD4630_CHAN(1, 32, 16, 8, NULL),
+			AD4630_CHAN(0, 32, 16, 8, NULL, "CH0"),
+			AD4630_CHAN(1, 32, 16, 8, NULL, "CH1"),
 		},
 		.data_width = 24,
 	},
 	[AD4630_30_AVERAGED_DIFF] = {
 		.channels = {
-			AD4630_CHAN(0, 32, 30, 2, ad4630_ext_info),
-			AD4630_CHAN(1, 32, 30, 2, ad4630_ext_info),
+			AD4630_CHAN(0, 32, 30, 2, ad4630_ext_info, "CH0"),
+			AD4630_CHAN(1, 32, 30, 2, ad4630_ext_info, "CH1"),
 		},
 		.data_width = 32,
 	}
@@ -838,29 +839,29 @@ static const struct ad4630_out_mode ad4630_16_modes[] = {
 static const struct ad4630_out_mode ad4630_24_modes[] = {
 	[AD4630_24_DIFF] = {
 		.channels = {
-			AD4630_CHAN(0, 32, 24, 0, NULL),
-			AD4630_CHAN(1, 32, 24, 0, NULL),
+			AD4630_CHAN(0, 32, 24, 0, NULL, "CH0"),
+			AD4630_CHAN(1, 32, 24, 0, NULL, "CH1"),
 		},
 		.data_width = 24,
 	},
 	[AD4630_16_DIFF_8_COM] = {
 		.channels = {
-			AD4630_CHAN(0, 32, 16, 8, NULL),
-			AD4630_CHAN(1, 32, 16, 8, NULL),
+			AD4630_CHAN(0, 32, 16, 8, NULL, "CH0"),
+			AD4630_CHAN(1, 32, 16, 8, NULL, "CH1"),
 		},
 		.data_width = 24,
 	},
 	[AD4630_24_DIFF_8_COM] = {
 		.channels = {
-			AD4630_CHAN(0, 32, 24, 8, NULL),
-			AD4630_CHAN(1, 32, 24, 8, NULL),
+			AD4630_CHAN(0, 32, 24, 8, NULL, "CH0"),
+			AD4630_CHAN(1, 32, 24, 8, NULL, "CH1"),
 		},
 		.data_width = 32,
 	},
 	[AD4630_30_AVERAGED_DIFF] = {
 		.channels = {
-			AD4630_CHAN(0, 32, 30, 2, ad4630_ext_info),
-			AD4630_CHAN(1, 32, 30, 2, ad4630_ext_info),
+			AD4630_CHAN(0, 32, 30, 2, ad4630_ext_info, "CH0"),
+			AD4630_CHAN(1, 32, 30, 2, ad4630_ext_info, "CH1"),
 		},
 		.data_width = 32,
 	}

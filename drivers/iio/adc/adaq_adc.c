@@ -12,6 +12,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/util_macros.h>
 
+#include <linux/iio/driver.h>
+#include <linux/iio/machine.h>
 
 #include <linux/bitfield.h>
 #include <linux/iio/sysfs.h>
@@ -45,6 +47,7 @@ static struct adaq4224_chip_info {
 
 static struct adaq4224_state {
 	struct platform_device *pdev;
+	struct iio_map chan_map;
 	struct iio_channel *iio_chans;
 	int num_chans;
 	struct iio_chan_spec_ext_info *ext_info;
@@ -390,6 +393,12 @@ unsigned int iio_get_iio_channel_count(struct iio_channel *chans)
 	return i;
 }
 
+static struct iio_map ad4030_24_iio_maps[] = {
+	//IIO_MAP("CH0", "ad4030-24", "adaq_chan0"),
+	IIO_MAP("CH0", "adaq4224", "adaq_chan0"),
+	{}
+};
+
 static int adaq_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -404,6 +413,7 @@ static int adaq_adc_probe(struct platform_device *pdev)
 	int i, j, k;
 	int ret;
 
+	dev_info(&pdev->dev, "Proging adaq_adc ...");
 
 	iio_chans = devm_iio_channel_get_all(dev);
 	if (IS_ERR(iio_chans))
@@ -474,7 +484,22 @@ static int adaq_adc_probe(struct platform_device *pdev)
 	indio_dev->info = &adaq4224_info;
 	indio_dev->available_scan_masks = st->chip->available_masks;
 
+	//ret = devm_iio_map_array_register(dev, indio_dev, ad4030_24_iio_maps);
+	dev_info(&pdev->dev, "register iio_map");
+	ret = iio_map_array_register(iio_chans->indio_dev, ad4030_24_iio_maps);
+	if (ret)
+		return ret;
+
+
 	return devm_iio_device_register(&pdev->dev, indio_dev);
+}
+
+static int adaq_adc_remove(struct platform_device *pdev)
+{
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	//struct adaq4224_state *st = iio_priv(indio_dev);
+
+	return iio_map_array_unregister(indio_dev);
 }
 
 
@@ -487,6 +512,7 @@ MODULE_DEVICE_TABLE(of, adaq_adc_of_match);
 
 static struct platform_driver adaq_adc_driver = {
 	.probe = adaq_adc_probe,
+	.remove = adaq_adc_remove,
 	.driver = {
 		.name = "adi,adaq_adc",
 		.of_match_table = adaq_adc_of_match,
