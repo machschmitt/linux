@@ -45,7 +45,7 @@ static struct adaq4224_chip_info {
 
 static struct adaq4224_state {
 	struct platform_device *pdev;
-	struct iio_channel *chans;
+	struct iio_channel *iio_chans;
 	int num_chans;
 	struct iio_chan_spec_ext_info *ext_info;
 	const struct adaq4224_chip_info *chip;
@@ -185,10 +185,10 @@ static int adaq4224_write_raw(struct iio_dev *indio_dev,
 		return ad4630_set_pgia_gain(indio_dev, gain_idx);
 	default:
 		if (chan->type == IIO_TEMP)
-			return iio_write_channel_attribute(st->chans + 1, val,
+			return iio_write_channel_attribute(st->iio_chans + 1, val,
 							   val2, mask);
 		else
-			return iio_write_channel_attribute(st->chans + chan->channel,
+			return iio_write_channel_attribute(st->iio_chans + chan->channel,
 							   val, val2, mask);
 	}
 }
@@ -213,10 +213,10 @@ static int adaq4224_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
 		if (chan->type == IIO_TEMP)
-			return iio_read_channel_attribute(st->chans + 1,
+			return iio_read_channel_attribute(st->iio_chans + 1,
 							  val, val2, mask);
 		else
-			return iio_read_channel_attribute(st->chans + chan->channel,
+			return iio_read_channel_attribute(st->iio_chans + chan->channel,
 							  val, val2, mask);
 	}
 }
@@ -233,7 +233,7 @@ ssize_t adaq4224_ext_info_write(struct iio_dev *indio_dev, uintptr_t priv,
 	struct adaq4224_state *st = iio_priv(indio_dev);
 	const char *name = (const char *)priv;
 
-	return iio_write_channel_ext_info(st->chans + chan->channel, name,
+	return iio_write_channel_ext_info(st->iio_chans + chan->channel, name,
 					  buf, len);
 }
 
@@ -243,7 +243,7 @@ ssize_t adaq4224_ext_info_read(struct iio_dev *indio_dev, uintptr_t priv,
 	struct adaq4224_state *st = iio_priv(indio_dev);
 	const char *name = (const char *)priv;
 
-	return iio_read_channel_ext_info(st->chans + chan->channel,
+	return iio_read_channel_ext_info(st->iio_chans + chan->channel,
 					 name,
 					 buf);
 }
@@ -393,7 +393,7 @@ unsigned int iio_get_iio_channel_count(struct iio_channel *chans)
 static int adaq_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct iio_channel *chans;
+	struct iio_channel *iio_chans;
 	struct iio_dev *indio_dev;
 	struct adaq4224_state *st;
 	struct regulator *ref;
@@ -405,19 +405,19 @@ static int adaq_adc_probe(struct platform_device *pdev)
 	int ret;
 
 
-	chans = devm_iio_channel_get_all(dev);
-	if (IS_ERR(chans))
-		return dev_err_probe(dev, PTR_ERR(chans),
+	iio_chans = devm_iio_channel_get_all(dev);
+	if (IS_ERR(iio_chans))
+		return dev_err_probe(dev, PTR_ERR(iio_chans),
 				     "failed to get source channels\n");
 
-	num_chans = iio_get_iio_channel_count(chans);
+	num_chans = iio_get_iio_channel_count(iio_chans);
 	if (num_chans) {
 		sizeof_chans = num_chans + 1; /* one extra entry for the sentinel */
-		sizeof_chans *= sizeof(*st->chans);
+		sizeof_chans *= sizeof(*st->iio_chans);
 	}
 
 	for (i = 0; i < num_chans; i++)
-		sizeof_ext_info += iio_get_channel_ext_info_count(chans + i);
+		sizeof_ext_info += iio_get_channel_ext_info_count(iio_chans + i);
 
 	if (sizeof_ext_info) {
 		sizeof_ext_info += 1; /* one extra entry for the sentinel */
@@ -432,7 +432,7 @@ static int adaq_adc_probe(struct platform_device *pdev)
 
 	st = iio_priv(indio_dev);
 	st->pdev = pdev;
-	st->chans = chans;
+	st->iio_chans = iio_chans;
 	st->num_chans = num_chans;
 
 	st->chip = device_get_match_data(&pdev->dev);
