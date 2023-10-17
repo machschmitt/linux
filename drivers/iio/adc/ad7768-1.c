@@ -100,6 +100,8 @@
 #define AD7768_RD_FLAG_MSK(x)		(BIT(6) | ((x) & 0x3F))
 #define AD7768_WR_FLAG_MSK(x)		((x) & 0x3F)
 
+#define AD7768_1_MAX_CHANNEL_NR		1
+
 enum ad7768_conv_mode {
 	AD7768_CONTINUOUS,
 	AD7768_ONE_SHOT,
@@ -183,23 +185,43 @@ static struct iio_chan_spec_ext_info ad7768_ext_info[] = {
 	{ },
 };
 
-static const struct iio_chan_spec ad7768_channels[] = {
-	{
-		.type = IIO_VOLTAGE,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
-		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
-		.ext_info = ad7768_ext_info,
-		.indexed = 1,
-		.channel = 0,
-		.scan_index = 0,
-		.scan_type = {
-			.sign = 's',
-			.realbits = 24,
-			.storagebits = 32,
-			.shift = 8,
-		},
+#define AD7768_1_CHAN(_idx, _shift) {					\
+	.type = IIO_VOLTAGE,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.ext_info = ad7768_ext_info,					\
+	.indexed = 1,							\
+	.channel = _idx,						\
+	.scan_index = 0,						\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = 24,						\
+		.storagebits = 32,					\
+		.shift = _shift,					\
+	},								\
+}
+
+struct ad7768_1_chip_info {
+	const char *name;
+	const struct iio_chan_spec channels[AD7768_1_MAX_CHANNEL_NR];
+	int n_channels;
+};
+
+static const struct ad7768_1_chip_info ad7768_1_chip_info = {
+	.name = "ad7768-1",
+	.channels = {
+		AD7768_1_CHAN(0, 8),
 	},
+	.n_channels = 1,
+};
+
+static const struct ad7768_1_chip_info adaq7768_1_chip_info = {
+	.name = "adaq7768-1",
+	.channels = {
+		AD7768_1_CHAN(0, 0),
+	},
+	.n_channels = 1,
 };
 
 struct ad7768_state {
@@ -207,6 +229,7 @@ struct ad7768_state {
 	struct regulator *vref;
 	struct mutex lock;
 	struct clk *mclk;
+	const struct ad7768_1_chip_info *chip;
 	struct gpio_chip gpiochip;
 	unsigned int gpio_avail_map;
 	unsigned int mclk_freq;
@@ -215,7 +238,7 @@ struct ad7768_state {
 	struct completion completion;
 	struct iio_trigger *trig;
 	struct gpio_desc *gpio_sync_in;
-	const char *labels[ARRAY_SIZE(ad7768_channels)];
+	const char *labels[AD7768_1_MAX_CHANNEL_NR];
 	struct gpio_desc *gpio_reset;
 	bool spi_is_dma_mapped;
 	int irq;
@@ -892,6 +915,10 @@ static int ad7768_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	st->spi = spi;
 
+	st->chip = (const struct ad7768_1_chip_info *)device_get_match_data(&spi->dev);
+	if (!st->chip)
+		return dev_err_probe(&spi->dev, -EINVAL, "No chip info data\n");
+
 	st->vref = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(st->vref))
 		return PTR_ERR(st->vref);
@@ -916,9 +943,9 @@ static int ad7768_probe(struct spi_device *spi)
 
 	mutex_init(&st->lock);
 
-	indio_dev->channels = ad7768_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ad7768_channels);
-	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->channels = st->chip->channels;
+	indio_dev->num_channels = st->chip->n_channels;
+	indio_dev->name = st->chip->name;
 	indio_dev->info = &ad7768_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -928,7 +955,7 @@ static int ad7768_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = ad7768_set_channel_label(indio_dev, ARRAY_SIZE(ad7768_channels));
+	ret = ad7768_set_channel_label(indio_dev, st->chip->n_channels);
 	if (ret)
 		return ret;
 
@@ -943,13 +970,17 @@ static int ad7768_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7768_id_table[] = {
-	{ "ad7768-1", 0 },
+	{ "ad7768-1", (kernel_ulong_t)&ad7768_1_chip_info },
+	{ "adaq7768-1", (kernel_ulong_t)&adaq7768_1_chip_info },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7768_id_table);
 
 static const struct of_device_id ad7768_of_match[] = {
-	{ .compatible = "adi,ad7768-1" },
+	{ .compatible = "adi,ad7768-1",
+	  .data = (struct ad7768_1_chip_info *)&ad7768_1_chip_info },
+	{ .compatible = "adi,adaq7768-1",
+	  .data = (struct ad7768_1_chip_info *)&adaq7768_1_chip_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ad7768_of_match);
