@@ -332,7 +332,7 @@ static int ad7949_spi_probe(struct spi_device *spi)
 	ad7949_adc->indio_dev = indio_dev;
 	ad7949_adc->spi = spi;
 
-	spec = &ad7949_adc_spec[spi_get_device_id(spi)->driver_data];
+	spec = (const struct ad7949_adc_spec *)device_get_match_data(&spi->dev);
 	indio_dev->num_channels = spec->num_channels;
 	ad7949_adc->resolution = spec->resolution;
 
@@ -412,17 +412,17 @@ static int ad7949_spi_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id ad7949_spi_of_id[] = {
-	{ .compatible = "adi,ad7949" },
-	{ .compatible = "adi,ad7682" },
-	{ .compatible = "adi,ad7689" },
+	{ .compatible = "adi,ad7949", .data = &ad7949_adc_spec[ID_AD7949] },
+	{ .compatible = "adi,ad7682", .data = &ad7949_adc_spec[ID_AD7682] },
+	{ .compatible = "adi,ad7689", .data = &ad7949_adc_spec[ID_AD7689] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7949_spi_of_id);
 
 static const struct spi_device_id ad7949_spi_id[] = {
-	{ "ad7949", ID_AD7949  },
-	{ "ad7682", ID_AD7682 },
-	{ "ad7689", ID_AD7689 },
+	{ "ad7949", .driver_data = (kernel_ulong_t)&ad7949_adc_spec[ID_AD7949] },
+	{ "ad7682", .driver_data = (kernel_ulong_t)&ad7949_adc_spec[ID_AD7682] },
+	{ "ad7689", .driver_data = (kernel_ulong_t)&ad7949_adc_spec[ID_AD7689] },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7949_spi_id);
