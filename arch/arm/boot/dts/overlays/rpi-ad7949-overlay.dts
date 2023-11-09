@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2711";
+};
+
+&spi0 {
+	status = "okay";
+
+	cs-gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
+
+	ad7949@0 {
+		compatible = "adi,ad7949";
+		reg = <0x0>;
+		spi-max-frequency = <1000000>;
+		adi,internal-ref-microvolt = <4096000>;
+	};
+};
+
+&spidev0 {
+	status = "disabled";
+};
+
+&spidev1 {
+	status = "disabled";
+};
