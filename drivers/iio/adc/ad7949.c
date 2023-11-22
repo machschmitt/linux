@@ -245,7 +245,7 @@ static int ad7949_spi_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 
-		*val2 = (1 << ad7949_adc->resolution) - 1;
+		*val2 = ad7949_adc->resolution;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 
