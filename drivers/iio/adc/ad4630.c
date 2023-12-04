@@ -304,9 +304,12 @@ static int ad4630_read_raw(struct iio_dev *indio_dev,
 		ad4630_get_sampling_freq(st, val);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
+		if (st->chip->has_pga) {
+			*val = st->scale_tbl[st->pga_idx][0];
+			*val2 = st->scale_tbl[st->pga_idx][1];
+			return IIO_VAL_INT_PLUS_NANO;
+		}
 		*val = (st->vref * 2) / 1000;
-		if (st->chip->has_pga)
-			*val = *val * ad4630_gains[st->pga_idx] / 1000;
 		*val2 = chan->scan_type.realbits;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_CALIBSCALE:
@@ -440,7 +443,7 @@ static void ad4630_fill_scale_tbl(struct ad4630_state *st)
 	val2 = st->chip->base_word_len;
 	for (i = 0; i < ARRAY_SIZE(ad4630_gains); i++) {
 		val = (st->vref * 2) / 1000;
-		val = val * ad4630_gains[i] / MICRO;
+		val = DIV_ROUND_CLOSEST(val * 1000, ad4630_gains[i]);
 
 		tmp2 = shift_right((s64)val * 1000000000LL, val2);
 		tmp0 = (int)div_s64_rem(tmp2, 1000000000LL, &tmp1);
