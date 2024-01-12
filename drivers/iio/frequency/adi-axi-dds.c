@@ -1826,106 +1826,6 @@ struct axidds_core_info {
 	unsigned int num_device_channels;
 };
 
-static int cf_axi_dds_setup_chip_info_tbl(struct cf_axi_dds_state *st,
-	const struct axidds_core_info *info)
-{
-	u32 i, c, reg, m, n, np;
-
-	reg = dds_read(st, ADI_JESD204_REG_TPL_DESCRIPTOR_1);
-	m = ADI_JESD204_TPL_TO_M(reg);
-
-	if (m == 0 || m > ARRAY_SIZE(st->chip_info_generated.channel))
-		return -EINVAL;
-
-	reg = dds_read(st, ADI_JESD204_REG_TPL_DESCRIPTOR_2);
-	n = ADI_JESD204_TPL_TO_N(reg);
-	np = roundup_pow_of_two(ADI_JESD204_TPL_TO_NP(reg));
-
-	reg = dds_read(st, ADI_REG_CONFIG);
-
-	for (c = 0, i = 0; i < m; i++, c++) {
-		st->chip_info_generated.channel[c].type = IIO_VOLTAGE;
-		st->chip_info_generated.channel[c].output = 1;
-		st->chip_info_generated.channel[c].indexed = 1;
-		st->chip_info_generated.channel[c].modified =
-			info->complex_modified ? 1 : 0;
-		st->chip_info_generated.channel[c].channel =
-			info->complex_modified ? i / 2 : i;
-		st->chip_info_generated.channel[c].channel2 =
-			(i & 1) ? IIO_MOD_Q : IIO_MOD_I;
-		st->chip_info_generated.channel[c].scan_index = i;
-		st->chip_info_generated.channel[c].info_mask_shared_by_type =
-			BIT(IIO_CHAN_INFO_SAMP_FREQ);
-
-		if (!(reg & ADI_IQCORRECTION_DISABLE))
-			st->chip_info_generated.channel[c].info_mask_separate =
-			BIT(IIO_CHAN_INFO_CALIBSCALE) |
-			BIT(IIO_CHAN_INFO_CALIBPHASE);
-
-		if (reg & ADI_XBAR_ENABLE)
-			st->chip_info_generated.channel[c].ext_info =
-			axidds_ext_info;
-
-		st->chip_info_generated.channel[c].info_mask_separate |=
-			info->info_mask_separate;
-
-		st->chip_info_generated.channel[c].scan_type.realbits = n;
-		st->chip_info_generated.channel[c].scan_type.storagebits = np;
-		st->chip_info_generated.channel[c].scan_type.shift = np - n;
-		st->chip_info_generated.channel[c].scan_type.sign = 's';
-	}
-
-	if (!(reg & ADI_DDS_DISABLE)) {
-		for (i = 0; i < 2 * m; i++, c++) {
-			if (c > ARRAY_SIZE(st->chip_info_generated.channel))
-				return -EINVAL;
-			st->chip_info_generated.channel[c].type =
-				IIO_ALTVOLTAGE;
-			st->chip_info_generated.channel[c].output = 1;
-			st->chip_info_generated.channel[c].indexed = 1;
-			st->chip_info_generated.channel[c].channel = i;
-			st->chip_info_generated.channel[c].scan_index = -1;
-			st->chip_info_generated.channel
-				[c].info_mask_shared_by_type =
-				BIT(IIO_CHAN_INFO_SAMP_FREQ);
-			st->chip_info_generated.channel[c].info_mask_separate =
-				BIT(IIO_CHAN_INFO_RAW) |
-				BIT(IIO_CHAN_INFO_SCALE) |
-				BIT(IIO_CHAN_INFO_PHASE) |
-				BIT(IIO_CHAN_INFO_FREQUENCY);
-
-			st->chip_info_generated.channel[c].ext_info =
-				cf_axi_dds_ext_info;
-			if (info->complex_modified) {
-				if (i < ARRAY_SIZE(dds_extend_names_complex))
-					st->chip_info_generated.channel[c].extend_name =
-						dds_extend_names_complex[i];
-			} else {
-				if (i < ARRAY_SIZE(dds_extend_names))
-					st->chip_info_generated.channel[c].extend_name =
-						dds_extend_names[i];
-			}
-		}
-	}
-
-	st->chip_info_generated.num_dds_channels = i;
-
-	for (i = 0; i < info->num_device_channels; i++, c++) {
-		if (c > ARRAY_SIZE(st->chip_info_generated.channel))
-			return -EINVAL;
-		memcpy(&st->chip_info_generated.channel[c],
-			&info->device_channels[i],
-			sizeof(info->device_channels[0]));
-	}
-
-	st->chip_info_generated.num_channels = c;
-	st->chip_info_generated.num_dp_disable_channels = m;
-	st->chip_info_generated.num_buf_channels = m;
-	st->chip_info_generated.name = info->name;
-
-	return 0;
-}
-
 static const struct axidds_core_info ad3552r_6_00_a_info = {
 	.version = ADI_AXI_PCORE_VER(9, 0, 'a'),
 	.standalone = false,
@@ -2275,7 +2175,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 		if (info->chip_info) {
 			st->chip_info = info->chip_info;
 		} else {
-			ret = cf_axi_dds_setup_chip_info_tbl(st, info);
+			ret = -ENODEV;
 			if (ret) {
 				dev_err(&pdev->dev,
 					"Invalid number of converters identified");
@@ -2313,7 +2213,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 		st->dac_clk = conv->get_data_clk(conv);
 
 		if (conv->id == ID_AUTO_SYNTH_PARAM) {
-			ret = cf_axi_dds_setup_chip_info_tbl(st, info);
+			ret = -ENODEV;
 			if (ret) {
 				dev_err(&pdev->dev,
 					"Invalid number of converters identified");
