@@ -36,7 +36,6 @@
 #include <linux/iio/buffer.h>
 
 #include "adi-axi-dds.h"
-#include "ad9122.h"
 #include "../../misc/adi-axi-data-offload.h"
 
 static const unsigned int interpolation_factors_available[] = {1, 8};
