@@ -38,7 +38,7 @@
 #include <linux/jesd204/jesd204.h>
 #include <linux/jesd204/adi-common.h>
 
-#include "cf_axi_dds.h"
+#include "adi-axi-dds.h"
 #include "ad9122.h"
 #include "../../misc/adi-axi-data-offload.h"
 

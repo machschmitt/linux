@@ -20,7 +20,7 @@
 #include <linux/iio/buffer-dma.h>
 #include <linux/iio/buffer-dmaengine.h>
 
-#include "cf_axi_dds.h"
+#include "adi-axi-dds.h"
 
 static int dds_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 	struct iio_dma_buffer_block *block)
