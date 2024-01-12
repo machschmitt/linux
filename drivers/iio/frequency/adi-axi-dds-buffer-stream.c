@@ -22,30 +22,37 @@
 
 #include "adi-axi-dds.h"
 
-static int dds_buffer_submit_block(struct iio_dma_buffer_queue *queue,
-	struct iio_dma_buffer_block *block)
-{
-	struct cf_axi_dds_state *st = iio_priv(queue->driver_data);
-	bool enable_fifo = false;
-	bool oneshot = true;
-
-	if (block->block.bytes_used) {
-		if (cf_axi_dds_dma_fifo_en(st)) {
-			enable_fifo = true;
-
-			if (block->block.flags & IIO_BUFFER_BLOCK_FLAG_CYCLIC) {
-				block->block.flags &= ~IIO_BUFFER_BLOCK_FLAG_CYCLIC;
-				oneshot = false;
-			}
-
-			cf_axi_dds_pl_ddr_fifo_ctrl_oneshot(st, oneshot);
-		}
-
-		cf_axi_dds_pl_ddr_fifo_ctrl(st, enable_fifo);
-	}
-
-	return iio_dmaengine_buffer_submit_block(queue, block);
-}
+/* FIXME
+ * Fix buffer setup or remove this.
+ */
+//static int dds_buffer_submit_block(struct iio_dma_buffer_queue *queue,
+//	struct iio_dma_buffer_block *block)
+//{
+//	struct cf_axi_dds_state *st = iio_priv(queue->driver_data);
+//	bool enable_fifo = false;
+//	bool oneshot = true;
+//
+//	if (block->block.bytes_used) {
+//		if (cf_axi_dds_dma_fifo_en(st)) {
+//			enable_fifo = true;
+//
+//			if (block->block.flags & IIO_BUFFER_BLOCK_FLAG_CYCLIC) {
+//				block->block.flags &= ~IIO_BUFFER_BLOCK_FLAG_CYCLIC;
+//				oneshot = false;
+//			}
+//
+//			cf_axi_dds_pl_ddr_fifo_ctrl_oneshot(st, oneshot);
+//		}
+//
+//		cf_axi_dds_pl_ddr_fifo_ctrl(st, enable_fifo);
+//	}
+//
+//	/* FIXME
+//	 * Fix buffer setup or remove this.
+//	 */
+//	return 0;
+//	//return iio_dmaengine_buffer_submit_block(queue, block);
+//}
 
 static int dds_buffer_state_set(struct iio_dev *indio_dev, bool state)
 {
@@ -84,27 +91,43 @@ static const struct iio_buffer_setup_ops dds_buffer_setup_ops = {
 	.postdisable = &dds_buffer_postdisable,
 };
 
-static const struct iio_dma_buffer_ops dds_buffer_dma_buffer_ops = {
-	.submit = dds_buffer_submit_block,
-	.abort = iio_dmaengine_buffer_abort,
-};
+/* FIXME
+ * Fix buffer setup or remove this.
+ */
+//static const struct iio_dma_buffer_ops dds_buffer_dma_buffer_ops = {
+//	.submit = dds_buffer_submit_block,
+//	.abort = iio_dmaengine_buffer_abort,
+//};
 
 int cf_axi_dds_configure_buffer(struct iio_dev *indio_dev)
 {
 	struct iio_buffer *buffer;
+	int ret;
 
-	buffer = devm_iio_dmaengine_buffer_alloc(indio_dev->dev.parent, "tx",
-						 &dds_buffer_dma_buffer_ops, indio_dev);
-	if (IS_ERR(buffer))
-		return PTR_ERR(buffer);
+	/* FIXME
+	 * The upstream API always use the default dma_buffer_ops which
+	 * will not do the checks and preparations of dds_buffer_submit_block().
+	 */
+	//buffer = devm_iio_dmaengine_buffer_alloc(indio_dev->dev.parent, "tx",
+	//					 &dds_buffer_dma_buffer_ops, indio_dev);
+	//if (IS_ERR(buffer))
+	//	return PTR_ERR(buffer);
 
-	buffer->direction = IIO_BUFFER_DIRECTION_OUT;
-	iio_device_attach_buffer(indio_dev, buffer);
+	ret = devm_iio_dmaengine_buffer_setup(indio_dev->dev.parent,
+						 indio_dev, "tx");
+	if (ret < 0)
+		return ret;
+	//buffer->direction = IIO_BUFFER_DIRECTION_OUT;
+	indio_dev->buffer->direction = IIO_BUFFER_DIRECTION_OUT;
+	//ret = iio_device_attach_buffer(indio_dev, buffer);
+	//if (ret < 0)
+	//	return ret;
 
-	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
+	//indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 	indio_dev->setup_ops = &dds_buffer_setup_ops;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cf_axi_dds_configure_buffer);
 
+//MODULE_IMPORT_NS(IIO_DMAENGINE_BUFFER);
