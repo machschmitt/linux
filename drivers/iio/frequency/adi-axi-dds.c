@@ -137,7 +137,7 @@ struct cf_axi_dds_state {
 	if (__st->standalone) {							\
 		mutex_lock(&__st->lock);					\
 	} else {								\
-		struct cf_axi_converter *conv = to_converter(__st->dev_spi);	\
+		struct cf_axi_converter *conv = to_converter(__st->conv_dev);	\
 										\
 		mutex_lock(&conv->lock);					\
 	}									\
@@ -149,7 +149,7 @@ struct cf_axi_dds_state {
 	if (__st->standalone) {							\
 		mutex_unlock(&__st->lock);					\
 	} else {								\
-		struct cf_axi_converter *conv = to_converter(__st->dev_spi);	\
+		struct cf_axi_converter *conv = to_converter(__st->conv_dev);	\
 										\
 		mutex_unlock(&conv->lock);					\
 	}									\
