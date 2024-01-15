@@ -990,10 +990,11 @@ static int cf_axi_dds_reg_access(struct iio_dev *indio_dev,
 	if ((reg & ~DEBUGFS_DRA_PCORE_REG_MAGIC) > 0xFFFF)
 		return -EINVAL;
 
+	//FIXME rework to use regmap so we don't need to store regs_size
 	/* Check that the register is in range and aligned */
-	if (((reg & DEBUGFS_DRA_PCORE_REG_MAGIC) || st->standalone) &&
-	    ((reg & 0xffff) >= st->regs_size || (reg & 0x3)))
-		return -EINVAL;
+	//if (((reg & DEBUGFS_DRA_PCORE_REG_MAGIC) || st->standalone) &&
+	//    ((reg & 0xffff) >= st->regs_size || (reg & 0x3)))
+	//	return -EINVAL;
 
 	if (st->conv_dev)
 		conv = to_converter(st->conv_dev);
@@ -2158,11 +2159,9 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	st = iio_priv(indio_dev);
 	st->indio_dev = indio_dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	st->regs_size = resource_size(res);
-	st->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!st->regs)
-		return -ENOMEM;
+	st->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(st->regs))
+		return PTR_ERR(st->regs);
 
 	st->data_offload = devm_axi_data_offload_get_optional(&pdev->dev);
 	if (IS_ERR(st->data_offload))
