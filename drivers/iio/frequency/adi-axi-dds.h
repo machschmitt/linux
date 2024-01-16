@@ -12,6 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/clk/clkscale.h>
 #include <linux/fpga/adi-axi-common.h>
+#include <linux/regmap.h>
 
 #define ADI_REG_CONFIG			0x000C
 #define ADI_IQCORRECTION_DISABLE	(1 << 0)
@@ -301,7 +302,7 @@ struct cf_axi_converter {
 			 long mask);
 	const struct attribute_group	*attrs;
 	struct iio_dev	*indio_dev;
-	void		(*pcore_set_sed_pattern)(struct iio_dev *indio_dev,
+	int		(*pcore_set_sed_pattern)(struct iio_dev *indio_dev,
 						 unsigned chan, unsigned pat1,
 						 unsigned pat2);
 	int		(*pcore_sync)(struct iio_dev *indio_dev);
@@ -331,7 +332,6 @@ int cf_axi_dds_pl_ddr_fifo_ctrl_oneshot(struct cf_axi_dds_state *st, bool enable
 
 void dds_write(struct cf_axi_dds_state *st,
 	       unsigned int reg, unsigned int val);
-int dds_read(struct cf_axi_dds_state *st, unsigned int reg);
 void dds_slave_write(struct cf_axi_dds_state *st,
 		     unsigned int reg, unsigned int val);
 unsigned int dds_slave_read(struct cf_axi_dds_state *st, unsigned int reg);

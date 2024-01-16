@@ -96,6 +96,7 @@ static const char * const dds_extend_names[] = {
 };
 
 struct cf_axi_dds_state {
+	struct regmap			*regmap;
 	struct device			*conv_dev;
 	struct axi_data_offload_state	*data_offload;
 	struct clk			*clk;
@@ -168,12 +169,6 @@ void dds_write(struct cf_axi_dds_state *st,
 	iowrite32(val, st->regs + reg);
 }
 EXPORT_SYMBOL(dds_write);
-
-int dds_read(struct cf_axi_dds_state *st, unsigned int reg)
-{
-	return ioread32(st->regs + reg);
-}
-EXPORT_SYMBOL(dds_read);
 
 void dds_slave_write(struct cf_axi_dds_state *st,
 		     unsigned int reg, unsigned int val)
@@ -332,10 +327,11 @@ static int cf_axi_get_parent_sampling_frequency(struct cf_axi_dds_state *st,
 }
 
 
-void __cf_axi_dds_datasel(struct cf_axi_dds_state *st,
+int __cf_axi_dds_datasel(struct cf_axi_dds_state *st,
 	int channel, enum dds_data_select sel)
 {
 	unsigned int val;
+	int ret;
 
 	if ((unsigned int)channel > (st->have_slave_channels - 1)) {
 		val = dds_slave_read(st,
@@ -349,25 +345,35 @@ void __cf_axi_dds_datasel(struct cf_axi_dds_state *st,
 			ADI_REG_CHAN_CNTRL_7(channel -
 			st->have_slave_channels), val);
 	} else {
-		val = dds_read(st, ADI_REG_CHAN_CNTRL_7(channel));
+		ret = regmap_read(st->regmap, ADI_REG_CHAN_CNTRL_7(channel), &val);
+		if (ret)
+			return ret;
 
 		val &= ~ADI_DAC_DDS_SEL(~0);
 		val |= ADI_DAC_DDS_SEL(sel);
 
 		dds_write(st, ADI_REG_CHAN_CNTRL_7(channel), val);
 	}
+	return 0;
 }
 
 int cf_axi_dds_datasel(struct cf_axi_dds_state *st,
 			       int channel, enum dds_data_select sel)
 {
 	unsigned int i;
+	int ret;
 
 	if (channel < 0) /* ALL */
-		for (i = 0; i < st->chip_info->num_buf_channels; i++)
-			__cf_axi_dds_datasel(st, i, sel);
-	else
-		__cf_axi_dds_datasel(st, channel, sel);
+		for (i = 0; i < st->chip_info->num_buf_channels; i++) {
+			ret = __cf_axi_dds_datasel(st, i, sel);
+			if (ret)
+				return ret;
+		}
+	else {
+		ret = __cf_axi_dds_datasel(st, channel, sel);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -376,6 +382,9 @@ EXPORT_SYMBOL_GPL(cf_axi_dds_datasel);
 static enum dds_data_select cf_axi_dds_get_datasel(struct cf_axi_dds_state *st,
 			       int channel)
 {
+	unsigned int val;
+	int ret;
+
 	if (channel < 0)
 		channel = 0;
 
@@ -384,7 +393,11 @@ static enum dds_data_select cf_axi_dds_get_datasel(struct cf_axi_dds_state *st,
 			ADI_REG_CHAN_CNTRL_7(channel -
 			st->have_slave_channels)));
 
-	return ADI_TO_DAC_DDS_SEL(dds_read(st, ADI_REG_CHAN_CNTRL_7(channel)));
+	ret = regmap_read(st->regmap, ADI_REG_CHAN_CNTRL_7(channel), &val);
+	if (ret)
+		return ret;
+
+	return ADI_TO_DAC_DDS_SEL(val);
 }
 
 static int cf_axi_dds_sync_frame(struct iio_dev *indio_dev)
@@ -437,6 +450,7 @@ static int cf_axi_dds_rate_change(struct notifier_block *nb,
 		container_of(nb, struct cf_axi_dds_state, clk_nb);
 	unsigned int reg, i;
 	unsigned long long val64;
+	int ret;
 
 	st->dac_clk = cnd->new_rate;
 
@@ -444,7 +458,11 @@ static int cf_axi_dds_rate_change(struct notifier_block *nb,
 		st->dac_clk = cnd->new_rate;
 
 		for (i = 0; i < st->chip_info->num_dds_channels; i++) {
-			reg = dds_read(st, ADI_REG_CHAN_CNTRL_2_IIOCHAN(i));
+			ret = regmap_read(st->regmap, ADI_REG_CHAN_CNTRL_2_IIOCHAN(i),
+				    &reg);
+			if (ret)
+				return NOTIFY_BAD;
+
 			reg &= ~ADI_DDS_INCR(~0);
 			val64 = (u64) st->cached_freq[i] * 0xFFFFULL;
 			val64 = div64_u64(val64, st->dac_clk);
@@ -458,22 +476,29 @@ static int cf_axi_dds_rate_change(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static void cf_axi_dds_set_sed_pattern(struct iio_dev *indio_dev,
+static int cf_axi_dds_set_sed_pattern(struct iio_dev *indio_dev,
 				       unsigned int chan, unsigned int pat1,
 				       unsigned int pat2)
 {
 	struct cf_axi_dds_state *st = iio_priv(indio_dev);
 	unsigned int ctrl;
+	int ret;
 
 	dds_write(st, ADI_REG_CHAN_CNTRL_5(chan),
 		ADI_TO_DDS_PATT_1(pat1) | ADI_DDS_PATT_2(pat2));
 
-	cf_axi_dds_datasel(st, -1, DATA_SEL_SED);
+	ret = cf_axi_dds_datasel(st, -1, DATA_SEL_SED);
+	if (ret)
+		return ret;
 
-	ctrl = dds_read(st, ADI_REG_CNTRL_2);
+	ret = regmap_read(st->regmap, ADI_REG_CNTRL_2, &ctrl);
+	if (ret)
+		return ret;
+
 	dds_write(st, ADI_REG_CNTRL_2, ctrl | ADI_DATA_FORMAT);
 
 	cf_axi_dds_start_sync(st, 0);
+	return 0;
 }
 
 static int cf_axi_dds_default_setup(struct cf_axi_dds_state *st, u32 chan,
@@ -508,7 +533,9 @@ static int cf_axi_interpolation_set(struct cf_axi_dds_state *st,
 	switch (interpolation_factor) {
 	case 1:
 	case 8:
-		reg = dds_read(st, ADI_REG_DAC_GP_CONTROL);
+		ret = regmap_read(st->regmap, ADI_REG_DAC_GP_CONTROL, &reg);
+		if (ret)
+			return ret;
 
 		if (st->interpolation_factor == 8)
 			reg |= BIT(0);
@@ -633,10 +660,13 @@ static ssize_t axidds_sync_start_show(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct cf_axi_dds_state *st = iio_priv(indio_dev);
 	u32 reg;
+	int ret;
 
 	switch ((u32)this_attr->address) {
 	case 0:
-		reg = dds_read(st, ADI_REG_SYNC_STATUS);
+		ret = regmap_read(st->regmap, ADI_REG_SYNC_STATUS, &reg);
+		if (ret)
+			return ret;
 
 		return sprintf(buf, "%s\n", reg & ADI_ADC_SYNC_STATUS ?
 			axidds_sync_ctrls[0] : axidds_sync_ctrls[1]);
@@ -732,20 +762,36 @@ static int cf_axi_dds_read_raw(struct iio_dev *indio_dev,
 			}
 		}
 
-		reg = ADI_TO_DDS_SCALE(dds_read(st,
-			ADI_REG_CHAN_CNTRL_1_IIOCHAN(chan->channel)));
+		ret = regmap_read(st->regmap,
+				  ADI_REG_CHAN_CNTRL_1_IIOCHAN(chan->channel),
+				  &reg);
+		if (ret)
+			return ret;
+
+		reg = ADI_TO_DDS_SCALE(reg);
+
 		cf_axi_dds_signed_mag_fmt_to_iio(reg, val, val2);
 		cf_axi_dds_unlock(st);
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_FREQUENCY:
-		reg = dds_read(st, ADI_REG_CHAN_CNTRL_2_IIOCHAN(chan->channel));
+		ret = regmap_read(st->regmap,
+				  ADI_REG_CHAN_CNTRL_2_IIOCHAN(chan->channel),
+				  &reg);
+		if (ret)
+			return ret;
+
 		val64 = (u64)ADI_TO_DDS_INCR(reg) * (u64)st->dac_clk;
 		do_div(val64, 0xFFFF);
 		*val = val64;
 		cf_axi_dds_unlock(st);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_PHASE:
-		reg = dds_read(st, ADI_REG_CHAN_CNTRL_2_IIOCHAN(chan->channel));
+		ret = regmap_read(st->regmap,
+				  ADI_REG_CHAN_CNTRL_2_IIOCHAN(chan->channel),
+				  &reg);
+		if (ret)
+			return ret;
+
 		val64 = (u64)ADI_TO_DDS_INIT(reg) * 360000ULL + (0x10000 / 2);
 		do_div(val64, 0x10000);
 		*val = val64;
@@ -770,7 +816,10 @@ static int cf_axi_dds_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBSCALE:
 		channel = cf_axi_dds_reg_index(chan);
 
-		reg = dds_read(st, ADI_REG_CHAN_CNTRL_8(channel));
+		ret = regmap_read(st->regmap, ADI_REG_CHAN_CNTRL_8(channel), &reg);
+		if (ret)
+			return ret;
+
 		/*  format is 1.1.14 (sign, integer and fractional bits) */
 
 		if (!((phase + channel) % 2))
@@ -827,7 +876,7 @@ static int cf_axi_dds_write_raw(struct iio_dev *indio_dev,
 
 		st->enable = !!val;
 		cf_axi_dds_start_sync(st, 0);
-		cf_axi_dds_datasel(st, -1,
+		ret = cf_axi_dds_datasel(st, -1,
 			st->enable ? DATA_SEL_DDS : DATA_SEL_ZERO);
 
 		break;
@@ -884,7 +933,12 @@ static int cf_axi_dds_write_raw(struct iio_dev *indio_dev,
 			break;
 		}
 
-		reg = dds_read(st, ADI_REG_CHAN_CNTRL_2_IIOCHAN(chan->channel));
+		ret = regmap_read(st->regmap,
+				  ADI_REG_CHAN_CNTRL_2_IIOCHAN(chan->channel),
+				  &reg);
+		if (ret)
+			return ret;
+
 		reg &= ~ADI_DDS_INCR(~0);
 		val64 = (u64) val * 0xFFFFULL;
 		val64 = div64_u64(val64, st->dac_clk);
@@ -906,7 +960,12 @@ static int cf_axi_dds_write_raw(struct iio_dev *indio_dev,
 		if (val == 360000)
 			val = 0;
 
-		reg = dds_read(st, ADI_REG_CHAN_CNTRL_2_IIOCHAN(chan->channel));
+		ret = regmap_read(st->regmap,
+				  ADI_REG_CHAN_CNTRL_2_IIOCHAN(chan->channel),
+				  &reg);
+		if (ret)
+			return ret;
+
 		reg &= ~ADI_DDS_INIT(~0);
 		val64 = (u64) val * 0x10000ULL + (360000 / 2);
 		do_div(val64, 360000);
@@ -931,11 +990,17 @@ static int cf_axi_dds_write_raw(struct iio_dev *indio_dev,
 			break;
 		}
 
-		reg = dds_read(st, ADI_REG_CNTRL_2);
+		ret = regmap_read(st->regmap, ADI_REG_CNTRL_2, &reg);
+		if (ret)
+			return ret;
+
 		i = cf_axi_dds_get_datasel(st, -1);
 		conv->write_raw(indio_dev, chan, val, val2, mask);
 		dds_write(st, ADI_REG_CNTRL_2, reg);
-		cf_axi_dds_datasel(st, -1, i);
+		ret = cf_axi_dds_datasel(st, -1, i);
+		if (ret)
+			return ret;
+
 		st->dac_clk = conv->get_data_clk(conv);
 		cf_axi_dds_start_sync(st, 0);
 		ret = cf_axi_dds_sync_frame(indio_dev);
@@ -950,7 +1015,9 @@ static int cf_axi_dds_write_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			break;
 
-		reg = dds_read(st, ADI_REG_CHAN_CNTRL_8(channel));
+		ret = regmap_read(st->regmap, ADI_REG_CHAN_CNTRL_8(channel), &reg);
+		if (ret)
+			return ret;
 
 		if (!((channel + phase) % 2)) {
 			reg &= ~ADI_IQCOR_COEFF_1(~0);
@@ -1017,7 +1084,11 @@ static int cf_axi_dds_reg_access(struct iio_dev *indio_dev,
 	} else {
 		if ((reg & DEBUGFS_DRA_PCORE_REG_MAGIC) ||
 			st->standalone) {
-			ret = dds_read(st, reg & 0xFFFF);
+			ret = regmap_read(st->regmap, reg & 0xFFFF, &reg);
+			if (ret)
+				return ret;
+
+			ret = reg;
 		} else {
 			if (IS_ERR(conv))
 				ret  = PTR_ERR(conv);
@@ -1065,7 +1136,9 @@ static int cf_axi_dds_update_scan_mode(struct iio_dev *indio_dev,
 		else
 			sel = DATA_SEL_DDS;
 
-		cf_axi_dds_datasel(st, i, sel);
+		ret = cf_axi_dds_datasel(st, i, sel);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -1737,7 +1810,10 @@ static ssize_t cf_axi_dds_ext_info_read(struct iio_dev *indio_dev,
 	switch (private) {
 	case CHANNEL_XBAR:
 		index = cf_axi_dds_reg_index(chan);
-		val = dds_read(st, ADI_REG_CHAN_CNTRL_7(index));
+		ret = regmap_read(st->regmap, ADI_REG_CHAN_CNTRL_7(index),
+				  (unsigned int *)&val);
+		if (ret)
+			return ret;
 
 		if (val & ADI_DAC_ENABLE_MASK)
 			val = ADI_TO_DAC_SRC_CH_SEL(val);
@@ -1781,7 +1857,9 @@ static ssize_t cf_axi_dds_ext_info_write(struct iio_dev *indio_dev,
 
 		index = cf_axi_dds_reg_index(chan);
 
-		val = dds_read(st, ADI_REG_CHAN_CNTRL_7(index));
+		ret = regmap_read(st->regmap, ADI_REG_CHAN_CNTRL_7(index), &val);
+		if (ret)
+			return ret;
 
 		val &= ADI_DAC_DDS_SEL(~0);
 		val |= ADI_DAC_SRC_CH_SEL(readin);
@@ -2125,6 +2203,13 @@ static int cf_axi_dds_sampl_clk_setup(struct cf_axi_dds_state *st,
 	return devm_add_action_or_reset(dev, dds_clk_notifier_unreg, st);
 }
 
+static const struct regmap_config axi_dac_regmap_config = {
+	.val_bits = 32,
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.max_register = 0x0800,
+};
+
 static int cf_axi_dds_probe(struct platform_device *pdev)
 {
 
@@ -2136,6 +2221,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	struct resource *res;
 	unsigned int ctrl_2, config;
+	unsigned int dds_id;
 	unsigned int rate;
 	unsigned int drp_status;
 	int timeout = 100;
@@ -2162,6 +2248,11 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	st->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(st->regs))
 		return PTR_ERR(st->regs);
+
+	st->regmap = devm_regmap_init_mmio(&pdev->dev, st->regs,
+					   &axi_dac_regmap_config);
+	if (IS_ERR(st->regmap))
+		return PTR_ERR(st->regmap);
 
 	st->data_offload = devm_axi_data_offload_get_optional(&pdev->dev);
 	if (IS_ERR(st->data_offload))
@@ -2239,9 +2330,15 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 	st->issue_sync_en = info->issue_sync_en;
 	st->standalone = info->standalone;
-	st->version = dds_read(st, ADI_AXI_REG_VERSION);
 
-	config = dds_read(st, ADI_REG_CONFIG);
+	ret = regmap_read(st->regmap, ADI_AXI_REG_VERSION, &st->version);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(st->regmap, ADI_REG_CONFIG, &config);
+	if (ret)
+		return ret;
+
 	st->ext_sync_avail = !!(config & ADI_EXT_SYNC);
 	dev_info(&pdev->dev, "ad3552r ADI_REG_CONFIG: %u, ext_sync_avail: %u",
 		 config, st->ext_sync_avail);
@@ -2276,7 +2373,10 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	dds_write(st, ADI_REG_RSTN, ADI_MMCM_RSTN);
 
 	do {
-		drp_status = dds_read(st, ADI_REG_DRP_STATUS);
+		ret = regmap_read(st->regmap, ADI_REG_DRP_STATUS, &drp_status);
+		if (ret)
+			return ret;
+
 		if (drp_status & ADI_DRP_LOCKED)
 			break;
 		msleep(1);
@@ -2319,7 +2419,9 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	if (info && !info->rate_format_skip_en)
 		dds_write(st, ADI_REG_CNTRL_2, ctrl_2);
 
-	cf_axi_dds_datasel(st, -1, DATA_SEL_DDS);
+	ret = cf_axi_dds_datasel(st, -1, DATA_SEL_DDS);
+	if (ret)
+		return ret;
 
 	if (!st->dp_disable) {
 		u32 scale, frequency, phase, i, skip_attrib = 0;
@@ -2384,7 +2486,11 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	cf_axi_dds_start_sync(st, 0);
 	cf_axi_dds_sync_frame(indio_dev);
 
-	if (!st->dp_disable && !dds_read(st, ADI_AXI_REG_ID)) {
+	ret = regmap_read(st->regmap, ADI_AXI_REG_ID, &dds_id);
+	if (ret)
+		return ret;
+
+	if (!st->dp_disable && !dds_id) {
 
 		if (st->chip_info->num_shadow_slave_channels) {
 			u32 regs[2];
@@ -2414,7 +2520,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 				st->chip_info->scan_masks;
 		}
 
-	} else if (dds_read(st, ADI_AXI_REG_ID)) {
+	} else if (dds_id) {
 		u32 regs[2];
 
 		ret = of_property_read_u32_array(pdev->dev.of_node,
@@ -2440,7 +2546,7 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev,
 		 "Analog Devices CF_AXI_DDS_DDS %s (%d.%.2d.%c) at 0x%08llX mapped to 0x%p, probed DDS %s\n",
-		 dds_read(st, ADI_AXI_REG_ID) ? "SLAVE" : "MASTER",
+		 dds_id ? "SLAVE" : "MASTER",
 		 ADI_AXI_PCORE_VER_MAJOR(st->version),
 		 ADI_AXI_PCORE_VER_MINOR(st->version),
 		 ADI_AXI_PCORE_VER_PATCH(st->version),
