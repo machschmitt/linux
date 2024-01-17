@@ -245,7 +245,45 @@ struct cf_axi_dds_chip_info {
 
 extern struct cf_axi_dds_chip_info cf_axi_dds_chip_info_tbl[];
 
-struct cf_axi_dds_state;
+struct cf_axi_dds_state {
+	struct device			*dev;
+	struct regmap			*regmap;
+	struct device			*conv_dev;
+	struct axi_data_offload_state	*data_offload;
+	struct clk			*clk;
+	struct clock_scale		clkscale;
+	struct cf_axi_dds_chip_info	*chip_info;
+	struct gpio_desc		*plddrbypass_gpio;
+	struct gpio_desc		*interpolation_gpio;
+	/*
+	 * Lock used when in standalone mode.
+	 */
+	struct mutex			lock;
+	bool				standalone;
+	bool				dp_disable;
+	bool				enable;
+	bool				pl_dma_fifo_en;
+	enum fifo_ctrl			dma_fifo_ctrl_bypass;
+	bool				dma_fifo_ctrl_oneshot;
+	bool				issue_sync_en;
+	bool				ext_sync_avail;
+
+	struct iio_info			iio_info;
+	struct iio_dev			*indio_dev;
+	size_t				regs_size;
+	void __iomem			*regs;
+	void __iomem			*slave_regs;
+	void __iomem			*master_regs;
+	u64				dac_clk;
+	unsigned int			ddr_dds_interp_en;
+	unsigned int			cached_freq[AXIDDS_MAX_NUM_DDS_CHAN];
+	unsigned int			version;
+	unsigned int			have_slave_channels;
+	unsigned int			interpolation_factor;
+	struct notifier_block		clk_nb;
+	struct cf_axi_dds_chip_info	chip_info_generated;
+};
+
 
 enum {
 	CLK_DATA,
@@ -322,7 +360,7 @@ int cf_axi_dds_configure_buffer(struct iio_dev *indio_dev);
 void cf_axi_dds_unconfigure_buffer(struct iio_dev *indio_dev);
 int cf_axi_dds_datasel(struct cf_axi_dds_state *st,
 		       int channel, enum dds_data_select sel);
-void cf_axi_dds_start_sync(struct cf_axi_dds_state *st, int sync_dma);
+int cf_axi_dds_start_sync(struct cf_axi_dds_state *st, int sync_dma);
 int cf_axi_dds_pl_ddr_fifo_ctrl(struct cf_axi_dds_state *st, bool enable);
 int cf_axi_dds_pl_ddr_fifo_ctrl_oneshot(struct cf_axi_dds_state *st, bool enable);
 
@@ -330,8 +368,6 @@ int cf_axi_dds_pl_ddr_fifo_ctrl_oneshot(struct cf_axi_dds_state *st, bool enable
  * IO accessors
  */
 
-void dds_write(struct cf_axi_dds_state *st,
-	       unsigned int reg, unsigned int val);
 void dds_slave_write(struct cf_axi_dds_state *st,
 		     unsigned int reg, unsigned int val);
 unsigned int dds_slave_read(struct cf_axi_dds_state *st, unsigned int reg);

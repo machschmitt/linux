@@ -57,6 +57,7 @@
 static int dds_buffer_state_set(struct iio_dev *indio_dev, bool state)
 {
 	struct cf_axi_dds_state *st = iio_priv(indio_dev);
+	int ret;
 
 #if 0
 	tmp_reg = dds_read(st, CF_AXI_DDS_DMA_STAT);
@@ -69,11 +70,12 @@ static int dds_buffer_state_set(struct iio_dev *indio_dev, bool state)
 	if (!state)
 		return cf_axi_dds_datasel(st, -1, DATA_SEL_DDS);
 
-	dds_write(st, ADI_REG_VDMA_STATUS, ADI_VDMA_OVF | ADI_VDMA_UNF);
+	ret = regmap_write(st->regmap, ADI_REG_VDMA_STATUS,
+			   ADI_VDMA_OVF | ADI_VDMA_UNF);
+	if (ret)
+		return ret;
 
-	cf_axi_dds_start_sync(st, 1);
-
-	return 0;
+	return cf_axi_dds_start_sync(st, 1);
 }
 
 static int dds_buffer_preenable(struct iio_dev *indio_dev)
