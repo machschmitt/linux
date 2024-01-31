@@ -22,7 +22,7 @@ config AD_SIGMA_DELTA
 	select IIO_TRIGGERED_BUFFER
 
 config AD4000
-	tristate "Analog Device AD4000 ADC Driver"
+	tristate "Analog Devices AD4000 ADC Driver"
 	depends on SPI_MASTER
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
