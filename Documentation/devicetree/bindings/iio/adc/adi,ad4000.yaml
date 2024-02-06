@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/iio/adc/adi,ad400x.yaml#
+$id: http://devicetree.org/schemas/iio/adc/adi,ad4000.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AD400X ADC device driver
+title: Analog Devices AD4000 ADC device driver
 
 maintainers:
   - Marcelo Schmitt <marcelo.schmitt@analog.com>
@@ -22,6 +22,7 @@ description: |
 properties:
   compatible:
     enum:
+      - adi,ad4000
       - adi,ad4001
       - adi,ad4002
       - adi,ad4003
@@ -53,7 +54,7 @@ properties:
 
   clock-names:
     const: ref_clk
-    description: AD400X reference clock name.
+    description: AD4000 reference clock name.
 
   pwms:
     description: |
@@ -126,7 +127,7 @@ examples:
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
-        /* Example for a AD400X devices */
+        /* Example for a AD4000 devices */
         adc@0 {
             compatible = "adi,ad4020";
             reg = <0>;
@@ -150,7 +151,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        /* Example for a ADAQ400X devices */
+        /* Example for a ADAQ4000 devices */
         adc@0 {
             compatible = "adi,adaq4003";
             reg = <0>;
