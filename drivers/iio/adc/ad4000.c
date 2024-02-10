@@ -158,7 +158,7 @@ struct ad4000_state {
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	uint8_t	data[4] ____cacheline_aligned;
+	uint8_t	data[4] __aligned(IIO_DMA_MINALIGN);;
 };
 
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
