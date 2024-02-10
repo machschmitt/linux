@@ -42,7 +42,6 @@
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
 			BIT(IIO_CHAN_INFO_SCALE) |			\
 			BIT(IIO_CHAN_INFO_OFFSET),			\
-		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),\
 		.scan_type = {						\
 			.sign = 's',					\
 			.realbits = real_bits,				\
@@ -306,9 +305,6 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 		*val2 = chan->scan_type.realbits;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		*val = ad4000_get_sampling_freq(st);
-		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = -(1 << chan->scan_type.realbits);
 
@@ -344,21 +340,8 @@ static int ad4000_reg_access(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int ad4000_write_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int val, int val2, long info)
-{
-	switch (info) {
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		return ad4000_set_sampling_freq(indio_dev, val);
-	default:
-		return -EINVAL;
-	}
-}
-
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
-	.write_raw = &ad4000_write_raw,
 	.debugfs_reg_access = &ad4000_reg_access,
 };
 
