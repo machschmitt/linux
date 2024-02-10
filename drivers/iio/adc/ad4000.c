@@ -233,7 +233,7 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 	if (ret < 0)
 		return ret;
 
-	*val = (input[2] << 16) | (input[1] << 8) | input[0];
+	*val = be32_to_cpu(input);
 
 	return ret;
 }
