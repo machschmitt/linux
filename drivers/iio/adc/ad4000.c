@@ -67,71 +67,92 @@ enum ad4000_ids {
 	ID_ADAQ4003,
 };
 
+enum ad4000_input_type {
+	SINGLE_ENDED,
+	DIFFERENTIAL,
+};
+
 struct ad4000_chip_info {
 	struct iio_chan_spec chan_spec;
 	int max_rate;
+	enum ad4000_input_type input_type;
 };
 
 static const struct ad4000_chip_info ad4000_chips[] = {
 	[ID_AD4000] = {
 		.chan_spec = AD400X_CHANNEL(16),
 		.max_rate  = 2000000,
+		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4001] = {
 		.chan_spec = AD400X_CHANNEL(16),
 		.max_rate  = 2000000,
+		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4002] = {
 		.chan_spec = AD400X_CHANNEL(18),
 		.max_rate  = 2000000,
+		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4003] = {
 		.chan_spec = AD400X_CHANNEL(18),
 		.max_rate  = 2000000,
+		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4004] = {
 		.chan_spec = AD400X_CHANNEL(16),
 		.max_rate  = 1000000,
+		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4005] = {
 		.chan_spec = AD400X_CHANNEL(16),
 		.max_rate  = 1000000,
+		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4006] = {
 		.chan_spec = AD400X_CHANNEL(18),
 		.max_rate  = 1000000,
+		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4007] = {
 		.chan_spec = AD400X_CHANNEL(18),
 		.max_rate  = 1000000,
+		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4008] = {
 		.chan_spec = AD400X_CHANNEL(16),
 		.max_rate  =  500000,
+		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4010] = {
 		.chan_spec = AD400X_CHANNEL(18),
 		.max_rate  =  500000,
+		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4011] = {
 		.chan_spec = AD400X_CHANNEL(18),
 		.max_rate  =  500000,
+		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4020] = {
 		.chan_spec = AD400X_CHANNEL(20),
 		.max_rate  = 1800000,
+		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4021] = {
 		.chan_spec = AD400X_CHANNEL(20),
 		.max_rate  = 1000000,
+		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4022] = {
 		.chan_spec = AD400X_CHANNEL(20),
 		.max_rate  =  500000,
+		.input_type = DIFFERENTIAL,
 	},
 	[ID_ADAQ4003] = {
 		.chan_spec = AD400X_CHANNEL(18),
 		.max_rate  = 2000000,
+		.input_type = DIFFERENTIAL,
 	},
 };
 
@@ -214,10 +235,9 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 {
 	struct spi_message m;
 	struct spi_transfer t = {0};
-	uint8_t input[4] = {0};
 	int ret;
 
-	t.rx_buf = input;
+	t.rx_buf = st->data;
 	t.len = 4;
 	t.bits_per_word = st->num_bits;
 	t.delay.value = 60;
@@ -234,6 +254,8 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 		return ret;
 
 	*val = be32_to_cpu(input);
+	//memcpy(val, &st->data[0], 4);
+
 
 	return ret;
 }
@@ -281,9 +303,8 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 		return ret;
 
 	sample = raw_sample >> chan->scan_type.shift;
-	sample &= (1 << chan->scan_type.realbits) - 1;
-
-	*val = sample;
+	if (st->chip->input_type == DIFFERENTIAL)
+		*val = sign_extend32(sample, st->num_bits - 1);
 
 	return IIO_VAL_INT;
 }
