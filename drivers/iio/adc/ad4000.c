@@ -152,6 +152,7 @@ struct ad4000_state {
 	bool high_z_mode;
 
 	unsigned int num_bits;
+	int read_offset;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -306,8 +307,7 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = -(1 << chan->scan_type.realbits);
-
+		*val = st->read_offset;
 		return IIO_VAL_INT;
 	default:
 		break;
@@ -340,8 +340,24 @@ static int ad4000_reg_access(struct iio_dev *indio_dev,
 	return ret;
 }
 
+static int ad4000_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long info)
+{
+	struct ad4000_state *st = iio_priv(indio_dev);
+
+	switch (info) {
+	case IIO_CHAN_INFO_OFFSET:
+		st->read_offset = val;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
+	.write_raw = &ad4000_write_raw,
 	.debugfs_reg_access = &ad4000_reg_access,
 };
 
