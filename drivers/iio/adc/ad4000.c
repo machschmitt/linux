@@ -4,6 +4,7 @@
  *
  * Copyright 2018 Analog Devices Inc.
  */
+#include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -20,6 +21,8 @@
 #include <linux/spi/spi.h>
 //#include <linux/spi/spi-engine.h>
 #include <linux/sysfs.h>
+
+#include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -175,20 +178,24 @@ struct ad4000_state {
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	uint8_t	data[4] __aligned(IIO_DMA_MINALIGN);;
+	union {
+		struct {
+			__be32 d32;
+			s64 timestamp;
+		} scan;
+		u8 d8[2];
+	} data __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
 	struct spi_transfer t = {
-		.tx_buf		= st->data,
-		.len		= 4,
-		.bits_per_word	= st->num_bits,
+		.tx_buf	= st->data.d8,
+		.len = 2,
 	};
 	struct spi_message m;
 
-	st->data[0] = AD400X_WRITE_COMMAND;
-	st->data[1] = val;
+	put_unaligned_be16(AD400X_WRITE_COMMAND << BITS_PER_BYTE | val, st->data.d8);
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
@@ -202,12 +209,11 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	struct spi_transfer t = {0};
 	int ret;
 
-	st->data[0] = AD400X_READ_COMMAND;
+	st->data.d8[0] = AD400X_READ_COMMAND;
 
-	t.rx_buf = st->data;
-	t.tx_buf = st->data;
+	t.rx_buf = st->data.d8;
+	t.tx_buf = st->data.d8;
 	t.len = 2;
-	t.bits_per_word = 16; /* reg reads are only 16 clocks pulses */
 
 	spi_message_init_with_transfers(&m, &t, 1);
 
@@ -215,7 +221,7 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	if (ret < 0)
 		return ret;
 
-	*val = st->data[0];
+	*val = get_unaligned_be16(st->data.d8);
 
 	return ret;
 }
@@ -226,9 +232,11 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 	struct spi_transfer t = {0};
 	int ret;
 
-	t.rx_buf = st->data;
-	t.len = 4;
-	t.bits_per_word = st->num_bits;
+	t.rx_buf = &st->data.scan.d32;
+	if (st->num_bits <= 24) // TODO if(num_bits + status <= 24)
+		t.len = 3;
+	else
+		t.len = 4;
 	t.delay.value = 60;
 	t.delay.unit = SPI_DELAY_UNIT_NSECS;
 
@@ -239,11 +247,14 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 	if (ret < 0)
 		return ret;
 
-	*val = be32_to_cpu(input);
-	//memcpy(val, &st->data[0], 4);
 
 
-	return ret;
+	if (st->num_bits <= 24) // TODO if(num_bits + status <= 24)
+		*val = get_unaligned_be24(&st->data.scan.d32);
+	else
+		*val = get_unaligned_be32(&st->data.scan.d32);
+
+	return 0;
 }
 
 static int ad4000_set_mode(struct ad4000_state *st)
