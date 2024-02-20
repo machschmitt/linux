@@ -158,7 +158,6 @@ struct ad4000_state {
 	struct regulator *vref;
 	/* protect device accesses */
 	struct mutex lock;
-	bool bus_locked;
 
 	unsigned long ref_clk_rate;
 
@@ -194,9 +193,6 @@ static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
 
-	if (st->bus_locked)
-		return spi_sync_locked(st->spi, &m);
-
 	return spi_sync(st->spi, &m);
 }
 
@@ -215,11 +211,7 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 
 	spi_message_init_with_transfers(&m, &t, 1);
 
-	if (st->bus_locked)
-		ret = spi_sync_locked(st->spi, &m);
-	else
-		ret = spi_sync(st->spi, &m);
-
+	ret = spi_sync(st->spi, &m);
 	if (ret < 0)
 		return ret;
 
@@ -242,11 +234,8 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 
 	spi_message_init_with_transfers(&m, &t, 1);
 
-	if (st->bus_locked)
-		ret = spi_sync_locked(st->spi, &m);
-	else
-		ret = spi_sync(st->spi, &m);
 
+	ret = spi_sync(st->spi, &m);
 	if (ret < 0)
 		return ret;
 
@@ -265,13 +254,7 @@ static int ad4000_set_mode(struct ad4000_state *st)
 	mode = AD400X_TURBO_MODE(st->turbo_mode) |
 		AD400X_HIGH_Z_MODE(st->high_z_mode);
 
-	spi_bus_lock(st->spi->master);
-	st->bus_locked = true;
-
 	ret = ad4000_write_reg(st, mode);
-
-	st->bus_locked = false;
-	spi_bus_unlock(st->spi->master);
 
 	return ret;
 }
@@ -287,13 +270,8 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	spi_bus_lock(st->spi->master);
-	st->bus_locked = true;
-
 	ret = ad4000_read_sample(st, &raw_sample);
 
-	st->bus_locked = false;
-	spi_bus_unlock(st->spi->master);
 	iio_device_release_direct_mode(indio_dev);
 
 	if (ret)
@@ -343,16 +321,12 @@ static int ad4000_reg_access(struct iio_dev *indio_dev,
 	int ret;
 
 	mutex_lock(&st->lock);
-	spi_bus_lock(st->spi->master);
-	st->bus_locked = true;
 
 	if (readval)
 		ret = ad4000_read_reg(st, readval);
 	else
 		ret = ad4000_write_reg(st, writeval);
 
-	st->bus_locked = false;
-	spi_bus_unlock(st->spi->master);
 	mutex_unlock(&st->lock);
 
 	return ret;
