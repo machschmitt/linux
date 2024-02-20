@@ -23,10 +23,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include <linux/iio/buffer_impl.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/buffer-dma.h>
-#include <linux/iio/buffer-dmaengine.h>
 
 #define AD400X_READ_COMMAND	0x54
 #define AD400X_WRITE_COMMAND	0x14
@@ -402,50 +399,6 @@ static const struct spi_device_id ad4000_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ad4000_id);
 
-static int ad4000_buffer_postenable(struct iio_dev *indio_dev)
-{
-	struct ad4000_state *st = iio_priv(indio_dev);
-	int ret;
-
-	memset(&st->spi_transfer, 0, sizeof(st->spi_transfer));
-	st->spi_transfer.rx_buf = (void *)-1;
-	st->spi_transfer.len = 4;
-	st->spi_transfer.bits_per_word = st->num_bits;
-	st->spi_transfer.delay.value = 60;
-	st->spi_transfer.delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	spi_message_init_with_transfers(&st->spi_msg, &st->spi_transfer, 1);
-
-	spi_bus_lock(st->spi->master);
-	st->bus_locked = true;
-
-	ret = spi_engine_offload_load_msg(st->spi, &st->spi_msg);
-	if (ret < 0)
-		return ret;
-
-	spi_engine_offload_enable(st->spi, true);
-
-	return pwm_enable(st->cnv_trigger);
-}
-
-static int ad4000_buffer_postdisable(struct iio_dev *indio_dev)
-{
-	struct ad4000_state *st = iio_priv(indio_dev);
-
-	pwm_disable(st->cnv_trigger);
-
-	spi_engine_offload_enable(st->spi, false);
-
-	st->bus_locked = false;
-	spi_bus_unlock(st->spi->master);
-
-	return 0;
-}
-
-static const struct iio_buffer_setup_ops ad4000_buffer_setup_ops = {
-	.postenable = &ad4000_buffer_postenable,
-	.postdisable = &ad4000_buffer_postdisable,
-};
 
 static void ad4000_regulator_disable(void *reg)
 {
@@ -499,15 +452,6 @@ static int ad4000_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	if (spi_engine_offload_supported(spi)) {
-		ret = devm_iio_dmaengine_buffer_setup(indio_dev->dev.parent,
-						      indio_dev, "rx",
-						      IIO_BUFFER_DIRECTION_IN);
-		if (ret)
-			return ret;
-
-		indio_dev->setup_ops = &ad4000_buffer_setup_ops;
-	}
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
