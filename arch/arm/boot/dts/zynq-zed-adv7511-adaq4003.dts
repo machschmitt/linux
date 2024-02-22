@@ -13,6 +13,7 @@
 
 #include "zynq-zed.dtsi"
 #include "zynq-zed-adv7511.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	vref: regulator-vref {
@@ -84,6 +85,9 @@
 			dma-names = "rx";
 			pwms = <&axi_pwm_gen 0 0>;
 			pwm-names = "cnv";
+
+			//cnv-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+			cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
 
 			vref-supply = <&vref>;
 			#io-channel-cells = <1>;
