@@ -17,6 +17,7 @@
 #include <linux/module.h>
 //#include <linux/pwm.h>
 #include <linux/of.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 //#include <linux/spi/spi-engine.h>
@@ -168,6 +169,7 @@ struct ad4000_state {
 	struct spi_transfer spi_transfer;
 
 	const struct ad4000_chip_info *chip;
+	struct gpio_desc *cnv_gpio;
 	bool turbo_mode;
 	bool high_z_mode;
 
@@ -242,12 +244,13 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 
 	spi_message_init_with_transfers(&m, &t, 1);
 
+	gpiod_set_value_cansleep(st->cnv_gpio, 1);
 
 	ret = spi_sync(st->spi, &m);
 	if (ret < 0)
 		return ret;
 
-
+	gpiod_set_value_cansleep(st->cnv_gpio, 0);
 
 	if (st->num_bits <= 24) // TODO if(num_bits + status <= 24)
 		*val = get_unaligned_be24(&st->data.scan.sample_buf);
@@ -421,6 +424,14 @@ static int ad4000_probe(struct spi_device *spi)
 	ret = devm_add_action_or_reset(&spi->dev, ad4000_regulator_disable, st->vref);
 	if (ret)
 		return ret;
+
+	st->cnv_gpio = devm_gpiod_get_optional(&st->spi->dev, "cnv",
+					       GPIOD_OUT_LOW);
+	if (IS_ERR(st->cnv_gpio))
+		return dev_err_probe(&st->spi->dev, PTR_ERR(st->cnv_gpio),
+				     "Error on requesting cnv GPIO\n");
+
+	dev_info(&st->spi->dev, "st->cnv_gpio: %p", st->cnv_gpio);
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
