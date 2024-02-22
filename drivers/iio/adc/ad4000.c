@@ -180,7 +180,7 @@ struct ad4000_state {
 	 */
 	union {
 		struct {
-			__be32 d32;
+			u8 sample_buf[4];
 			s64 timestamp;
 		} scan;
 		u8 d8[2];
@@ -232,7 +232,7 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 	struct spi_transfer t = {0};
 	int ret;
 
-	t.rx_buf = &st->data.scan.d32;
+	t.rx_buf = &st->data.scan.sample_buf;
 	if (st->num_bits <= 24) // TODO if(num_bits + status <= 24)
 		t.len = 3;
 	else
@@ -250,9 +250,9 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 
 
 	if (st->num_bits <= 24) // TODO if(num_bits + status <= 24)
-		*val = get_unaligned_be24(&st->data.scan.d32);
+		*val = get_unaligned_be24(&st->data.scan.sample_buf);
 	else
-		*val = get_unaligned_be32(&st->data.scan.d32);
+		*val = get_unaligned_be32(&st->data.scan.sample_buf);
 
 	return 0;
 }
