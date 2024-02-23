@@ -380,7 +380,7 @@ static const struct spi_device_id ad4000_id[] = {
 	{ "ad4021", (kernel_ulong_t)&ad4000_chips[ID_AD4021] },
 	{ "ad4022", (kernel_ulong_t)&ad4000_chips[ID_AD4022] },
 	{ "adaq4003", (kernel_ulong_t)&ad4000_chips[ID_ADAQ4003] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4000_id);
 
@@ -480,7 +480,7 @@ static const struct of_device_id ad4000_of_match[] = {
 	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4022] },
 	{ .compatible = "adi,adaq4003",
 	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_ADAQ4003] },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad4000_of_match);
 
