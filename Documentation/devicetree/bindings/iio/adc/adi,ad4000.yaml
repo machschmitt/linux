@@ -48,6 +48,13 @@ properties:
       driven by a CS signal from the SPI controled or by a GPIO. If a GPIO is
       used, the CS line of the controller is unused.
 
+  cnv-gpios:
+    description:
+      GPIO connected to the CNV pin.
+      This logic input is used to initiate conversions on the analog
+      input channels.
+    maxItems: 1
+
   vref-supply:
     description: Phandle to the regulator for ADC reference voltage.
 
@@ -113,6 +120,7 @@ examples:
             reg = <0>;
             spi-max-frequency = <80000000>;
             vref-supply = <&vref>;
+            cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
             #address-cells = <1>;
             #size-cells = <0>;
             channel@0 {
