@@ -41,16 +41,12 @@ properties:
   reg: true
   spi-max-frequency: true
 
-  adi,spi-mode:
-    $ref: /schemas/types.yaml#/definitions/string
-    enum: [ standard, sdi-high ]
-    default: standard
+  adi,spi-high-mode:
     description: |
-      * standard: Usual SPI connections. Connect the CS line to ADC CNV line.
-      * sdi-high: The datasheet calls this "3-wire mode". In this mode the
-        SDI line is kept high at the digital interface high level (VIO).
-        The ADC CNV line can be driven by a CS signal from the SPI controled or
-        by a GPIO. If a GPIO is used, the CS line of the controller is unused.
+      The datasheet calls this "3-wire mode". In this mode the SDI line is kept
+      high at the digital interface high level (VIO).  The ADC CNV line can be
+      driven by a CS signal from the SPI controled or by a GPIO. If a GPIO is
+      used, the CS line of the controller is unused.
 
   vref-supply:
     description: Phandle to the regulator for ADC reference voltage.
