@@ -41,30 +41,6 @@ properties:
   reg: true
   spi-max-frequency: true
 
-  dmas:
-    description: |
-      DMA specifier, consisting of a phandle to DMA controller node.
-    maxItems: 1
-
-  dma-names:
-    const: rx
-
-  clocks:
-    maxItems: 1
-
-  clock-names:
-    const: ref_clk
-    description: AD4000 reference clock name.
-
-  pwms:
-    description: |
-      PWM used as trigger source for the SPI engine, also represents the
-      acquisition rate for the samples.
-    maxItems: 1
-
-  pwm-names:
-    const: cnv
-
   vref-supply:
     description: Phandle to the regulator for ADC reference voltage.
 
@@ -94,31 +70,10 @@ patternProperties:
 required:
   - compatible
   - reg
-  - dmas
-  - dma-names
   - vref-supply
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - adi,adaq4003
-
-    then:
-      required:
-        - compatible
-        - reg
-        - dmas
-        - dma-names
-        - clocks
-        - clock-names
-        - pwms
-        - pwm-names
-        - vref-supply
 
 unevaluatedProperties: false
 
@@ -133,13 +88,8 @@ examples:
             reg = <0>;
             spi-max-frequency = <71000000>;
             vref-supply = <&vref>;
-
-            dmas = <&rx_dma 0>;
-            dma-names = "rx";
-
             #address-cells = <1>;
             #size-cells = <0>;
-
             channel@0 {
                 reg = <0>;
                 diff-channels = <0 1>;
@@ -150,23 +100,14 @@ examples:
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
-
         /* Example for a ADAQ4000 devices */
         adc@0 {
             compatible = "adi,adaq4003";
             reg = <0>;
             spi-max-frequency = <80000000>;
-            dmas = <&rx_dma 0>;
-            dma-names = "rx";
-            clocks = <&spi_clk>;
-            clock-names = "ref_clk";
-            pwms = <&adc_trigger 0 0>;
-            pwm-names = "cnv";
             vref-supply = <&vref>;
-
             #address-cells = <1>;
             #size-cells = <0>;
-
             channel@0 {
                 reg = <0>;
                 diff-channels = <0 1>;
