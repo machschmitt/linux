@@ -31,6 +31,12 @@
 #define AD400X_WRITE_COMMAND	0x14
 #define AD400X_RESERVED_MSK	0xE0
 
+/* AD4000 Configuration Register programmable bits */
+#define AD4000_STATUS		BIT(4) /* Status bits output */
+#define AD4000_SPANC		BIT(3) /* Input span compression  */
+#define AD4000_HIGHZ		BIT(2) /* High impedance mode  */
+#define AD4000_TURBO		BIT(1) /* Turbo mode */
+
 #define AD400X_TURBO_MODE(x)	FIELD_PREP(BIT_MASK(1), x)
 #define AD400X_HIGH_Z_MODE(x)	FIELD_PREP(BIT_MASK(2), x)
 
@@ -150,6 +156,8 @@ struct ad4000_state {
 
 	const struct ad4000_chip_info *chip;
 	struct gpio_desc *cnv_gpio;
+	bool status_bits;
+	bool span_comp;
 	bool turbo_mode;
 	bool high_z_mode;
 
@@ -307,6 +315,127 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static ssize_t ad4000_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ad4000_state *st = iio_priv(indio_dev);
+
+	switch ((u32)this_attr->address) {
+	case AD4000_STATUS:
+		return sysfs_emit(buf, "%d\n", st->status_bits);
+	case AD4000_SPANC:
+		return sysfs_emit(buf, "%d\n", st->span_comp);
+	case AD4000_HIGHZ:
+		return sysfs_emit(buf, "%d\n", st->high_z_mode);
+	case AD4000_TURBO:
+		return sysfs_emit(buf, "%d\n", st->turbo_mode);
+	default:
+		return -EINVAL;
+	}
+}
+
+static ssize_t ad4000_store(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf,
+			  size_t len)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ad4000_state *st = iio_priv(indio_dev);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	unsigned int reg_val;
+	int ret;
+	bool val;
+
+	ret = kstrtobool(buf, &val);
+	if (ret < 0)
+		return ret;
+
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
+
+	ret = ad4000_read_reg(st, &reg_val);
+	if (ret < 0)
+		goto err_release;
+
+	switch ((u32)this_attr->address) {
+	case AD4000_STATUS:
+		reg_val &= ~AD4000_STATUS;
+		reg_val |= FIELD_PREP(AD4000_STATUS, val);
+		ret = ad4000_write_reg(st, reg_val);
+		if (ret < 0)
+			goto err_release;
+
+		st->status_bits = val;
+		break;
+	case AD4000_SPANC:
+		reg_val &= ~AD4000_SPANC;
+		reg_val |= FIELD_PREP(AD4000_SPANC, val);
+		ret = ad4000_write_reg(st, reg_val);
+		if (ret < 0)
+			goto err_release;
+
+		st->span_comp = val;
+		break;
+	case AD4000_HIGHZ:
+		reg_val &= ~AD4000_HIGHZ;
+		reg_val |= FIELD_PREP(AD4000_HIGHZ, val);
+		ret = ad4000_write_reg(st, reg_val);
+		if (ret < 0)
+			goto err_release;
+
+		st->high_z_mode = val;
+		break;
+	case AD4000_TURBO:
+		reg_val &= ~AD4000_TURBO;
+		reg_val |= FIELD_PREP(AD4000_TURBO, val);
+		ret = ad4000_write_reg(st, reg_val);
+		if (ret < 0)
+			goto err_release;
+
+		st->turbo_mode = val;
+		break;
+	default:
+		ret = -EINVAL;
+		goto err_release;
+	}
+
+err_release:
+	iio_device_release_direct_mode(indio_dev);
+	return ret ? ret : len;
+}
+
+static IIO_DEVICE_ATTR(status_en, S_IRUGO | S_IWUSR,
+		       ad4000_show, ad4000_store,
+		       AD4000_STATUS);
+
+static IIO_DEVICE_ATTR(span_comp_en, S_IRUGO | S_IWUSR,
+		       ad4000_show, ad4000_store,
+		       AD4000_SPANC);
+
+static IIO_DEVICE_ATTR(high_z_en, S_IRUGO | S_IWUSR,
+		       ad4000_show, ad4000_store,
+		       AD4000_HIGHZ);
+
+static IIO_DEVICE_ATTR(turbo_en, S_IRUGO | S_IWUSR,
+		       ad4000_show, ad4000_store,
+		       AD4000_TURBO);
+
+
+static struct attribute *ad4000_attributes[] = {
+	&iio_dev_attr_status_en.dev_attr.attr,
+	&iio_dev_attr_span_comp_en.dev_attr.attr,
+	&iio_dev_attr_high_z_en.dev_attr.attr,
+	&iio_dev_attr_turbo_en.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group ad4000_attribute_group = {
+	.attrs = ad4000_attributes,
+};
+
 static int ad4000_reg_access(struct iio_dev *indio_dev,
 			     unsigned int reg,
 			     unsigned int writeval,
@@ -368,6 +497,7 @@ err_unlock:
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
 	.write_raw = &ad4000_write_raw,
+	.attrs = &ad4000_attribute_group,
 	.debugfs_reg_access = &ad4000_reg_access,
 };
 
