@@ -272,6 +272,7 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 		return ret;
 
 	sample = raw_sample >> chan->scan_type.shift;
+	/* All differential AD4000 like devices ADC output code is twos complement */
 	if (st->chip->input_type == DIFFERENTIAL)
 		*val = sign_extend32(sample, st->num_bits - 1);
 
