@@ -23,6 +23,9 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 
 #define AD400X_READ_COMMAND	0x54
 #define AD400X_WRITE_COMMAND	0x14
@@ -338,6 +341,29 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static irqreturn_t ad4000_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ad4000_state *st = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&st->lock);
+
+	ret = spi_read(st->spi, &st->data.scan.sample_buf, 4);
+	if (ret < 0)
+		goto err_unlock;
+
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->data.scan,
+					   iio_get_time_ns(indio_dev));
+
+err_unlock:
+	iio_trigger_notify_done(indio_dev->trig);
+	mutex_unlock(&st->lock);
+
+	return IRQ_HANDLED;
+}
+
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
 	.write_raw = &ad4000_write_raw,
@@ -425,6 +451,11 @@ static int ad4000_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+					      &iio_pollfunc_store_time,
+					      &ad4000_trigger_handler, NULL);
+	if (ret)
+		return ret;
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
