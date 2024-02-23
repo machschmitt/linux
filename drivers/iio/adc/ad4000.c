@@ -70,84 +70,68 @@ enum ad4000_input_type {
 
 struct ad4000_chip_info {
 	struct iio_chan_spec chan_spec;
-	int max_rate;
 	enum ad4000_input_type input_type;
 };
 
 static const struct ad4000_chip_info ad4000_chips[] = {
 	[ID_AD4000] = {
 		.chan_spec = AD400X_CHANNEL(16),
-		.max_rate  = 2000000,
 		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4001] = {
 		.chan_spec = AD400X_CHANNEL(16),
-		.max_rate  = 2000000,
 		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4002] = {
 		.chan_spec = AD400X_CHANNEL(18),
-		.max_rate  = 2000000,
 		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4003] = {
 		.chan_spec = AD400X_CHANNEL(18),
-		.max_rate  = 2000000,
 		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4004] = {
 		.chan_spec = AD400X_CHANNEL(16),
-		.max_rate  = 1000000,
 		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4005] = {
 		.chan_spec = AD400X_CHANNEL(16),
-		.max_rate  = 1000000,
 		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4006] = {
 		.chan_spec = AD400X_CHANNEL(18),
-		.max_rate  = 1000000,
 		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4007] = {
 		.chan_spec = AD400X_CHANNEL(18),
-		.max_rate  = 1000000,
 		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4008] = {
 		.chan_spec = AD400X_CHANNEL(16),
-		.max_rate  =  500000,
 		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4010] = {
 		.chan_spec = AD400X_CHANNEL(18),
-		.max_rate  =  500000,
 		.input_type = SINGLE_ENDED,
 	},
 	[ID_AD4011] = {
 		.chan_spec = AD400X_CHANNEL(18),
-		.max_rate  =  500000,
 		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4020] = {
 		.chan_spec = AD400X_CHANNEL(20),
-		.max_rate  = 1800000,
 		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4021] = {
 		.chan_spec = AD400X_CHANNEL(20),
-		.max_rate  = 1000000,
 		.input_type = DIFFERENTIAL,
 	},
 	[ID_AD4022] = {
 		.chan_spec = AD400X_CHANNEL(20),
-		.max_rate  =  500000,
 		.input_type = DIFFERENTIAL,
 	},
 	[ID_ADAQ4003] = {
 		.chan_spec = AD400X_CHANNEL(18),
-		.max_rate  = 2000000,
 		.input_type = DIFFERENTIAL,
 	},
 };
