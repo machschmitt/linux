@@ -6,7 +6,6 @@
  */
 #include <linux/bits.h>
 #include <linux/bitfield.h>
-#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -162,8 +161,6 @@ struct ad4000_state {
 	struct regulator *vref;
 	/* protect device accesses */
 	struct mutex lock;
-
-	unsigned long ref_clk_rate;
 
 	struct spi_message spi_msg;
 	struct spi_transfer spi_transfer;
