@@ -55,6 +55,9 @@ properties:
       input channels.
     maxItems: 1
 
+  adi,gain:
+    enum: [0.455, 0.909, 1, 1.9]
+
   vref-supply:
     description: Phandle to the regulator for ADC reference voltage.
 
