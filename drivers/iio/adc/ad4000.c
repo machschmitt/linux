@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/gpio/consumer.h>
@@ -302,6 +303,8 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		*val = ret / 1000;
+		if (st->span_comp)
+			*val = mult_frac(*val, 4, 5);
 		*val2 = chan->scan_type.realbits;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
