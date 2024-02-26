@@ -414,7 +414,7 @@ static IIO_DEVICE_ATTR(status_en, S_IRUGO | S_IWUSR,
 		       ad4000_show, ad4000_store,
 		       AD4000_STATUS);
 
-static IIO_DEVICE_ATTR(span_comp_en, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(span_compression_en, S_IRUGO | S_IWUSR,
 		       ad4000_show, ad4000_store,
 		       AD4000_SPANC);
 
@@ -429,7 +429,7 @@ static IIO_DEVICE_ATTR(turbo_en, S_IRUGO | S_IWUSR,
 
 static struct attribute *ad4000_attributes[] = {
 	&iio_dev_attr_status_en.dev_attr.attr,
-	&iio_dev_attr_span_comp_en.dev_attr.attr,
+	&iio_dev_attr_span_compression_en.dev_attr.attr,
 	&iio_dev_attr_high_z_en.dev_attr.attr,
 	&iio_dev_attr_turbo_en.dev_attr.attr,
 	NULL
