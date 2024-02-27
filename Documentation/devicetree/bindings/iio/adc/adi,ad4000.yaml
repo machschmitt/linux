@@ -130,6 +130,7 @@ examples:
             spi-max-frequency = <80000000>;
             vref-supply = <&vref>;
             cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
+            adi,gain-milli = <454>;
             #address-cells = <1>;
             #size-cells = <0>;
             channel@0 {
