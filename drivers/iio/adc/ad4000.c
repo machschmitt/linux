@@ -151,20 +151,14 @@ enum ad4000_gains {
 	AD4000_0454_GAIN = 0,
 	AD4000_0909_GAIN = 1,
 	AD4000_1_GAIN = 2,
-	AD4000_1909_GAIN = 3
-};
-
-/*
- * Gains computed as fractions of 1000 so they can be expressed by integers.
- */
-static const unsigned int pin_gains[] = {
-	454, 909, 1000, 1909
+	AD4000_1909_GAIN = 3,
+	AD4000_GAIN_LEN
 };
 
 /*
  * Gains stored and computed as fractions to avoid introducing rounding erros.
  */
-static const int ad4000_gains_frac[4][2] = {
+static const int ad4000_gains_frac[AD4000_GAIN_LEN][2] = {
 	[AD4000_0454_GAIN] = { 15, 33 },
 	[AD4000_0909_GAIN] = { 30, 33 },
 	[AD4000_1_GAIN] = { 1, 1 },
@@ -189,7 +183,7 @@ struct ad4000_state {
 
 	unsigned int num_bits;
 	enum ad4000_gains pin_gain;
-	int scale_tbl[ARRAY_SIZE(pin_gains)][2];
+	int scale_tbl[AD4000_GAIN_LEN][2];
 	int read_offset;
 
 	/*
@@ -211,7 +205,7 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st)
 	u64 tmp2;
 
 	val2 = st->chip->chan_spec.scan_type.realbits - 1;
-	for (i = 0; i < ARRAY_SIZE(pin_gains); i++) {
+	for (i = 0; i < AD4000_GAIN_LEN; i++) {
 		val = st->vref / 1000;
 		/* Multiply by MILLI here to avoid losing precision */
 		val = mult_frac(val, ad4000_gains_frac[i][1] * MILLI,
