@@ -18,6 +18,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
+#include <linux/units.h>
 
 #include <asm/unaligned.h>
 
@@ -146,9 +147,32 @@ static const struct ad4000_chip_info ad4000_chips[] = {
 	},
 };
 
+enum ad4000_gains {
+	AD4000_0454_GAIN = 0,
+	AD4000_0909_GAIN = 1,
+	AD4000_1_GAIN = 2,
+	AD4000_1909_GAIN = 3
+};
+
+/*
+ * Gains computed as fractions of 1000 so they can be expressed by integers.
+ */
+static const unsigned int pin_gains[] = {
+	454, 909, 1000, 1909
+};
+
+/*
+ * Gains stored and computed as fractions to avoid introducing rounding erros.
+ */
+static const int ad4000_gains_frac[4][2] = {
+	[AD4000_0454_GAIN] = { 15, 33 },
+	[AD4000_0909_GAIN] = { 30, 33 },
+	[AD4000_1_GAIN] = { 1, 1 },
+	[AD4000_1909_GAIN] = { 63, 33 },
+};
+
 struct ad4000_state {
 	struct spi_device *spi;
-	struct regulator *vref;
 	/* protect device accesses */
 	struct mutex lock;
 
@@ -157,12 +181,15 @@ struct ad4000_state {
 
 	const struct ad4000_chip_info *chip;
 	struct gpio_desc *cnv_gpio;
+	int vref;
 	bool status_bits;
 	bool span_comp;
 	bool turbo_mode;
 	bool high_z_mode;
 
 	unsigned int num_bits;
+	enum ad4000_gains pin_gain;
+	int scale_tbl[ARRAY_SIZE(pin_gains)][2];
 	int read_offset;
 
 	/*
@@ -177,6 +204,25 @@ struct ad4000_state {
 		u8 d8[2];
 	} data __aligned(IIO_DMA_MINALIGN);
 };
+
+static void ad4000_fill_scale_tbl(struct ad4000_state *st)
+{
+	int val, val2, tmp0, tmp1, i;
+	u64 tmp2;
+
+	val2 = st->chip->chan_spec.scan_type.realbits - 1;
+	for (i = 0; i < ARRAY_SIZE(pin_gains); i++) {
+		val = st->vref / 1000;
+		/* Multiply by MILLI here to avoid losing precision */
+		val = mult_frac(val, ad4000_gains_frac[i][1] * MILLI,
+				ad4000_gains_frac[i][0]);
+		/* Would multiply by NANO here but we already multiplied by MILLI */
+		tmp2 = shift_right((u64)val * MICRO, val2);
+		tmp0 = (int)div_s64_rem(tmp2, NANO, &tmp1);
+		st->scale_tbl[i][0] = tmp0; /* Integer part */
+		st->scale_tbl[i][1] = abs(tmp1); /* Fractional part */
+	}
+}
 
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
@@ -298,15 +344,19 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		return ad4000_single_conversion(indio_dev, chan, val);
 	case IIO_CHAN_INFO_SCALE:
-		ret = regulator_get_voltage(st->vref);
-		if (ret < 0)
-			return ret;
+		if (st->pin_gain != AD4000_1_GAIN) {
+			*val = st->scale_tbl[st->pin_gain][0];
+			*val2 = st->scale_tbl[st->pin_gain][1];
 
-		*val = ret / 1000;
+			if (st->span_comp)
+				*val2 = mult_frac(*val2, 4, 5);
+			return IIO_VAL_INT_PLUS_NANO;
+		}
+		*val = st->vref / 1000;
 		if (st->span_comp)
 			*val = mult_frac(*val, 4, 5);
-		*val2 = chan->scan_type.realbits;
 
+		*val2 = chan->scan_type.realbits - 1;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = st->read_offset;
@@ -533,6 +583,7 @@ static void ad4000_regulator_disable(void *reg)
 static int ad4000_probe(struct spi_device *spi)
 {
 	const struct ad4000_chip_info *chip;
+	struct regulator *vref_reg;
 	struct ad4000_state *st;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -550,17 +601,21 @@ static int ad4000_probe(struct spi_device *spi)
 	st->spi = spi;
 	mutex_init(&st->lock);
 
-	st->vref = devm_regulator_get(&spi->dev, "vref");
-	if (IS_ERR(st->vref))
-		return PTR_ERR(st->vref);
+	vref_reg = devm_regulator_get(&spi->dev, "vref");
+	if (IS_ERR(vref_reg))
+		return PTR_ERR(vref_reg);
 
-	ret = regulator_enable(st->vref);
+	ret = regulator_enable(vref_reg);
 	if (ret < 0)
 		return ret;
 
-	ret = devm_add_action_or_reset(&spi->dev, ad4000_regulator_disable, st->vref);
+	ret = devm_add_action_or_reset(&spi->dev, ad4000_regulator_disable, vref_reg);
 	if (ret)
 		return ret;
+
+	st->vref = regulator_get_voltage(vref_reg);
+	if (st->vref < 0)
+		return dev_err_probe(&spi->dev, st->vref, "Failed to get vref\n");
 
 	st->cnv_gpio = devm_gpiod_get_optional(&st->spi->dev, "cnv",
 					       GPIOD_OUT_LOW);
@@ -578,6 +633,36 @@ static int ad4000_probe(struct spi_device *spi)
 	indio_dev->num_channels = 1;
 
 	st->num_bits = indio_dev->channels->scan_type.realbits;
+
+	if (device_property_present(&spi->dev, "adi,gain-milli")) {
+		u32 val;
+
+		ret = device_property_read_u32(&spi->dev, "adi,gain-milli", &val);
+		if (ret)
+			return ret;
+
+		switch (val) {
+		case 454:
+			st->pin_gain = AD4000_0454_GAIN;
+			break;
+		case 909:
+			st->pin_gain = AD4000_0909_GAIN;
+			break;
+		case 1000:
+			st->pin_gain = AD4000_1_GAIN;
+			break;
+		case 1909:
+			st->pin_gain = AD4000_1909_GAIN;
+			break;
+		default:
+			dev_err(&spi->dev, "Firmware provided gain is invalid\n");
+			return -EINVAL;
+		}
+	} else {
+		st->pin_gain = AD4000_1_GAIN;
+	}
+
+	ad4000_fill_scale_tbl(st);
 
 	/* Set turbo mode */
 	st->turbo_mode = true;
