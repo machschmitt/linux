@@ -53,6 +53,7 @@
 			.sign = 's',					\
 			.realbits = real_bits,				\
 			.storagebits = 32,				\
+			.endianness = IIO_BE,				\
 		},							\
 	}								\
 
