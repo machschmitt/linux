@@ -2275,30 +2275,26 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	const struct axidds_core_info *info;
 	const struct of_device_id *id;
 	struct cf_axi_dds_state *st;
-	struct iio_dev *indio_dev;
 	struct resource *res;
 	unsigned int ctrl_2, config;
 	unsigned int dds_id;
 	unsigned int rate;
 	int ret;
 
-	id = of_match_device(cf_axi_dds_of_match, &pdev->dev);
-	if (!id || !id->data)
-		return -ENODEV;
-
-	info = id->data;
+	st = devm_kzalloc(&pdev->dev, sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return -ENOMEM;
 
 	dev_info(&pdev->dev, "Start dds Probing ... np->name: \'%s\'\n",
 			np->name);
 	dev_dbg(&pdev->dev, "Device Tree Probing \'%s\'\n",
 			np->name);
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*st));
-	if (!indio_dev)
-		return -ENOMEM;
+	id = of_match_device(cf_axi_dds_of_match, &pdev->dev);
+	if (!id || !id->data)
+		return -ENODEV;
 
-	st = iio_priv(indio_dev);
-	st->indio_dev = indio_dev;
+	info = id->data;
 
 	st->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(st->regs))
@@ -2308,6 +2304,8 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 					   &axi_dac_regmap_config);
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
+
+	st->dev = &pdev->dev;
 
 	st->data_offload = devm_axi_data_offload_get_optional(&pdev->dev);
 	if (IS_ERR(st->data_offload))
