@@ -25,6 +25,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/gpio/consumer.h>
+#include <linux/platform_device.h>
 
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
