@@ -2307,6 +2307,14 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 	st->dev = &pdev->dev;
 
+	/*
+	 * Disable the DDS core. Up to the frontend devices to enable it by
+	 * calling the backend enable op.
+	 */
+	ret = regmap_write(st->regmap, ADI_REG_CONFIG, ADI_DDS_DISABLE);
+	if (ret)
+		return ret;
+
 	st->data_offload = devm_axi_data_offload_get_optional(&pdev->dev);
 	if (IS_ERR(st->data_offload))
 		return PTR_ERR(st->data_offload);
