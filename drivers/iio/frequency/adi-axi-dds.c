@@ -2221,6 +2221,7 @@ static int axi_dds_enable(struct iio_backend *back)
 {
 	struct cf_axi_dds_state *st = iio_backend_get_priv(back);
 	unsigned int drp_status;
+	int timeout = 100;
 	int ret;
 
 	ret = regmap_write(st->regmap, ADI_AXI_REG_RSTN, ADI_AXI_RSTN);
@@ -2279,7 +2280,6 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	unsigned int ctrl_2, config;
 	unsigned int dds_id;
 	unsigned int rate;
-	int timeout = 100;
 	int ret;
 
 	id = of_match_device(cf_axi_dds_of_match, &pdev->dev);
