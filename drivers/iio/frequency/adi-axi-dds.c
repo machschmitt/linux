@@ -2259,8 +2259,16 @@ static int axi_dds_enable(struct iio_backend *back)
 static void axi_dds_disable(struct iio_backend *back)
 {
 	struct cf_axi_dds_state *st = iio_backend_get_priv(back);
+	int write_val;
+	int ret;
 
-	regmap_write(st->regmap, ADI_REG_CONFIG, ADI_DDS_DISABLE);
+	write_val = FIELD_PREP(ADI_AXI_CE_N, 1) |
+		    FIELD_PREP(ADI_AXI_MMCM_RSTN, 0) |
+		    FIELD_PREP(ADI_AXI_RSTN, 0);
+
+	ret = regmap_write(st->regmap, ADI_AXI_REG_RSTN, write_val);
+	if (ret)
+		dev_err(st->dev, "Error on DDS disable: %d\n", ret);
 }
 
 static const struct iio_backend_ops adi_axi_dds_generic = {

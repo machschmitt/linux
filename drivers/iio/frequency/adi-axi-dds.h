@@ -33,6 +33,7 @@
 #define ADI_AXI_REG_RSTN		0x0040
 #define ADI_AXI_RSTN			BIT(0)
 #define ADI_AXI_MMCM_RSTN		BIT(1)
+#define ADI_AXI_CE_N			BIT(2)
 
 #define ADI_AXI_REG_CNTRL_1		0x0044
 #define ADI_AXI_SYNC			(1 << 0) /* v8.0 */
