@@ -30,23 +30,23 @@
 
 /* DAC COMMON */
 
-#define ADI_REG_RSTN		0x0040
-#define ADI_RSTN		(1 << 0)
-#define ADI_MMCM_RSTN		(1 << 1)
+#define ADI_AXI_REG_RSTN		0x0040
+#define ADI_AXI_RSTN			BIT(0)
+#define ADI_AXI_MMCM_RSTN		BIT(1)
 
-#define ADI_REG_CNTRL_1		0x0044
-#define ADI_SYNC		(1 << 0) /* v8.0 */
-#define ADI_EXT_SYNC_ARM	(1 << 1)
-#define ADI_EXT_SYNC_DISARM	(1 << 2)
-#define ADI_MANUAL_SYNC_REQUEST	(1 << 8)
+#define ADI_AXI_REG_CNTRL_1		0x0044
+#define ADI_AXI_SYNC			(1 << 0) /* v8.0 */
+#define ADI_AXI_EXT_SYNC_ARM		(1 << 1)
+#define ADI_AXI_EXT_SYNC_DISARM		(1 << 2)
+#define ADI_AXI_MANUAL_SYNC_REQUEST	(1 << 8)
 
-#define ADI_REG_CNTRL_2		0x0048
-#define ADI_PAR_TYPE		(1 << 7)
-#define ADI_PAR_ENB		(1 << 6)
-#define ADI_R1_MODE		(1 << 5)
-#define ADI_DATA_FORMAT		(1 << 4)
-#define ADI_DATA_SEL(x)		(((x) & 0xF) << 0) /* v7.0 */
-#define ADI_TO_DATA_SEL(x)	(((x) >> 0) & 0xF) /* v7.0 */
+#define ADI_AXI_REG_CNTRL_2		0x0048
+#define ADI_AXI_PAR_TYPE		(1 << 7)
+#define ADI_AXI_PAR_ENB			(1 << 6)
+#define ADI_AXI_R1_MODE			(1 << 5)
+#define ADI_AXI_DATA_FORMAT		(1 << 4)
+#define ADI_AXI_DATA_SEL(x)		(((x) & 0xF) << 0) /* v7.0 */
+#define ADI_AXI_TO_DATA_SEL(x)		(((x) >> 0) & 0xF) /* v7.0 */
 
 enum dds_data_select {
 	DATA_SEL_DDS,
