@@ -402,11 +402,11 @@ int cf_axi_dds_start_sync(struct cf_axi_dds_state *st, int sync_dma)
 	if (sync_dma && !st->issue_sync_en)
 		return 0;
 
-	ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_1, ADI_SYNC);
+	ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_1, ADI_AXI_SYNC);
 	if (ret)
 		return ret;
 
-	dds_master_write(st, ADI_AXI_REG_CNTRL_1, ADI_SYNC);
+	dds_master_write(st, ADI_AXI_REG_CNTRL_1, ADI_AXI_SYNC);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cf_axi_dds_start_sync);
