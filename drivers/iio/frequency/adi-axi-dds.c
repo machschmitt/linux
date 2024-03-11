@@ -1067,11 +1067,9 @@ static int cf_axi_dds_reg_access(struct iio_dev *indio_dev,
 	if ((reg & ~DEBUGFS_DRA_PCORE_REG_MAGIC) > 0xFFFF)
 		return -EINVAL;
 
-	//FIXME rework to use regmap so we don't need to store regs_size
 	/* Check that the register is in range and aligned */
-	//if (((reg & DEBUGFS_DRA_PCORE_REG_MAGIC) || st->standalone) &&
-	//    ((reg & 0xffff) >= st->regs_size || (reg & 0x3)))
-	//	return -EINVAL;
+	if (((reg & DEBUGFS_DRA_PCORE_REG_MAGIC) || st->standalone) && (reg & 0x3))
+		return -EINVAL;
 
 	if (st->conv_dev)
 		conv = to_converter(st->conv_dev);

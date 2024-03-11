@@ -270,7 +270,6 @@ struct cf_axi_dds_state {
 
 	struct iio_info			iio_info;
 	struct iio_dev			*indio_dev;
-	size_t				regs_size;
 	void __iomem			*regs;
 	void __iomem			*slave_regs;
 	void __iomem			*master_regs;
