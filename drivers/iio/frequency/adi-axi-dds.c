@@ -2256,8 +2256,16 @@ static int axi_dds_enable(struct iio_backend *back)
 	return 0;
 }
 
+static void axi_dds_disable(struct iio_backend *back)
+{
+	struct cf_axi_dds_state *st = iio_backend_get_priv(back);
+
+	regmap_write(st->regmap, ADI_REG_CONFIG, ADI_DDS_DISABLE);
+}
+
 static const struct iio_backend_ops adi_axi_dds_generic = {
 	.enable = axi_dds_enable,
+	.disable = axi_dds_disable,
 };
 
 static const struct regmap_config axi_dac_regmap_config = {
