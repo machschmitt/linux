@@ -402,11 +402,11 @@ int cf_axi_dds_start_sync(struct cf_axi_dds_state *st, int sync_dma)
 	if (sync_dma && !st->issue_sync_en)
 		return 0;
 
-	ret = regmap_write(st->regmap, ADI_REG_CNTRL_1, ADI_SYNC);
+	ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_1, ADI_SYNC);
 	if (ret)
 		return ret;
 
-	dds_master_write(st, ADI_REG_CNTRL_1, ADI_SYNC);
+	dds_master_write(st, ADI_AXI_REG_CNTRL_1, ADI_SYNC);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cf_axi_dds_start_sync);
@@ -466,11 +466,11 @@ static int cf_axi_dds_set_sed_pattern(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	ret = regmap_read(st->regmap, ADI_REG_CNTRL_2, &ctrl);
+	ret = regmap_read(st->regmap, ADI_AXI_REG_CNTRL_2, &ctrl);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADI_REG_CNTRL_2, ctrl | ADI_DATA_FORMAT);
+	ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_2, ctrl | ADI_AXI_DATA_FORMAT);
 	if (ret)
 		return ret;
 
@@ -618,16 +618,16 @@ static ssize_t axidds_sync_start_store(struct device *dev,
 	if (st->ext_sync_avail) {
 		switch (ret) {
 		case 0:
-			ret = regmap_write(st->regmap, ADI_REG_CNTRL_1,
-					   ADI_EXT_SYNC_ARM);
+			ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_1,
+					   ADI_AXI_EXT_SYNC_ARM);
 			break;
 		case 1:
-			ret = regmap_write(st->regmap, ADI_REG_CNTRL_1,
-					   ADI_EXT_SYNC_DISARM);
+			ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_1,
+					   ADI_AXI_EXT_SYNC_DISARM);
 			break;
 		case 2:
-			ret = regmap_write(st->regmap, ADI_REG_CNTRL_1,
-					   ADI_MANUAL_SYNC_REQUEST);
+			ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_1,
+					   ADI_AXI_MANUAL_SYNC_REQUEST);
 			break;
 		default:
 			ret = -EINVAL;
@@ -991,13 +991,13 @@ static int cf_axi_dds_write_raw(struct iio_dev *indio_dev,
 			break;
 		}
 
-		ret = regmap_read(st->regmap, ADI_REG_CNTRL_2, &reg);
+		ret = regmap_read(st->regmap, ADI_AXI_REG_CNTRL_2, &reg);
 		if (ret)
 			return ret;
 
 		i = cf_axi_dds_get_datasel(st, -1);
 		conv->write_raw(indio_dev, chan, val, val2, mask);
-		ret = regmap_write(st->regmap, ADI_REG_CNTRL_2, reg);
+		ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_2, reg);
 		if (ret)
 			return ret;
 
@@ -1925,13 +1925,13 @@ static const struct axidds_core_info ad3552r_6_00_a_info = {
 	.version = ADI_AXI_PCORE_VER(9, 0, 'a'),
 	.standalone = false,
 	.rate = 1,
-	.data_format = ADI_DATA_FORMAT,
+	.data_format = ADI_AXI_DATA_FORMAT,
 };
 
 static const struct axidds_core_info ad9122_6_00_a_info = {
 	.version = ADI_AXI_PCORE_VER(9, 0, 'a'),
 	.rate = 1,
-	.data_format = ADI_DATA_FORMAT,
+	.data_format = ADI_AXI_DATA_FORMAT,
 	.issue_sync_en = 1,
 };
 
@@ -1980,7 +1980,7 @@ static const struct axidds_core_info ad9144_7_00_a_info = {
 static const struct axidds_core_info ad9739a_8_00_b_info = {
 	.version = ADI_AXI_PCORE_VER(9, 0, 'b'),
 	.rate = 1,
-	.data_format = ADI_DATA_FORMAT,
+	.data_format = ADI_AXI_DATA_FORMAT,
 	.issue_sync_en = 1,
 };
 
@@ -2430,19 +2430,19 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 	ctrl_2 = 0;
 	if (of_property_read_bool(np, "adi,axi-dds-parity-enable"))
-		ctrl_2 |= ADI_PAR_ENB;
+		ctrl_2 |= ADI_AXI_PAR_ENB;
 	if (of_property_read_bool(np, "adi,axi-dds-parity-type-odd"))
-		ctrl_2 |= ADI_PAR_TYPE;
+		ctrl_2 |= ADI_AXI_PAR_TYPE;
 	if (of_property_read_bool(np, "adi,axi-dds-1-rf-channel"))
-		ctrl_2 |= ADI_R1_MODE;
+		ctrl_2 |= ADI_AXI_R1_MODE;
 
 	if (info)
 		ctrl_2 |= info->data_format;
 	else
-		ctrl_2 |= ADI_DATA_FORMAT;
+		ctrl_2 |= ADI_AXI_DATA_FORMAT;
 
 	if (info && !info->rate_format_skip_en) {
-		ret = regmap_write(st->regmap, ADI_REG_CNTRL_2, ctrl_2);
+		ret = regmap_write(st->regmap, ADI_AXI_REG_CNTRL_2, ctrl_2);
 		if (ret)
 			return ret;
 	}
