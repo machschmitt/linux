@@ -35,6 +35,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/backend.h>
 
 #include "adi-axi-dds.h"
 #include "../../misc/adi-axi-data-offload.h"
@@ -2216,6 +2217,48 @@ static int cf_axi_dds_sampl_clk_setup(struct cf_axi_dds_state *st,
 	return devm_add_action_or_reset(dev, dds_clk_notifier_unreg, st);
 }
 
+static int axi_dds_enable(struct iio_backend *back)
+{
+	struct cf_axi_dds_state *st = iio_backend_get_priv(back);
+	unsigned int drp_status;
+	int ret;
+
+	ret = regmap_write(st->regmap, ADI_AXI_REG_RSTN, ADI_AXI_RSTN);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(st->regmap, ADI_AXI_REG_RSTN, ADI_AXI_MMCM_RSTN);
+	if (ret)
+		return ret;
+
+	do {
+		ret = regmap_read(st->regmap, ADI_REG_DRP_STATUS, &drp_status);
+		if (ret)
+			return ret;
+
+		if (drp_status & ADI_DRP_LOCKED)
+			break;
+		msleep(1);
+	} while (timeout--);
+
+	if (timeout == -1) {
+		dev_err(&pdev->dev, "DRP unlocked.\n");
+		return -ETIMEDOUT;
+	}
+
+	ret = regmap_write(st->regmap, ADI_AXI_REG_RSTN,
+			   ADI_AXI_RSTN | ADI_AXI_MMCM_RSTN);
+	if (ret)
+		return ret;
+
+
+	return 0;
+}
+
+static const struct iio_backend_ops adi_axi_dds_generic = {
+	.enable = axi_dds_enable,
+};
+
 static const struct regmap_config axi_dac_regmap_config = {
 	.val_bits = 32,
 	.reg_bits = 32,
@@ -2236,7 +2279,6 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	unsigned int ctrl_2, config;
 	unsigned int dds_id;
 	unsigned int rate;
-	unsigned int drp_status;
 	int timeout = 100;
 	int ret;
 
@@ -2381,33 +2423,6 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	if (conv)
 		st->iio_info.attrs = conv->attrs;
 	indio_dev->info = &st->iio_info;
-
-	ret = regmap_write(st->regmap, ADI_REG_RSTN, 0x0);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(st->regmap, ADI_REG_RSTN, ADI_MMCM_RSTN);
-	if (ret)
-		return ret;
-
-	do {
-		ret = regmap_read(st->regmap, ADI_REG_DRP_STATUS, &drp_status);
-		if (ret)
-			return ret;
-
-		if (drp_status & ADI_DRP_LOCKED)
-			break;
-		msleep(1);
-	} while (timeout--);
-
-	if (timeout == -1) {
-		dev_err(&pdev->dev, "DRP unlocked.\n");
-		return -ETIMEDOUT;
-	}
-
-	ret = regmap_write(st->regmap, ADI_REG_RSTN, ADI_RSTN | ADI_MMCM_RSTN);
-	if (ret)
-		return ret;
 
 	if (info)
 		rate = info->rate;
@@ -2578,6 +2593,10 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, indio_dev);
 
+	ret = devm_iio_backend_register(&pdev->dev, &adi_axi_dds_generic, st);
+	if (ret)
+		return ret;
+
 	dev_info(&pdev->dev,
 		 "Analog Devices CF_AXI_DDS_DDS %s (%d.%.2d.%c) at 0x%08llX mapped to 0x%p, probed DDS %s\n",
 		 dds_id ? "SLAVE" : "MASTER",
@@ -2602,3 +2621,4 @@ module_platform_driver(cf_axi_dds_driver);
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices DDS");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_BACKEND);
