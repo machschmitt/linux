@@ -249,7 +249,6 @@ extern struct cf_axi_dds_chip_info cf_axi_dds_chip_info_tbl[];
 struct cf_axi_dds_state {
 	struct device			*dev;
 	struct regmap			*regmap;
-	struct device			*conv_dev;
 	struct axi_data_offload_state	*data_offload;
 	struct clk			*clk;
 	struct clock_scale		clkscale;
