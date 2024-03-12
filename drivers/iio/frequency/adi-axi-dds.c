@@ -261,7 +261,7 @@ static int cf_axi_get_parent_sampling_frequency(struct cf_axi_dds_state *st,
 }
 
 
-int __cf_axi_dds_datasel(struct cf_axi_dds_state *st,
+static int __cf_axi_dds_datasel(struct cf_axi_dds_state *st,
 	int channel, enum dds_data_select sel)
 {
 	unsigned int val;
