@@ -2122,9 +2122,29 @@ static void axi_dds_disable(struct iio_backend *back)
 		dev_err(st->dev, "Error on DDS disable: %d\n", ret);
 }
 
+static int axi_dds_chan_enable(struct iio_backend *back, unsigned int chan)
+{
+	struct cf_axi_dds_state *st = iio_backend_get_priv(back);
+	int ret;
+
+	u32 scale, frequency, phase;
+
+	scale = 0x1000; /* 0.250 */
+	frequency = 40000000;
+
+	device_property_read_u32(st->dev, "adi,axi-dds-default-scale", &scale);
+	device_property_read_u32(st->dev, "adi,axi-dds-default-frequency", &frequency);
+	phase = 0;
+
+	ret = cf_axi_dds_default_setup(st, chan, phase, frequency, scale);
+
+	return ret;
+}
+
 static const struct iio_backend_ops adi_axi_dds_generic = {
 	.enable = axi_dds_enable,
 	.disable = axi_dds_disable,
+	.chan_enable = axi_dds_chan_enable,
 };
 
 static const struct regmap_config axi_dac_regmap_config = {
