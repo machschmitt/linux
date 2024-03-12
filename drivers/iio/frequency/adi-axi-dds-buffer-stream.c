@@ -130,4 +130,5 @@ int cf_axi_dds_configure_buffer(struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL_GPL(cf_axi_dds_configure_buffer);
 
-//MODULE_IMPORT_NS(IIO_DMAENGINE_BUFFER);
+MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_DMAENGINE_BUFFER);
