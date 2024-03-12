@@ -2243,7 +2243,7 @@ static int axi_dds_enable(struct iio_backend *back)
 	} while (timeout--);
 
 	if (timeout == -1) {
-		dev_err(&pdev->dev, "DRP unlocked.\n");
+		dev_err(st->dev, "DRP unlocked.\n");
 		return -ETIMEDOUT;
 	}
 
