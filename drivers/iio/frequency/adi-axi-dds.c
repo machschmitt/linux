@@ -2345,8 +2345,6 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 			return PTR_ERR(conv);
 
 		dev_info(&pdev->dev, "Found dds converter frontend");
-		iio_device_set_drvdata(indio_dev, conv);
-		conv->indio_dev = indio_dev;
 		conv->pcore_sync = cf_axi_dds_sync_frame;
 		conv->pcore_set_sed_pattern = cf_axi_dds_set_sed_pattern;
 		mutex_init(&conv->lock);
@@ -2409,18 +2407,9 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->name = np->name;
-	indio_dev->channels = st->chip_info->channel;
-	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->num_channels = (st->dp_disable ?
-		st->chip_info->num_dp_disable_channels :
-		st->chip_info->num_channels);
-
 	st->iio_info = cf_axi_dds_info;
 	if (conv)
 		st->iio_info.attrs = conv->attrs;
-	indio_dev->info = &st->iio_info;
 
 	if (info)
 		rate = info->rate;
@@ -2518,20 +2507,11 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 			skip_attrib = 1;
 		}
 
-		ret = cf_axi_append_attrs(indio_dev,
-			&cf_axi_int_attribute_group, skip_attrib);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"Failed to add sysfs attributes (%d)\n", ret);
-			return ret;
-		}
-
 	}
 
 	dev_info(&pdev->dev, "enable dds\n");
 	st->enable = true;
 	cf_axi_dds_start_sync(st, 0);
-	cf_axi_dds_sync_frame(indio_dev);
 
 	ret = regmap_read(st->regmap, ADI_AXI_REG_ID, &dds_id);
 	if (ret)
@@ -2559,12 +2539,6 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 
 		if (of_find_property(np, "dmas", NULL)) {
 			dev_info(&pdev->dev, "register dds dmas\n");
-			ret = cf_axi_dds_configure_buffer(indio_dev);
-			if (ret)
-				return ret;
-
-			indio_dev->available_scan_masks =
-				st->chip_info->scan_masks;
 		}
 
 	} else if (dds_id) {
@@ -2576,20 +2550,8 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 			st->master_regs = ioremap(regs[0], regs[1]);
 	}
 
-	dev_info(&pdev->dev, "register dds iio device\n");
-	ret = devm_iio_device_register(&pdev->dev, indio_dev);
-	if (ret)
-		return ret;
-
 	st->plddrbypass_gpio = devm_gpiod_get_optional(&pdev->dev,
 			"plddrbypass", GPIOD_ASIS);
-	if ((st->plddrbypass_gpio || st->data_offload)
-		&& iio_get_debugfs_dentry(indio_dev))
-		debugfs_create_file_unsafe("pl_ddr_fifo_enable", 0644,
-				iio_get_debugfs_dentry(indio_dev),
-				indio_dev, &cf_axi_dds_debugfs_fifo_en_fops);
-
-	platform_set_drvdata(pdev, indio_dev);
 
 	ret = devm_iio_backend_register(&pdev->dev, &adi_axi_dds_generic, st);
 	if (ret)
