@@ -90,6 +90,7 @@
 			cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
 
 			vref-supply = <&vref>;
+			adi,gain-milli = <454>;
 			#io-channel-cells = <1>;
 		};
 	};
