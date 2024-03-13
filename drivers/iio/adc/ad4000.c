@@ -33,6 +33,8 @@
 #define AD400X_WRITE_COMMAND	0x14
 #define AD400X_RESERVED_MSK	0xE0
 
+#define AD4000_CONFIG_REG_MSK	0xFF
+
 /* AD4000 Configuration Register programmable bits */
 #define AD4000_STATUS		BIT(4) /* Status bits output */
 #define AD4000_SPAN_COMP	BIT(3) /* Input span compression  */
@@ -253,7 +255,7 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	if (ret < 0)
 		return ret;
 
-	*val = get_unaligned_be16(st->data.d8);
+	*val = FIELD_GET(AD4000_CONFIG_REG_MSK, get_unaligned_be16(st->data.d8));
 
 	return ret;
 }
