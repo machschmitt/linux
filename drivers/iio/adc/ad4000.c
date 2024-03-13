@@ -35,7 +35,7 @@
 
 /* AD4000 Configuration Register programmable bits */
 #define AD4000_STATUS		BIT(4) /* Status bits output */
-#define AD4000_SPANC		BIT(3) /* Input span compression  */
+#define AD4000_SPAN_COMP	BIT(3) /* Input span compression  */
 #define AD4000_HIGHZ		BIT(2) /* High impedance mode  */
 #define AD4000_TURBO		BIT(1) /* Turbo mode */
 
@@ -372,7 +372,7 @@ static ssize_t ad4000_show(struct device *dev, struct device_attribute *attr,
 	switch ((u32)this_attr->address) {
 	case AD4000_STATUS:
 		return sysfs_emit(buf, "%d\n", st->status_bits);
-	case AD4000_SPANC:
+	case AD4000_SPAN_COMP:
 		return sysfs_emit(buf, "%d\n", st->span_comp);
 	case AD4000_HIGHZ:
 		return sysfs_emit(buf, "%d\n", st->high_z_mode);
@@ -417,9 +417,9 @@ static ssize_t ad4000_store(struct device *dev,
 
 		st->status_bits = val;
 		break;
-	case AD4000_SPANC:
-		reg_val &= ~AD4000_SPANC;
-		reg_val |= FIELD_PREP(AD4000_SPANC, val);
+	case AD4000_SPAN_COMP:
+		reg_val &= ~AD4000_SPAN_COMP;
+		reg_val |= FIELD_PREP(AD4000_SPAN_COMP, val);
 		ret = ad4000_write_reg(st, reg_val);
 		if (ret < 0)
 			goto err_release;
@@ -460,7 +460,7 @@ static IIO_DEVICE_ATTR(status_bits_en, S_IRUGO | S_IWUSR,
 
 static IIO_DEVICE_ATTR(span_compression_en, S_IRUGO | S_IWUSR,
 		       ad4000_show, ad4000_store,
-		       AD4000_SPANC);
+		       AD4000_SPAN_COMP);
 
 static IIO_DEVICE_ATTR(high_impedance_en, S_IRUGO | S_IWUSR,
 		       ad4000_show, ad4000_store,
