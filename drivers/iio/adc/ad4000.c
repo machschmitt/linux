@@ -154,7 +154,7 @@ enum ad4000_gains {
 	AD4000_0454_GAIN = 0,
 	AD4000_0909_GAIN = 1,
 	AD4000_1_GAIN = 2,
-	AD4000_1909_GAIN = 3,
+	AD4000_1900_GAIN = 3,
 	AD4000_GAIN_LEN
 };
 
@@ -162,10 +162,10 @@ enum ad4000_gains {
  * Gains stored and computed as fractions to avoid introducing rounding erros.
  */
 static const int ad4000_gains_frac[AD4000_GAIN_LEN][2] = {
-	[AD4000_0454_GAIN] = { 15, 33 },
-	[AD4000_0909_GAIN] = { 30, 33 },
+	[AD4000_0454_GAIN] = { 227, 500 },
+	[AD4000_0909_GAIN] = { 909, 1000 },
 	[AD4000_1_GAIN] = { 1, 1 },
-	[AD4000_1909_GAIN] = { 63, 33 },
+	[AD4000_1900_GAIN] = { 19, 10 },
 };
 
 struct ad4000_state {
@@ -647,8 +647,8 @@ static int ad4000_probe(struct spi_device *spi)
 		case 1000:
 			st->pin_gain = AD4000_1_GAIN;
 			break;
-		case 1909:
-			st->pin_gain = AD4000_1909_GAIN;
+		case 1900:
+			st->pin_gain = AD4000_1900_GAIN;
 			break;
 		default:
 			dev_err(&spi->dev, "Firmware provided gain is invalid\n");
