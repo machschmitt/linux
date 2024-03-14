@@ -14,6 +14,11 @@
 #include <linux/fpga/adi-axi-common.h>
 #include <linux/regmap.h>
 
+/*
+ * Register definitions:
+ *   https://wiki.analog.com/resources/fpga/docs/axi_dac_ip#register_map
+ */
+
 /* DAC COMMON */
 
 #define ADI_AXI_REG_RSTN		0x0040
@@ -34,22 +39,6 @@
 #define ADI_AXI_DATA_FORMAT		(1 << 4)
 #define ADI_AXI_DATA_SEL(x)		(((x) & 0xF) << 0) /* v7.0 */
 #define ADI_AXI_TO_DATA_SEL(x)		(((x) >> 0) & 0xF) /* v7.0 */
-
-enum dds_data_select {
-	DATA_SEL_DDS,
-	DATA_SEL_SED,
-	DATA_SEL_DMA,
-	DATA_SEL_ZERO,	/* OUTPUT 0 */
-	DATA_SEL_INV_PN7,
-	DATA_SEL_INV_PN15,
-	DATA_SEL_PN7,
-	DATA_SEL_PN15,
-	DATA_SEL_LB,	/* loopback data (ADC) */
-	DATA_SEL_PNXX,	/* (Device specific) */
-	DATA_SEL_RAMP_NIBBLE,
-	DATA_SEL_RAMP_16,
-};
-
 
 #define ADI_REG_RATECNTRL	0x004C
 #define ADI_RATE(x)		(((x) & 0xFF) << 0)
@@ -100,14 +89,6 @@ enum dds_data_select {
 #define ADI_AXI_MSK_BUSY	BIT(4)
 
 #define ADI_REG_DAC_CUSTOM_CTRL	0x008C
-
-#define ADI_REG_VDMA_FRMCNT	0x0084
-#define ADI_VDMA_FRMCNT(x)	(((x) & 0xFFFFFFFF) << 0)
-#define ADI_TO_VDMA_FRMCNT(x)	(((x) >> 0) & 0xFFFFFFFF)
-
-#define ADI_REG_VDMA_STATUS	0x0088
-#define ADI_VDMA_OVF		(1 << 1)
-#define ADI_VDMA_UNF		(1 << 0)
 
 #define ADI_REG_USR_CNTRL_1	0x00A0
 #define ADI_USR_CHANMAX(x)	(((x) & 0xFF) << 0)
@@ -165,6 +146,21 @@ enum dds_data_select {
 #define ADI_TO_DAC_SRC_CH_SEL(x)	(((x) >> 8) & 0xFF)
 #define ADI_DAC_ENABLE_MASK		(1 << 16)
 
+enum dds_data_select {
+	DATA_SEL_DDS,
+	DATA_SEL_SED,
+	DATA_SEL_DMA,
+	DATA_SEL_ZERO,	/* OUTPUT 0 */
+	DATA_SEL_INV_PN7,
+	DATA_SEL_INV_PN15,
+	DATA_SEL_PN7,
+	DATA_SEL_PN15,
+	DATA_SEL_LB,	/* loopback data (ADC) */
+	DATA_SEL_PNXX,	/* (Device specific) */
+	DATA_SEL_RAMP_NIBBLE,
+	DATA_SEL_RAMP_16,
+};
+
 #define ADI_REG_CHAN_CNTRL_8(c)		(0x041C + (c) * 0x40) /* v8.0 */
 #define ADI_IQCOR_COEFF_1(x)		(((x) & 0xFFFF) << 16)
 #define ADI_TO_IQCOR_COEFF_1(x)		(((x) >> 16) & 0xFFFF)
@@ -187,6 +183,14 @@ enum dds_data_select {
 #define ADI_USR_INTERPOLATION_N(x)	(((x) & 0xFFFF) << 0)
 #define ADI_TO_USR_INTERPOLATION_N(x)	(((x) >> 0) & 0xFFFF)
 
+// Not DAC defines
+#define ADI_REG_VDMA_FRMCNT	0x0084
+#define ADI_VDMA_FRMCNT(x)	(((x) & 0xFFFFFFFF) << 0)
+#define ADI_TO_VDMA_FRMCNT(x)	(((x) >> 0) & 0xFFFFFFFF)
+
+#define ADI_REG_VDMA_STATUS	0x0088
+#define ADI_VDMA_OVF		(1 << 1)
+#define ADI_VDMA_UNF		(1 << 0)
 
 #define AXIDDS_MAX_DMA_SIZE		(6 * 1024 * 1024) /* Randomly picked */
 
