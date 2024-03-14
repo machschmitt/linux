@@ -44,6 +44,8 @@
 #define AD400X_TURBO_MODE(x)	FIELD_PREP(BIT_MASK(1), x)
 #define AD400X_HIGH_Z_MODE(x)	FIELD_PREP(BIT_MASK(2), x)
 
+#define AD4000_18BIT_MSK	GENMASK(17, 0)
+
 #define AD400X_CHANNEL(real_bits)					\
 	{								\
 		.type = IIO_VOLTAGE,					\
@@ -267,10 +269,7 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 	int ret;
 
 	t.rx_buf = &st->data.scan.sample_buf;
-	if (st->num_bits <= 24) // TODO if(num_bits + status <= 24)
-		t.len = 3;
-	else
-		t.len = 4;
+	t.len = 4;
 	t.delay.value = 60;
 	t.delay.unit = SPI_DELAY_UNIT_NSECS;
 
@@ -284,10 +283,8 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 
 	gpiod_set_value_cansleep(st->cnv_gpio, 0);
 
-	if (st->num_bits <= 24) // TODO if(num_bits + status <= 24)
-		*val = get_unaligned_be24(&st->data.scan.sample_buf);
-	else
-		*val = get_unaligned_be32(&st->data.scan.sample_buf);
+	*val = get_unaligned_be32(&st->data.scan.sample_buf);
+	*val = FIELD_GET(AD4000_18BIT_MSK, *val);
 
 	return 0;
 }
