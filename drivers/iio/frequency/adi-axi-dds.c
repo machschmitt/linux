@@ -1019,8 +1019,9 @@ out_unlock:
 	return ret;
 }
 
-static int cf_axi_dds_update_scan_mode(struct iio_dev *indio_dev,
-	const unsigned long *scan_mask)
+static int cf_axi_dds_update_scan_mode(struct iio_backend *back,
+				struct iio_dev *indio_dev,
+				const unsigned long *scan_mask)
 {
 	struct cf_axi_dds_state *st = iio_priv(indio_dev);
 	unsigned int i, sel;
@@ -1627,7 +1628,6 @@ static const struct iio_info cf_axi_dds_info = {
 	.read_raw = &cf_axi_dds_read_raw,
 	.write_raw = &cf_axi_dds_write_raw,
 	.debugfs_reg_access = &cf_axi_dds_reg_access,
-	.update_scan_mode = &cf_axi_dds_update_scan_mode,
 };
 
 static int cf_axi_dds_debugfs_fifo_en_get(void *data, u64 *val)
@@ -2153,6 +2153,7 @@ static const struct iio_backend_ops adi_axi_dds_generic = {
 	.disable = axi_dds_disable,
 	.chan_enable = axi_dds_chan_enable,
 	.chan_disable = axi_dds_chan_disable,
+	.update_scan_mode = cf_axi_dds_update_scan_mode,
 };
 
 static const struct regmap_config axi_dac_regmap_config = {

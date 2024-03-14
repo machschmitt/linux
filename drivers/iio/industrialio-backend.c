@@ -231,6 +231,23 @@ int devm_iio_backend_request_buffer(struct device *dev,
 }
 EXPORT_SYMBOL_NS_GPL(devm_iio_backend_request_buffer, IIO_BACKEND);
 
+/**
+ * iio_backend_update_scan_mode - Change IIO buffer scan mode
+ * @back:	Backend device
+ * @indio_dev:	Channel number
+ * @scan_mask:	Mask of enabled channels
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_update_scan_mode(struct iio_backend *back,
+				 struct iio_dev *indio_dev,
+				 const unsigned long *scan_mask)
+{
+	return iio_backend_op_call(back, update_scan_mode, indio_dev, scan_mask);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_update_scan_mode, IIO_BACKEND);
+
 static void iio_backend_release(void *arg)
 {
 	struct iio_backend *back = arg;

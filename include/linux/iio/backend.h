@@ -47,6 +47,9 @@ struct iio_backend_ops {
 			       const struct iio_backend_data_fmt *data);
 	struct iio_buffer *(*request_buffer)(struct iio_backend *back,
 					     struct iio_dev *indio_dev);
+	int (*update_scan_mode)(struct iio_backend *back,
+				struct iio_dev *indio_dev,
+				const unsigned long *scan_mask);
 	void (*free_buffer)(struct iio_backend *back,
 			    struct iio_buffer *buffer);
 };
