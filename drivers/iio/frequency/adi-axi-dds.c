@@ -2246,12 +2246,12 @@ static int cf_axi_dds_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = regmap_read(st->regmap, ADI_REG_CONFIG, &config);
+	ret = regmap_read(st->regmap, ADI_AXI_REG_CONFIG, &config);
 	if (ret)
 		return ret;
 
-	st->ext_sync_avail = !!(config & ADI_EXT_SYNC);
-	dev_info(&pdev->dev, "ad3552r ADI_REG_CONFIG: %u, ext_sync_avail: %u",
+	st->ext_sync_avail = !!(config & ADI_AXI_EXT_SYNC);
+	dev_info(&pdev->dev, "ad3552r ADI_AXI_REG_CONFIG: %u, ext_sync_avail: %u",
 		 config, st->ext_sync_avail);
 	st->dp_disable = false; /* FIXME: resolve later which reg & bit to read for this */
 
