@@ -14,20 +14,6 @@
 #include <linux/fpga/adi-axi-common.h>
 #include <linux/regmap.h>
 
-#define ADI_REG_CONFIG			0x000C
-#define ADI_IQCORRECTION_DISABLE	(1 << 0)
-#define ADI_DCFILTER_DISABLE		(1 << 1)
-#define ADI_DATAFORMAT_DISABLE		(1 << 2)
-#define ADI_USERPORTS_DISABLE		(1 << 3)
-#define ADI_MODE_1R1T			(1 << 4)
-#define ADI_DELAY_CONTROL_DISABLE	(1 << 5)
-#define ADI_DDS_DISABLE			(1 << 6)
-#define ADI_CMOS_OR_LVDS_N		(1 << 7)
-#define ADI_PPS_RECEIVER_ENABLE		(1 << 8)
-#define ADI_SCALECORRECTION_ONLY	(1 << 9)
-#define ADI_XBAR_ENABLE			(1 << 10)
-#define ADI_EXT_SYNC			(1 << 12)
-
 /* DAC COMMON */
 
 #define ADI_AXI_REG_RSTN		0x0040
