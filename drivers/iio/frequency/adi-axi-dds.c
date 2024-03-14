@@ -2141,10 +2141,18 @@ static int axi_dds_chan_enable(struct iio_backend *back, unsigned int chan)
 	return ret;
 }
 
+static int axi_dds_chan_disable(struct iio_backend *back, unsigned int chan)
+{
+	struct cf_axi_dds_state *st = iio_backend_get_priv(back);
+
+	return regmap_write(st->regmap, ADI_REG_DRP_CNTRL, ADI_TO_DRP_ADDRESS(0));
+}
+
 static const struct iio_backend_ops adi_axi_dds_generic = {
 	.enable = axi_dds_enable,
 	.disable = axi_dds_disable,
 	.chan_enable = axi_dds_chan_enable,
+	.chan_disable = axi_dds_chan_disable,
 };
 
 static const struct regmap_config axi_dac_regmap_config = {
