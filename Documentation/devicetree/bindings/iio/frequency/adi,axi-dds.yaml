@@ -64,7 +64,7 @@ examples:
     axi-dac@44a30000 {
         compatible = "adi,axi-dds-6.00.a";
         reg = <0x44a30000 0x10000>;
-        dmas = <&rx_dma 0>;
+        dmas = <&tx_dma 0>;
         dma-names = "tx";
         adi,axi-dds-default-frequency = <1000000>;
         adi,axi-dds-default-scale = <0x800>;
