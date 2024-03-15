@@ -23,7 +23,7 @@ description: |
 properties:
   compatible:
     enum:
-      - adi,axi-dac-10.0.a
+      - adi,axi-dds-6.00.a
 
   reg:
     maxItems: 1
@@ -62,7 +62,7 @@ additionalProperties: false
 examples:
   - |
     axi-dac@44a30000 {
-        compatible = "adi,axi-dac-10.0.a";
+        compatible = "adi,axi-dds-6.00.a";
         reg = <0x44a30000 0x10000>;
         dmas = <&rx_dma 0>;
         dma-names = "tx";
