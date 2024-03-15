@@ -14,6 +14,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
+#include <linux/iio/backend.h>
+
 /* Register addresses */
 /* Primary address space */
 #define AD3552R_REG_ADDR_INTERFACE_CONFIG_A		0x00
@@ -262,6 +264,7 @@ struct ad3552r_ch_data {
 };
 
 struct ad3552r_desc {
+	struct iio_backend	*back;
 	/* Used to look the spi bus for atomic operations where needed */
 	struct mutex		lock;
 	struct gpio_desc	*gpio_reset;
@@ -1032,6 +1035,11 @@ static int ad3552r_init(struct ad3552r_desc *dac)
 	int err;
 	u16 val, id;
 
+	dac->back = devm_iio_backend_get(&dac->spi->dev, NULL);
+	if (IS_ERR(dac->back))
+		dev_err(&dac->spi->dev, "Error while getting IIO backend %ld",
+			PTR_ERR(dac->back));
+
 	err = ad3552r_reset(dac);
 	if (err) {
 		dev_err(&dac->spi->dev, "Reset failed\n");
@@ -1136,3 +1144,4 @@ module_spi_driver(ad3552r_driver);
 MODULE_AUTHOR("Mihail Chindris <mihail.chindris@analog.com>");
 MODULE_DESCRIPTION("Analog Device AD3552R DAC");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_BACKEND);
