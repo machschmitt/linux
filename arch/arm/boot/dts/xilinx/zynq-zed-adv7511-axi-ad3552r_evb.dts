@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Analog Devices AXI-AD3552R
+ * Analog Devices AD3552R with AXI DDS IIO Backend
  * https://www.analog.com/en/products/ad3552r.html
  *
  * hdl_project: <ad3552r_evb>
  * board_revision: <A>
  *
- * Copyright (C) 2023 Analog Devices Inc.
+ * Copyright (C) 2024 Analog Devices Inc.
  */
 /dts-v1/;
 
+#include <dt-bindings/dma/axi-dmac.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+//#include <dt-bindings/pwm/pwm.h>
+
 #include "zynq-zed.dtsi"
 #include "zynq-zed-adv7511.dtsi"
-#include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pwm/pwm.h>
 
 &fpga_axi {
 
