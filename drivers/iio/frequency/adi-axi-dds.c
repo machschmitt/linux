@@ -1771,6 +1771,13 @@ struct axidds_core_info {
 	unsigned int num_device_channels;
 };
 
+static const struct axidds_core_info axi_dds_6_00_a_info = {
+	.version = ADI_AXI_PCORE_VER(9, 0, 'a'),
+	.standalone = false,
+	.rate = 1,
+	.data_format = ADI_AXI_DATA_FORMAT,
+};
+
 static const struct axidds_core_info ad3552r_6_00_a_info = {
 	.version = ADI_AXI_PCORE_VER(9, 0, 'a'),
 	.standalone = false,
@@ -1916,7 +1923,7 @@ static const struct axidds_core_info adrv9025_1_00_a_info = {
 
 /* Match table for of_platform binding */
 static const struct of_device_id cf_axi_dds_of_match[] = {
-	{ .compatible = "adi,axi-dds-6.00.a", .data = NULL },
+	{ .compatible = "adi,axi-dds-6.00.a", .data = &axi_dds_6_00_a_info },
 	{ .compatible = "adi,axi-ad9122-6.00.a", .data = &ad9122_6_00_a_info},
 	{ .compatible = "adi,axi-ad9136-1.0", .data = &ad9144_7_00_a_info },
 	{ .compatible = "adi,axi-ad9144-1.0", .data = &ad9144_7_00_a_info, },
