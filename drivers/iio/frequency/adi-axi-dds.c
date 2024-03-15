@@ -1916,6 +1916,7 @@ static const struct axidds_core_info adrv9025_1_00_a_info = {
 
 /* Match table for of_platform binding */
 static const struct of_device_id cf_axi_dds_of_match[] = {
+	{ .compatible = "adi,axi-dds-6.00.a", .data = NULL },
 	{ .compatible = "adi,axi-ad9122-6.00.a", .data = &ad9122_6_00_a_info},
 	{ .compatible = "adi,axi-ad9136-1.0", .data = &ad9144_7_00_a_info },
 	{ .compatible = "adi,axi-ad9144-1.0", .data = &ad9144_7_00_a_info, },
