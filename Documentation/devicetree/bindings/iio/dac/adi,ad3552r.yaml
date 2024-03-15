@@ -56,6 +56,9 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 3]
 
+  io-backends:
+    maxItems: 1
+
   '#address-cells':
     const: 1
 
@@ -198,6 +201,33 @@ examples:
             compatible = "adi,ad3552r";
             reg = <0>;
             spi-max-frequency = <20000000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            channel@0 {
+                reg = <0>;
+                adi,output-range-microvolt = <0 10000000>;
+            };
+            channel@1 {
+                reg = <1>;
+                custom-output-range-config {
+                    adi,gain-offset = <5>;
+                    adi,gain-scaling-p-inv-log2 = <1>;
+                    adi,gain-scaling-n-inv-log2 = <2>;
+                    adi,rfb-ohms = <1>;
+                };
+            };
+        };
+    };
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dac@0 {
+            compatible = "adi,ad3552r";
+            reg = <0>;
+            spi-max-frequency = <20000000>;
+            io-backends = <&iio_backend>;
             #address-cells = <1>;
             #size-cells = <0>;
             channel@0 {
