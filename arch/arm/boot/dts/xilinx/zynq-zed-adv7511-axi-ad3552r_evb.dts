@@ -65,7 +65,7 @@
 
 	adi_axi_dac_ip: axi-dac@44a30000 {
 		compatible = "adi,axi-dds-6.00.a";
-		reg = <0x44a30000 0x10000>;
+		reg = <0x44a74000 0x10000>;
 		dmas = <&dac_tx_dma 0>;
 		dma-names = "tx";
 		clocks = <&ref_clk>;
