@@ -62,5 +62,65 @@
 		dmas = <&dac_tx_dma 0>;
 		dma-names = "tx";
 	};
+
+	adi_axi_dac_ip: axi-dac@44a30000 {
+		compatible = "adi,axi-dds-6.00.a";
+		reg = <0x44a30000 0x10000>;
+		dmas = <&dac_tx_dma 0>;
+		dma-names = "tx";
+		clocks = <&ref_clk>;
+		reset-gpios = <&gpio0 92 GPIO_ACTIVE_LOW>;
+		adi,axi-dds-default-frequency = <1000000>;
+		adi,axi-dds-default-scale = <0x800>;
+		#io-backend-cells = <0>;
+	};
+
+	spi_clk: clock-controller@44a70000 {
+		compatible = "adi,axi-clkgen-2.00.a";
+		reg = <0x44a70000 0x1000>;
+		#clock-cells = <0>;
+		clocks = <&clkc 15>;
+		clock-names = "s_axi_aclk", "clkin1";
+		clock-output-names = "spi_clk";
+
+		/* needs to be high enough to allow >= 91.5MHz SCLK for turbo */
+		assigned-clocks = <&spi_clk>;
+		assigned-clock-rates = <185000000>;
+	};
+
+	spi@44a00000 {
+		compatible = "adi,axi-spi-engine-1.00.a";
+		reg = <0x44a00000 0x1000>;
+		interrupt-parent = <&intc>;
+		interrupts = <0 56 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc 15>, <&spi_clk>;
+		clock-names = "s_axi_aclk", "spi_clk";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ad3552r: dac@0 {
+			compatible = "adi,ad3552r";
+			reg = <0>;
+			spi-max-frequency = <20000000>;
+			io-backends = <&adi_axi_dac_ip>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			channel@0 {
+				reg = <0>;
+				adi,output-range-microvolt = <0 10000000>;
+			};
+			channel@1 {
+				reg = <1>;
+				custom-output-range-config {
+					adi,gain-offset = <5>;
+					adi,gain-scaling-p-inv-log2 = <1>;
+					adi,gain-scaling-n-inv-log2 = <2>;
+					adi,rfb-ohms = <1>;
+				};
+			};
+		};
+
+	};
 };
 
