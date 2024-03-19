@@ -287,21 +287,20 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, int *val)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
-	unsigned int sample, raw_sample;
+	unsigned int sample;
 	int ret;
 
 	ret = iio_device_claim_direct_mode(indio_dev);
 	if (ret)
 		return ret;
 
-	ret = ad4000_read_sample(st, &raw_sample);
+	ret = ad4000_read_sample(st, &sample);
 
 	iio_device_release_direct_mode(indio_dev);
 
 	if (ret)
 		return ret;
 
-	sample = raw_sample >> chan->scan_type.shift;
 	/* All differential AD4000 like devices ADC output code is twos complement */
 	if (chan->scan_type.sign == 's')
 		*val = sign_extend32(sample, chan->scan_type.realbits - 1);
