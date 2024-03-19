@@ -48,7 +48,7 @@
 #define AD4000_18BIT_PREC	18
 #define AD4000_18BIT_MSK	GENMASK(AD4000_XFERS_BITS - 1, AD4000_XFERS_BITS - 1 - AD4000_18BIT_PREC)
 
-#define AD400X_CHANNEL(real_bits)					\
+#define AD400X_CHANNEL(_sign, _real_bits)				\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
@@ -56,8 +56,8 @@
 			BIT(IIO_CHAN_INFO_SCALE) |			\
 			BIT(IIO_CHAN_INFO_OFFSET),			\
 		.scan_type = {						\
-			.sign = 's',					\
-			.realbits = real_bits,				\
+			.sign = _sign,					\
+			.realbits = _real_bits,				\
 			.storagebits = 32,				\
 			.endianness = IIO_BE,				\
 		},							\
@@ -81,76 +81,55 @@ enum ad4000_ids {
 	ID_ADAQ4003,
 };
 
-enum ad4000_input_type {
-	SINGLE_ENDED,
-	DIFFERENTIAL,
-};
-
 struct ad4000_chip_info {
 	struct iio_chan_spec chan_spec;
-	enum ad4000_input_type input_type;
 };
 
 static const struct ad4000_chip_info ad4000_chips[] = {
 	[ID_AD4000] = {
-		.chan_spec = AD400X_CHANNEL(16),
-		.input_type = SINGLE_ENDED,
+		.chan_spec = AD400X_CHANNEL('u', 16),
 	},
 	[ID_AD4001] = {
-		.chan_spec = AD400X_CHANNEL(16),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 16),
 	},
 	[ID_AD4002] = {
-		.chan_spec = AD400X_CHANNEL(18),
-		.input_type = SINGLE_ENDED,
+		.chan_spec = AD400X_CHANNEL('u', 18),
 	},
 	[ID_AD4003] = {
-		.chan_spec = AD400X_CHANNEL(18),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 18),
 	},
 	[ID_AD4004] = {
-		.chan_spec = AD400X_CHANNEL(16),
-		.input_type = SINGLE_ENDED,
+		.chan_spec = AD400X_CHANNEL('u', 16),
 	},
 	[ID_AD4005] = {
-		.chan_spec = AD400X_CHANNEL(16),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 16),
 	},
 	[ID_AD4006] = {
-		.chan_spec = AD400X_CHANNEL(18),
-		.input_type = SINGLE_ENDED,
+		.chan_spec = AD400X_CHANNEL('u', 18),
 	},
 	[ID_AD4007] = {
-		.chan_spec = AD400X_CHANNEL(18),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 18),
 	},
 	[ID_AD4008] = {
-		.chan_spec = AD400X_CHANNEL(16),
-		.input_type = SINGLE_ENDED,
+		.chan_spec = AD400X_CHANNEL('u', 16),
 	},
 	[ID_AD4010] = {
-		.chan_spec = AD400X_CHANNEL(18),
-		.input_type = SINGLE_ENDED,
+		.chan_spec = AD400X_CHANNEL('u', 18),
 	},
 	[ID_AD4011] = {
-		.chan_spec = AD400X_CHANNEL(18),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 18),
 	},
 	[ID_AD4020] = {
-		.chan_spec = AD400X_CHANNEL(20),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 20),
 	},
 	[ID_AD4021] = {
-		.chan_spec = AD400X_CHANNEL(20),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 20),
 	},
 	[ID_AD4022] = {
-		.chan_spec = AD400X_CHANNEL(20),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 20),
 	},
 	[ID_ADAQ4003] = {
-		.chan_spec = AD400X_CHANNEL(18),
-		.input_type = DIFFERENTIAL,
+		.chan_spec = AD400X_CHANNEL('s', 18),
 	},
 };
 
@@ -324,8 +303,8 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 
 	sample = raw_sample >> chan->scan_type.shift;
 	/* All differential AD4000 like devices ADC output code is twos complement */
-	if (st->chip->input_type == DIFFERENTIAL)
-		*val = sign_extend32(sample, st->num_bits - 1);
+	if (chan->scan_type.sign == 's')
+		*val = sign_extend32(sample, chan->scan_type.realbits - 1);
 
 	return IIO_VAL_INT;
 }
