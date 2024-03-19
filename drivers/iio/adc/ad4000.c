@@ -44,9 +44,9 @@
 #define AD400X_TURBO_MODE(x)	FIELD_PREP(BIT_MASK(1), x)
 #define AD400X_HIGH_Z_MODE(x)	FIELD_PREP(BIT_MASK(2), x)
 
-#define AD4000_XFERS_BITS	32
-#define AD4000_18BIT_PREC	18
-#define AD4000_18BIT_MSK	GENMASK(AD4000_XFERS_BITS - 1, AD4000_XFERS_BITS - 1 - AD4000_18BIT_PREC)
+#define AD4000_16BIT_MSK	GENMASK(31, 16)
+#define AD4000_18BIT_MSK	GENMASK(31, 14)
+#define AD4000_20BIT_MSK	GENMASK(31, 12)
 
 #define AD400X_CHANNEL(_sign, _real_bits)				\
 	{								\
@@ -265,7 +265,6 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 	gpiod_set_value_cansleep(st->cnv_gpio, 0);
 
 	*val = get_unaligned_be32(&st->data.scan.sample_buf);
-	*val = FIELD_GET(AD4000_18BIT_MSK, *val);
 
 	return 0;
 }
@@ -287,7 +286,7 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, int *val)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
-	unsigned int sample;
+	uint32_t sample;
 	int ret;
 
 	ret = iio_device_claim_direct_mode(indio_dev);
@@ -300,6 +299,20 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 
 	if (ret)
 		return ret;
+
+	switch (chan->scan_type.realbits) {
+	case 16:
+		sample = FIELD_GET(AD4000_16BIT_MSK, sample);
+		break;
+	case 18:
+		sample = FIELD_GET(AD4000_18BIT_MSK, sample);
+		break;
+	case 20:
+		sample = FIELD_GET(AD4000_20BIT_MSK, sample);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* All differential AD4000 like devices ADC output code is twos complement */
 	if (chan->scan_type.sign == 's')
