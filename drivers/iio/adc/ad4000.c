@@ -345,12 +345,12 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 			*val2 = st->scale_tbl[st->pin_gain][1];
 
 			if (st->span_comp)
-				*val2 = mult_frac(*val2, 4, 5);
+				*val2 = DIV_ROUND_CLOSEST(*val2 * 4, 5);
 			return IIO_VAL_INT_PLUS_NANO;
 		}
 		*val = st->vref / 1000;
 		if (st->span_comp)
-			*val = mult_frac(*val, 4, 5);
+			*val = DIV_ROUND_CLOSEST(*val * 4, 5);
 
 		*val2 = chan->scan_type.realbits - 1;
 		return IIO_VAL_FRACTIONAL_LOG2;
