@@ -40,9 +40,6 @@
 #define AD4000_HIGHZ		BIT(2) /* High impedance mode  */
 #define AD4000_TURBO		BIT(1) /* Turbo mode */
 
-#define AD400X_TURBO_MODE(x)	FIELD_PREP(BIT_MASK(1), x)
-#define AD400X_HIGH_Z_MODE(x)	FIELD_PREP(BIT_MASK(2), x)
-
 #define AD4000_16BIT_MSK	GENMASK(31, 16)
 #define AD4000_18BIT_MSK	GENMASK(31, 14)
 #define AD4000_20BIT_MSK	GENMASK(31, 12)
@@ -266,19 +263,6 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 	*val = get_unaligned_be32(&st->data.scan.sample_buf);
 
 	return 0;
-}
-
-static int ad4000_set_mode(struct ad4000_state *st)
-{
-	uint8_t mode;
-	int ret;
-
-	mode = AD400X_TURBO_MODE(st->turbo_mode) |
-		AD400X_HIGH_Z_MODE(st->high_z_mode);
-
-	ret = ad4000_write_reg(st, mode);
-
-	return ret;
 }
 
 static int ad4000_single_conversion(struct iio_dev *indio_dev,
@@ -648,12 +632,6 @@ static int ad4000_probe(struct spi_device *spi)
 	}
 
 	ad4000_fill_scale_tbl(st);
-
-	/* Set turbo mode */
-	st->turbo_mode = true;
-	ret = ad4000_set_mode(st);
-	if (ret < 0)
-		return ret;
 
 	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
 					      &iio_pollfunc_store_time,
