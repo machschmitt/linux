@@ -160,7 +160,6 @@ struct ad4000_state {
 	bool turbo_mode;
 	bool high_z_mode;
 
-	unsigned int num_bits;
 	enum ad4000_gains pin_gain;
 	int scale_tbl[AD4000_GAIN_LEN][2];
 	int read_offset;
@@ -594,8 +593,6 @@ static int ad4000_probe(struct spi_device *spi)
 	indio_dev->info = &ad4000_info;
 	indio_dev->channels = &st->chip->chan_spec;
 	indio_dev->num_channels = 1;
-
-	st->num_bits = indio_dev->channels->scan_type.realbits;
 
 	if (device_property_present(&spi->dev, "adi,gain-milli")) {
 		u32 val;
