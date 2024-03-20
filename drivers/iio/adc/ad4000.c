@@ -165,8 +165,6 @@ static const int ad4000_gains_frac[AD4000_GAIN_LEN][2] = {
 
 struct ad4000_state {
 	struct spi_device *spi;
-
-	const struct ad4000_chip_info *chip;
 	struct gpio_desc *cnv_gpio;
 	int vref;
 	bool status_bits;
@@ -577,7 +575,6 @@ static int ad4000_probe(struct spi_device *spi)
 		return -EINVAL;
 
 	st = iio_priv(indio_dev);
-	st->chip = chip;
 	st->spi = spi;
 
 	vref_reg = devm_regulator_get(&spi->dev, "vref");
@@ -603,7 +600,7 @@ static int ad4000_probe(struct spi_device *spi)
 
 	indio_dev->name = chip->dev_name;
 	indio_dev->info = &ad4000_info;
-	indio_dev->channels = &st->chip->chan_spec;
+	indio_dev->channels = &chip->chan_spec;
 	indio_dev->num_channels = 1;
 
 	if (device_property_present(&spi->dev, "adi,gain-milli")) {
