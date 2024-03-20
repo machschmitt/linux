@@ -60,9 +60,10 @@ properties:
 
   cnv-gpios:
     description:
-      GPIO connected to the CNV pin.
-      This logic input is used to initiate conversions on the analog
-      input channels.
+      Active low GPIO connected to the CNV pin.
+      If provided, the GPIO must be connected to the ADC CNV pin and the driver
+      must use it to do register read/write and to initiate conversions on the
+      analog input channel.
     maxItems: 1
 
   adi,gain-milli:
