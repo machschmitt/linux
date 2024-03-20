@@ -477,26 +477,6 @@ static const struct attribute_group ad4000_attribute_group = {
 	.attrs = ad4000_attributes,
 };
 
-static int ad4000_reg_access(struct iio_dev *indio_dev,
-			     unsigned int reg,
-			     unsigned int writeval,
-			     unsigned int *readval)
-{
-	struct ad4000_state *st = iio_priv(indio_dev);
-	int ret;
-
-	mutex_lock(&st->lock);
-
-	if (readval)
-		ret = ad4000_read_reg(st, readval);
-	else
-		ret = ad4000_write_reg(st, writeval);
-
-	mutex_unlock(&st->lock);
-
-	return ret;
-}
-
 static int ad4000_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val, int val2, long info)
@@ -545,7 +525,6 @@ static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
 	.write_raw = &ad4000_write_raw,
 	.attrs = &ad4000_attribute_group,
-	.debugfs_reg_access = &ad4000_reg_access,
 };
 
 static const struct spi_device_id ad4000_id[] = {
