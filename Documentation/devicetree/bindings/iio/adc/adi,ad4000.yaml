@@ -41,12 +41,22 @@ properties:
   reg: true
   spi-max-frequency: true
 
-  adi,spi-high-mode:
+  adi,spi-high-sdi-mode:
     description: |
-      The datasheet calls this "3-wire mode". In this mode the SDI line is kept
-      high at the digital interface high level (VIO). The ADC CNV line can be
-      driven by a CS signal from the SPI controlled or by a GPIO. If a GPIO is
-      used, the CS line of the controller is unused.
+      This property indicates the SPI wiring configuration.
+
+      When this property is omited, the driver must assume standard SPI
+      connections which, for these devices, comprises connecting the controller
+      CS line the device CNV pin. This configuration is (missleadingly) called
+      "CS Mode, 3-Wire Turbo Mode Connection" in datasheets.
+
+      When this property is present, it indicates that the device is using
+      either the "CS Mode, 3-Wire Without Busy Indicator" or the
+      "CS Mode, 3-Wire With Busy Indicator" connection scheme (datasheet names).
+      In this configuration the SDI line is kept high at the digital interface
+      high level (VIO). The ADC CNV line can be driven by a CS signal from the
+      SPI controlled or by a GPIO. If a GPIO is used, the CS line of the
+      controller is unused.
 
   cnv-gpios:
     description:
