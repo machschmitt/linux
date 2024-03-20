@@ -191,12 +191,12 @@ struct ad4000_state {
 	} data __aligned(IIO_DMA_MINALIGN);
 };
 
-static void ad4000_fill_scale_tbl(struct ad4000_state *st)
+static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits)
 {
 	int val, val2, tmp0, tmp1, i;
 	u64 tmp2;
 
-	val2 = st->chip->chan_spec.scan_type.realbits - 1;
+	val2 = scale_bits;
 	for (i = 0; i < AD4000_GAIN_LEN; i++) {
 		val = st->vref / 1000;
 		/* Multiply by MILLI here to avoid losing precision */
@@ -634,8 +634,14 @@ static int ad4000_probe(struct spi_device *spi)
 		st->pin_gain = AD4000_1_GAIN;
 	}
 
-
-	ad4000_fill_scale_tbl(st);
+	/*
+	 * ADCs that output twos complement code have one less bit to express
+	 * signal magnitude.
+	 */
+	if (chip->chan_spec.scan_type.sign == 's')
+		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits - 1);
+	else
+		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits);
 
 	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
 					      &iio_pollfunc_store_time,
