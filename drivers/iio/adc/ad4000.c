@@ -44,7 +44,7 @@
 #define AD4000_18BIT_MSK	GENMASK(31, 14)
 #define AD4000_20BIT_MSK	GENMASK(31, 12)
 
-#define AD400X_CHANNEL(_sign, _real_bits)				\
+#define AD4000_CHANNEL(_sign, _real_bits)				\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
@@ -85,63 +85,63 @@ struct ad4000_chip_info {
 static const struct ad4000_chip_info ad4000_chips[] = {
 	[ID_AD4000] = {
 		.dev_name = "ad4000",
-		.chan_spec = AD400X_CHANNEL('u', 16),
+		.chan_spec = AD4000_CHANNEL('u', 16),
 	},
 	[ID_AD4001] = {
 		.dev_name = "ad4001",
-		.chan_spec = AD400X_CHANNEL('s', 16),
+		.chan_spec = AD4000_CHANNEL('s', 16),
 	},
 	[ID_AD4002] = {
 		.dev_name = "ad4002",
-		.chan_spec = AD400X_CHANNEL('u', 18),
+		.chan_spec = AD4000_CHANNEL('u', 18),
 	},
 	[ID_AD4003] = {
 		.dev_name = "ad4003",
-		.chan_spec = AD400X_CHANNEL('s', 18),
+		.chan_spec = AD4000_CHANNEL('s', 18),
 	},
 	[ID_AD4004] = {
 		.dev_name = "ad4004",
-		.chan_spec = AD400X_CHANNEL('u', 16),
+		.chan_spec = AD4000_CHANNEL('u', 16),
 	},
 	[ID_AD4005] = {
 		.dev_name = "ad4005",
-		.chan_spec = AD400X_CHANNEL('s', 16),
+		.chan_spec = AD4000_CHANNEL('s', 16),
 	},
 	[ID_AD4006] = {
 		.dev_name = "ad4006",
-		.chan_spec = AD400X_CHANNEL('u', 18),
+		.chan_spec = AD4000_CHANNEL('u', 18),
 	},
 	[ID_AD4007] = {
 		.dev_name = "ad4007",
-		.chan_spec = AD400X_CHANNEL('s', 18),
+		.chan_spec = AD4000_CHANNEL('s', 18),
 	},
 	[ID_AD4008] = {
 		.dev_name = "ad4008",
-		.chan_spec = AD400X_CHANNEL('u', 16),
+		.chan_spec = AD4000_CHANNEL('u', 16),
 	},
 	[ID_AD4010] = {
 		.dev_name = "ad4010",
-		.chan_spec = AD400X_CHANNEL('u', 18),
+		.chan_spec = AD4000_CHANNEL('u', 18),
 	},
 	[ID_AD4011] = {
 		.dev_name = "ad4011",
-		.chan_spec = AD400X_CHANNEL('s', 18),
+		.chan_spec = AD4000_CHANNEL('s', 18),
 	},
 	[ID_AD4020] = {
 		.dev_name = "ad4020",
-		.chan_spec = AD400X_CHANNEL('s', 20),
+		.chan_spec = AD4000_CHANNEL('s', 20),
 	},
 	[ID_AD4021] = {
 		.dev_name = "ad4021",
-		.chan_spec = AD400X_CHANNEL('s', 20),
+		.chan_spec = AD4000_CHANNEL('s', 20),
 	},
 	[ID_AD4022] = {
 		.dev_name = "ad4022",
-		.chan_spec = AD400X_CHANNEL('s', 20),
+		.chan_spec = AD4000_CHANNEL('s', 20),
 	},
 	[ID_ADAQ4003] = {
 		.dev_name = "adaq4003",
-		.chan_spec = AD400X_CHANNEL('s', 18),
+		.chan_spec = AD4000_CHANNEL('s', 18),
 	},
 };
 
