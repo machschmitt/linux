@@ -149,9 +149,6 @@ static const int ad4000_gains_frac[AD4000_GAIN_LEN][2] = {
 
 struct ad4000_state {
 	struct spi_device *spi;
-	/* protect device accesses */
-	struct mutex lock;
-
 	struct spi_message spi_msg;
 	struct spi_transfer spi_transfer;
 
@@ -499,14 +496,12 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	struct ad4000_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&st->lock);
-
 	if (st->cnv_gpio)
 		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_HIGH);
 
 	ret = spi_read(st->spi, &st->data.scan.sample_buf, 4);
 	if (ret < 0)
-		goto err_unlock;
+		goto err_out;
 
 	if (st->cnv_gpio)
 		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_LOW);
@@ -514,9 +509,8 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->data.scan,
 					   iio_get_time_ns(indio_dev));
 
-err_unlock:
+err_out:
 	iio_trigger_notify_done(indio_dev->trig);
-	mutex_unlock(&st->lock);
 
 	return IRQ_HANDLED;
 }
@@ -572,7 +566,6 @@ static int ad4000_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	st->chip = chip;
 	st->spi = spi;
-	mutex_init(&st->lock);
 
 	vref_reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(vref_reg))
