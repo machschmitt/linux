@@ -2,7 +2,7 @@
 /*
  * AD4000 SPI ADC driver
  *
- * Copyright 2018 Analog Devices Inc.
+ * Copyright 2024 Analog Devices Inc.
  */
 #include <linux/bits.h>
 #include <linux/bitfield.h>
