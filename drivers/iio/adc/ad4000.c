@@ -340,20 +340,11 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		return ad4000_single_conversion(indio_dev, chan, val);
 	case IIO_CHAN_INFO_SCALE:
-		if (st->pin_gain != AD4000_1_GAIN) {
-			*val = st->scale_tbl[st->pin_gain][0];
-			*val2 = st->scale_tbl[st->pin_gain][1];
-
-			if (st->span_comp)
-				*val2 = DIV_ROUND_CLOSEST(*val2 * 4, 5);
-			return IIO_VAL_INT_PLUS_NANO;
-		}
-		*val = st->vref / 1000;
+		*val = st->scale_tbl[st->pin_gain][0];
+		*val2 = st->scale_tbl[st->pin_gain][1];
 		if (st->span_comp)
-			*val = DIV_ROUND_CLOSEST(*val * 4, 5);
-
-		*val2 = chan->scan_type.realbits - 1;
-		return IIO_VAL_FRACTIONAL_LOG2;
+			*val2 = DIV_ROUND_CLOSEST(*val2 * 4, 5);
+		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = st->read_offset;
 		return IIO_VAL_INT;
