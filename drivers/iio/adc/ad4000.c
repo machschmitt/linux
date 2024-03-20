@@ -78,53 +78,69 @@ enum ad4000_ids {
 };
 
 struct ad4000_chip_info {
+	const char *dev_name;
 	struct iio_chan_spec chan_spec;
 };
 
 static const struct ad4000_chip_info ad4000_chips[] = {
 	[ID_AD4000] = {
+		.dev_name = "ad4000",
 		.chan_spec = AD400X_CHANNEL('u', 16),
 	},
 	[ID_AD4001] = {
+		.dev_name = "ad4001",
 		.chan_spec = AD400X_CHANNEL('s', 16),
 	},
 	[ID_AD4002] = {
+		.dev_name = "ad4002",
 		.chan_spec = AD400X_CHANNEL('u', 18),
 	},
 	[ID_AD4003] = {
+		.dev_name = "ad4003",
 		.chan_spec = AD400X_CHANNEL('s', 18),
 	},
 	[ID_AD4004] = {
+		.dev_name = "ad4004",
 		.chan_spec = AD400X_CHANNEL('u', 16),
 	},
 	[ID_AD4005] = {
+		.dev_name = "ad4005",
 		.chan_spec = AD400X_CHANNEL('s', 16),
 	},
 	[ID_AD4006] = {
+		.dev_name = "ad4006",
 		.chan_spec = AD400X_CHANNEL('u', 18),
 	},
 	[ID_AD4007] = {
+		.dev_name = "ad4007",
 		.chan_spec = AD400X_CHANNEL('s', 18),
 	},
 	[ID_AD4008] = {
+		.dev_name = "ad4008",
 		.chan_spec = AD400X_CHANNEL('u', 16),
 	},
 	[ID_AD4010] = {
+		.dev_name = "ad4010",
 		.chan_spec = AD400X_CHANNEL('u', 18),
 	},
 	[ID_AD4011] = {
+		.dev_name = "ad4011",
 		.chan_spec = AD400X_CHANNEL('s', 18),
 	},
 	[ID_AD4020] = {
+		.dev_name = "ad4020",
 		.chan_spec = AD400X_CHANNEL('s', 20),
 	},
 	[ID_AD4021] = {
+		.dev_name = "ad4021",
 		.chan_spec = AD400X_CHANNEL('s', 20),
 	},
 	[ID_AD4022] = {
+		.dev_name = "ad4022",
 		.chan_spec = AD400X_CHANNEL('s', 20),
 	},
 	[ID_ADAQ4003] = {
+		.dev_name = "adaq4003",
 		.chan_spec = AD400X_CHANNEL('s', 18),
 	},
 };
@@ -585,7 +601,7 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(&st->spi->dev, PTR_ERR(st->cnv_gpio),
 				     "Error on requesting CNV GPIO\n");
 
-	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->name = chip->dev_name;
 	indio_dev->info = &ad4000_info;
 	indio_dev->channels = &st->chip->chan_spec;
 	indio_dev->num_channels = 1;
