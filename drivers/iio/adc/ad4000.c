@@ -207,13 +207,24 @@ static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 		.len = 2,
 	};
 	struct spi_message m;
+	int ret;
 
 	put_unaligned_be16(AD400X_WRITE_COMMAND << BITS_PER_BYTE | val, st->data.d8);
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
 
-	return spi_sync(st->spi, &m);
+	if (st->cnv_gpio)
+		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
+
+	ret = spi_sync(st->spi, &m);
+	if (ret < 0)
+		return ret;
+
+	if (st->cnv_gpio)
+		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
+
+	return 0;
 }
 
 static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
@@ -230,9 +241,15 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 
 	spi_message_init_with_transfers(&m, &t, 1);
 
+	if (st->cnv_gpio)
+		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
+
 	ret = spi_sync(st->spi, &m);
 	if (ret < 0)
 		return ret;
+
+	if (st->cnv_gpio)
+		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	*val = FIELD_GET(AD4000_CONFIG_REG_MSK, get_unaligned_be16(st->data.d8));
 
@@ -252,13 +269,15 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 
 	spi_message_init_with_transfers(&m, &t, 1);
 
-	gpiod_set_value_cansleep(st->cnv_gpio, 1);
+	if (st->cnv_gpio)
+		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
 
 	ret = spi_sync(st->spi, &m);
 	if (ret < 0)
 		return ret;
 
-	gpiod_set_value_cansleep(st->cnv_gpio, 0);
+	if (st->cnv_gpio)
+		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	*val = get_unaligned_be32(&st->data.scan.sample_buf);
 
@@ -502,9 +521,15 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 
 	mutex_lock(&st->lock);
 
+	if (st->cnv_gpio)
+		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_HIGH);
+
 	ret = spi_read(st->spi, &st->data.scan.sample_buf, 4);
 	if (ret < 0)
 		goto err_unlock;
+
+	if (st->cnv_gpio)
+		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->data.scan,
 					   iio_get_time_ns(indio_dev));
@@ -586,13 +611,10 @@ static int ad4000_probe(struct spi_device *spi)
 	if (st->vref < 0)
 		return dev_err_probe(&spi->dev, st->vref, "Failed to get vref\n");
 
-	st->cnv_gpio = devm_gpiod_get_optional(&st->spi->dev, "cnv",
-					       GPIOD_OUT_LOW);
+	st->cnv_gpio = devm_gpiod_get_optional(&spi->dev, "cnv", GPIOD_OUT_LOW);
 	if (IS_ERR(st->cnv_gpio))
 		return dev_err_probe(&st->spi->dev, PTR_ERR(st->cnv_gpio),
-				     "Error on requesting cnv GPIO\n");
-
-	dev_info(&st->spi->dev, "st->cnv_gpio: %p", st->cnv_gpio);
+				     "Error on requesting CNV GPIO\n");
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
@@ -630,6 +652,7 @@ static int ad4000_probe(struct spi_device *spi)
 	} else {
 		st->pin_gain = AD4000_1_GAIN;
 	}
+
 
 	ad4000_fill_scale_tbl(st);
 
