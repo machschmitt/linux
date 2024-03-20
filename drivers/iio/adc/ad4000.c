@@ -149,8 +149,6 @@ static const int ad4000_gains_frac[AD4000_GAIN_LEN][2] = {
 
 struct ad4000_state {
 	struct spi_device *spi;
-	struct spi_message spi_msg;
-	struct spi_transfer spi_transfer;
 
 	const struct ad4000_chip_info *chip;
 	struct gpio_desc *cnv_gpio;
