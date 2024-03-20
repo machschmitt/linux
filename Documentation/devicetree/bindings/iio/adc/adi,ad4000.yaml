@@ -61,7 +61,7 @@ properties:
       The gain provided by the ADC input scaler is defined by the hardware
       connections between chip pins OUT+, R1K-, R1K1-, R1K+, R1K1+, and OUT-.
       If not present, default to 1000 (no actual gain applied).
-    enum: [454, 909, 1000, 1909]
+    enum: [454, 909, 1000, 1900]
     default: 1000
 
   vref-supply:
