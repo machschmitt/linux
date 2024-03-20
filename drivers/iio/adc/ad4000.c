@@ -585,9 +585,7 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(&st->spi->dev, PTR_ERR(st->cnv_gpio),
 				     "Error on requesting CNV GPIO\n");
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_HARDWARE;
 	indio_dev->info = &ad4000_info;
 	indio_dev->channels = &st->chip->chan_spec;
 	indio_dev->num_channels = 1;
