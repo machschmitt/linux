@@ -4,12 +4,11 @@
  *
  * Copyright 2024 Analog Devices Inc.
  */
+#include <asm/unaligned.h>
 #include <linux/bits.h>
 #include <linux/bitfield.h>
-#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/math.h>
 #include <linux/module.h>
@@ -19,9 +18,6 @@
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
 #include <linux/units.h>
-
-#include <asm/unaligned.h>
-
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
