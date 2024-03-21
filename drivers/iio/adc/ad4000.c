@@ -287,10 +287,10 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 }
 
 static int ad4000_single_conversion(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, int *val)
+				    const struct iio_chan_spec *chan, int *val)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
-	uint32_t sample;
+	u32 sample;
 	int ret;
 
 	ret = iio_device_claim_direct_mode(indio_dev);
@@ -325,7 +325,8 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 }
 
 static int ad4000_read_raw(struct iio_dev *indio_dev,
-	struct iio_chan_spec const *chan, int *val, int *val2, long info)
+			   struct iio_chan_spec const *chan, int *val,
+			   int *val2, long info)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
 
@@ -366,10 +367,8 @@ static ssize_t ad4000_show(struct device *dev, struct device_attribute *attr,
 	}
 }
 
-static ssize_t ad4000_store(struct device *dev,
-			  struct device_attribute *attr,
-			  const char *buf,
-			  size_t len)
+static ssize_t ad4000_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad4000_state *st = iio_priv(indio_dev);
@@ -448,7 +447,6 @@ static IIO_DEVICE_ATTR(high_impedance_en, 0644, ad4000_show, ad4000_store,
 
 static IIO_DEVICE_ATTR(turbo_en, 0644, ad4000_show, ad4000_store,
 		       AD4000_TURBO);
-
 
 static struct attribute *ad4000_attributes[] = {
 	&iio_dev_attr_status_bits_en.dev_attr.attr,
