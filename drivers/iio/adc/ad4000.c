@@ -536,11 +536,13 @@ static int ad4000_probe(struct spi_device *spi)
 
 	ret = regulator_enable(vref_reg);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(&spi->dev, ret,
+				     "Failed to enable voltage regulator\n");
 
 	ret = devm_add_action_or_reset(&spi->dev, ad4000_regulator_disable, vref_reg);
 	if (ret)
-		return ret;
+		return dev_err_probe(&spi->dev, ret,
+				     "Failed to add regulator disable action\n");
 
 	st->vref = regulator_get_voltage(vref_reg);
 	if (st->vref < 0)
@@ -582,8 +584,8 @@ static int ad4000_probe(struct spi_device *spi)
 			st->pin_gain = AD4000_1900_GAIN;
 			break;
 		default:
-			dev_err(&spi->dev, "Firmware provided gain is invalid\n");
-			return -EINVAL;
+			return dev_err_probe(&spi->dev, -EINVAL,
+					     "Invalid firmware provided gain\n");
 		}
 	} else {
 		st->pin_gain = AD4000_1_GAIN;
