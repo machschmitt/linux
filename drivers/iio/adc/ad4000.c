@@ -437,20 +437,16 @@ err_release:
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(status_bits_en, S_IRUGO | S_IWUSR,
-		       ad4000_show, ad4000_store,
+static IIO_DEVICE_ATTR(status_bits_en, 0644, ad4000_show, ad4000_store,
 		       AD4000_STATUS);
 
-static IIO_DEVICE_ATTR(span_compression_en, S_IRUGO | S_IWUSR,
-		       ad4000_show, ad4000_store,
+static IIO_DEVICE_ATTR(span_compression_en, 0644, ad4000_show, ad4000_store,
 		       AD4000_SPAN_COMP);
 
-static IIO_DEVICE_ATTR(high_impedance_en, S_IRUGO | S_IWUSR,
-		       ad4000_show, ad4000_store,
+static IIO_DEVICE_ATTR(high_impedance_en, 0644, ad4000_show, ad4000_store,
 		       AD4000_HIGHZ);
 
-static IIO_DEVICE_ATTR(turbo_en, S_IRUGO | S_IWUSR,
-		       ad4000_show, ad4000_store,
+static IIO_DEVICE_ATTR(turbo_en, 0644, ad4000_show, ad4000_store,
 		       AD4000_TURBO);
 
 
