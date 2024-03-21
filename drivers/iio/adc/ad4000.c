@@ -611,7 +611,7 @@ static int ad4000_probe(struct spi_device *spi)
 
 	/*
 	 * ADCs that output twos complement code have one less bit to express
-	 * signal magnitude.
+	 * voltage magnitude.
 	 */
 	if (chip->chan_spec.scan_type.sign == 's')
 		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits - 1);
