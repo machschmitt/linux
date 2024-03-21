@@ -49,8 +49,7 @@
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
-			BIT(IIO_CHAN_INFO_SCALE) |			\
-			BIT(IIO_CHAN_INFO_OFFSET),			\
+				      BIT(IIO_CHAN_INFO_SCALE),		\
 		.scan_type = {						\
 			.sign = _sign,					\
 			.realbits = _real_bits,				\
@@ -174,7 +173,6 @@ struct ad4000_state {
 
 	enum ad4000_gains pin_gain;
 	int scale_tbl[AD4000_GAIN_LEN][2];
-	int read_offset;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -345,9 +343,6 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 		if (st->span_comp)
 			*val2 = DIV_ROUND_CLOSEST(*val2 * 4, 5);
 		return IIO_VAL_INT_PLUS_NANO;
-	case IIO_CHAN_INFO_OFFSET:
-		*val = st->read_offset;
-		return IIO_VAL_INT;
 	default:
 		break;
 	}
@@ -476,21 +471,6 @@ static const struct attribute_group ad4000_attribute_group = {
 	.attrs = ad4000_attributes,
 };
 
-static int ad4000_write_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int val, int val2, long info)
-{
-	struct ad4000_state *st = iio_priv(indio_dev);
-
-	switch (info) {
-	case IIO_CHAN_INFO_OFFSET:
-		st->read_offset = val;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -528,7 +508,6 @@ err_out:
 
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
-	.write_raw = &ad4000_write_raw,
 	.attrs = &ad4000_attribute_group,
 };
 
