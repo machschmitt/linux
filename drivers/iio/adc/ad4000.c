@@ -231,8 +231,8 @@ static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 
 static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 {
-	struct spi_message m;
 	struct spi_transfer t = {0};
+	struct spi_message m;
 	int ret;
 
 	st->data.d8[0] = AD400X_READ_COMMAND;
@@ -375,8 +375,8 @@ static ssize_t ad4000_store(struct device *dev,
 	struct ad4000_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	unsigned int reg_val;
-	int ret;
 	bool val;
+	int ret;
 
 	ret = kstrtobool(buf, &val);
 	if (ret < 0)
@@ -497,7 +497,6 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 
 err_out:
 	iio_trigger_notify_done(indio_dev->trig);
-
 	return IRQ_HANDLED;
 }
 
@@ -505,27 +504,6 @@ static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
 	.attrs = &ad4000_attribute_group,
 };
-
-static const struct spi_device_id ad4000_id[] = {
-	{ "ad4000", (kernel_ulong_t)&ad4000_chips[ID_AD4000] },
-	{ "ad4001", (kernel_ulong_t)&ad4000_chips[ID_AD4001] },
-	{ "ad4002", (kernel_ulong_t)&ad4000_chips[ID_AD4002] },
-	{ "ad4003", (kernel_ulong_t)&ad4000_chips[ID_AD4003] },
-	{ "ad4004", (kernel_ulong_t)&ad4000_chips[ID_AD4004] },
-	{ "ad4005", (kernel_ulong_t)&ad4000_chips[ID_AD4005] },
-	{ "ad4006", (kernel_ulong_t)&ad4000_chips[ID_AD4006] },
-	{ "ad4007", (kernel_ulong_t)&ad4000_chips[ID_AD4007] },
-	{ "ad4008", (kernel_ulong_t)&ad4000_chips[ID_AD4008] },
-	{ "ad4010", (kernel_ulong_t)&ad4000_chips[ID_AD4010] },
-	{ "ad4011", (kernel_ulong_t)&ad4000_chips[ID_AD4011] },
-	{ "ad4020", (kernel_ulong_t)&ad4000_chips[ID_AD4020] },
-	{ "ad4021", (kernel_ulong_t)&ad4000_chips[ID_AD4021] },
-	{ "ad4022", (kernel_ulong_t)&ad4000_chips[ID_AD4022] },
-	{ "adaq4003", (kernel_ulong_t)&ad4000_chips[ID_ADAQ4003] },
-	{ }
-};
-MODULE_DEVICE_TABLE(spi, ad4000_id);
-
 
 static void ad4000_regulator_disable(void *reg)
 {
@@ -536,8 +514,8 @@ static int ad4000_probe(struct spi_device *spi)
 {
 	const struct ad4000_chip_info *chip;
 	struct regulator *vref_reg;
-	struct ad4000_state *st;
 	struct iio_dev *indio_dev;
+	struct ad4000_state *st;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -553,7 +531,8 @@ static int ad4000_probe(struct spi_device *spi)
 
 	vref_reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(vref_reg))
-		return PTR_ERR(vref_reg);
+		return dev_err_probe(&spi->dev, PTR_ERR(vref_reg),
+				     "Failed to get vref regulator\n");
 
 	ret = regulator_enable(vref_reg);
 	if (ret < 0)
@@ -627,6 +606,26 @@ static int ad4000_probe(struct spi_device *spi)
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
+
+static const struct spi_device_id ad4000_id[] = {
+	{ "ad4000", (kernel_ulong_t)&ad4000_chips[ID_AD4000] },
+	{ "ad4001", (kernel_ulong_t)&ad4000_chips[ID_AD4001] },
+	{ "ad4002", (kernel_ulong_t)&ad4000_chips[ID_AD4002] },
+	{ "ad4003", (kernel_ulong_t)&ad4000_chips[ID_AD4003] },
+	{ "ad4004", (kernel_ulong_t)&ad4000_chips[ID_AD4004] },
+	{ "ad4005", (kernel_ulong_t)&ad4000_chips[ID_AD4005] },
+	{ "ad4006", (kernel_ulong_t)&ad4000_chips[ID_AD4006] },
+	{ "ad4007", (kernel_ulong_t)&ad4000_chips[ID_AD4007] },
+	{ "ad4008", (kernel_ulong_t)&ad4000_chips[ID_AD4008] },
+	{ "ad4010", (kernel_ulong_t)&ad4000_chips[ID_AD4010] },
+	{ "ad4011", (kernel_ulong_t)&ad4000_chips[ID_AD4011] },
+	{ "ad4020", (kernel_ulong_t)&ad4000_chips[ID_AD4020] },
+	{ "ad4021", (kernel_ulong_t)&ad4000_chips[ID_AD4021] },
+	{ "ad4022", (kernel_ulong_t)&ad4000_chips[ID_AD4022] },
+	{ "adaq4003", (kernel_ulong_t)&ad4000_chips[ID_ADAQ4003] },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, ad4000_id);
 
 static const struct of_device_id ad4000_of_match[] = {
 	{ .compatible = "adi,ad4000",
