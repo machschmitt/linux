@@ -59,14 +59,14 @@ properties:
     description: |
       This property indicates the SPI wiring configuration.
 
-      When this property is omited, it indicates that the device SDI pin is
+      When this property is omitted, it indicates that the device SDI pin is
       connected to SPI controller CS line and device CNV pin has been connected
       to a GPIO. Datasheets call this "4-wire mode".
 
       When this property is present, the driver must assume standard SPI
       connections which, for these devices, consists of connecting the
       controller CS line to device CNV pin. This configuration is
-      (missleadingly) called "3-wire mode" in datasheets.
+      (misleadingly) called "3-wire mode" in datasheets.
 
   cnv-gpios:
     description: Active high GPIO connected to the CNV pin.
