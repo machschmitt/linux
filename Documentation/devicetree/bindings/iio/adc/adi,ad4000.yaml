@@ -36,6 +36,7 @@ properties:
       - adi,ad4020
       - adi,ad4021
       - adi,ad4022
+      - adi,adaq4001
       - adi,adaq4003
 
   reg: true
