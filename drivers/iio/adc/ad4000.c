@@ -209,24 +209,13 @@ static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 		.len = 2,
 	};
 	struct spi_message m;
-	int ret;
 
 	put_unaligned_be16(AD400X_WRITE_COMMAND << BITS_PER_BYTE | val, st->data.d8);
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
 
-	if (st->cnv_gpio)
-		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
-
-	ret = spi_sync(st->spi, &m);
-	if (ret < 0)
-		return ret;
-
-	if (st->cnv_gpio)
-		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
-
-	return 0;
+	return spi_sync(st->spi, &m);
 }
 
 static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
@@ -243,15 +232,9 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 
 	spi_message_init_with_transfers(&m, &t, 1);
 
-	if (st->cnv_gpio)
-		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
-
 	ret = spi_sync(st->spi, &m);
 	if (ret < 0)
 		return ret;
-
-	if (st->cnv_gpio)
-		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	*val = FIELD_GET(AD4000_CONFIG_REG_MSK, get_unaligned_be16(st->data.d8));
 
