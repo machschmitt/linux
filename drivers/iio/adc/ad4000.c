@@ -69,6 +69,7 @@ enum ad4000_ids {
 	ID_AD4020,
 	ID_AD4021,
 	ID_AD4022,
+	ID_ADAQ4001,
 	ID_ADAQ4003,
 };
 
@@ -133,6 +134,10 @@ static const struct ad4000_chip_info ad4000_chips[] = {
 	[ID_AD4022] = {
 		.dev_name = "ad4022",
 		.chan_spec = AD4000_CHANNEL('s', 20),
+	},
+	[ID_ADAQ4001] = {
+		.dev_name = "adaq4001",
+		.chan_spec = AD4000_CHANNEL('s', 16),
 	},
 	[ID_ADAQ4003] = {
 		.dev_name = "adaq4003",
@@ -602,6 +607,7 @@ static const struct spi_device_id ad4000_id[] = {
 	{ "ad4020", (kernel_ulong_t)&ad4000_chips[ID_AD4020] },
 	{ "ad4021", (kernel_ulong_t)&ad4000_chips[ID_AD4021] },
 	{ "ad4022", (kernel_ulong_t)&ad4000_chips[ID_AD4022] },
+	{ "adaq4001", (kernel_ulong_t)&ad4000_chips[ID_ADAQ4001] },
 	{ "adaq4003", (kernel_ulong_t)&ad4000_chips[ID_ADAQ4003] },
 	{ }
 };
@@ -636,6 +642,8 @@ static const struct of_device_id ad4000_of_match[] = {
 	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4021] },
 	{ .compatible = "adi,ad4022",
 	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4022] },
+	{ .compatible = "adi,adaq4001",
+	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_ADAQ4001] },
 	{ .compatible = "adi,adaq4003",
 	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_ADAQ4003] },
 	{ }
