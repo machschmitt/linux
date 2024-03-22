@@ -41,27 +41,8 @@ properties:
   reg: true
   spi-max-frequency: true
 
-  adi,spi-high-sdi-mode:
-    description: |
-      This property indicates the SPI wiring configuration.
-
-      When this property is omited, the driver must assume standard SPI
-      connections which, for these devices, comprises connecting the controller
-      CS line the device CNV pin. This configuration is (missleadingly) called
-      "CS Mode, 3-Wire Turbo Mode Connection" in datasheets.
-
-      When this property is present, it indicates that the device is using
-      either the "CS Mode, 3-Wire Without Busy Indicator" or the
-      "CS Mode, 3-Wire With Busy Indicator" connection scheme (datasheet names).
-      In this configuration the SDI line is kept high at the digital interface
-      high level (VIO). The ADC CNV line can be driven by a CS signal from the
-      SPI controlled or by a GPIO. If a GPIO is used, the CS line of the
-      controller is unused.
-
-  cnv-gpios:
-    description: |
-      Active low GPIO connected to the CNV pin.
-    maxItems: 1
+  vref-supply:
+    description: Phandle to the regulator for ADC reference voltage.
 
   adi,gain-milli:
     description: |
@@ -69,17 +50,27 @@ properties:
       The gain provided by the ADC input scaler is defined by the hardware
       connections between chip pins OUT+, R1K-, R1K1-, R1K+, R1K1+, and OUT-.
       If not present, default to 1000 (no actual gain applied).
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [454, 909, 1000, 1900]
     default: 1000
 
-  vref-supply:
-    description: Phandle to the regulator for ADC reference voltage.
+  adi,spi-cs-mode:
+    type: boolean
+    description: |
+      This property indicates the SPI wiring configuration.
 
-  '#address-cells':
-    const: 1
+      When this property is omited, it indicates that the device SDI pin is
+      connected to SPI controller CS line and device CNV pin has been connected
+      to a GPIO. Datasheets call this "4-wire mode".
 
-  '#size-cells':
-    const: 0
+      When this property is present, the driver must assume standard SPI
+      connections which, for these devices, consists of connecting the
+      controller CS line to device CNV pin. This configuration is
+      (missleadingly) called "3-wire mode" in datasheets.
+
+  cnv-gpios:
+    description: Active high GPIO connected to the CNV pin.
+    maxItems: 1
 
 patternProperties:
   "^channel@([0-1])$":
@@ -128,6 +119,7 @@ examples:
         };
     };
   - |
+    #include <dt-bindings/gpio/gpio.h>
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -137,7 +129,8 @@ examples:
             reg = <0>;
             spi-max-frequency = <80000000>;
             vref-supply = <&vref>;
-            cnv-gpios = <&gpio0 88 GPIO_ACTIVE_LOW>;
+            cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
+            adi,spi-cs-mode;
             adi,gain-milli = <454>;
             #address-cells = <1>;
             #size-cells = <0>;
