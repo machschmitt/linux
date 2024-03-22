@@ -101,6 +101,7 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -110,6 +111,7 @@ examples:
             reg = <0>;
             spi-max-frequency = <71000000>;
             vref-supply = <&vref>;
+            cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
             #address-cells = <1>;
             #size-cells = <0>;
             channel@0 {
@@ -119,7 +121,6 @@ examples:
         };
     };
   - |
-    #include <dt-bindings/gpio/gpio.h>
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -129,7 +130,6 @@ examples:
             reg = <0>;
             spi-max-frequency = <80000000>;
             vref-supply = <&vref>;
-            cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
             adi,spi-cs-mode;
             adi,gain-milli = <454>;
             #address-cells = <1>;
