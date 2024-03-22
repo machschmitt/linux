@@ -1,5 +1,5 @@
 What:		/sys/bus/iio/devices/iio:deviceX/turbo_en
-KernelVersion:	6.8
+KernelVersion:	6.9
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to enable/disable turbo mode allowing
@@ -7,7 +7,7 @@ Description:
 		achieve the maximum throughput of 2 MSPS.
 
 What:		/sys/bus/iio/devices/iio:deviceX/span_compression_en
-KernelVersion:	6.8
+KernelVersion:	6.9
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to enable/disable the input span
@@ -18,7 +18,7 @@ Description:
 		in_voltageY_scale attribute.
 
 What:		/sys/bus/iio/devices/iio:deviceX/status_bits_en
-KernelVersion:	6.8
+KernelVersion:	6.9
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to make the chip append a 6-bit status
@@ -27,7 +27,7 @@ Description:
 		compression, high-z mode, and turbo mode.
 
 What:		/sys/bus/iio/devices/iio:deviceX/high_impedance_en
-KernelVersion:	6.8
+KernelVersion:	6.9
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to enable/disable high impedance mode
