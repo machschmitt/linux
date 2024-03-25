@@ -752,7 +752,7 @@ out_error:
 }
 
 static const char *const ad4630_average_modes[] = {
-	"0", "2", "4", "8", "16", "32",	"64", "128", "256", "512", "1024",
+	"2", "4", "8", "16", "32", "64", "128", "256", "512", "1024",
 	"2048", "4096", "8192", "16384", "32768", "65536"
 };
 
@@ -1479,6 +1479,11 @@ static int ad4630_probe(struct spi_device *spi)
 		ad4630_fill_scale_tbl(st);
 		ad4630_set_pga_gain(indio_dev, 0);
 	}
+
+	/* Set default averaging mode to 2 samples */
+	ret = regmap_write(st->regmap, AD4630_REG_AVG, 0x01);
+	if (ret)
+		return ret;
 
 	ret = ad4630_pwm_get(st);
 	if (ret)
