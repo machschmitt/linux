@@ -92,7 +92,7 @@
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
 
-		ad4020: adc@0 {
+		adaq4003: adc@0 {
 			compatible = "adi,adaq4003";
 			reg = <0>;
 			spi-max-frequency = <102000000>;
