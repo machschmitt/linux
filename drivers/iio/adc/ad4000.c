@@ -461,6 +461,7 @@ static int ad4000_probe(struct spi_device *spi)
 	indio_dev->channels = &chip->chan_spec;
 	indio_dev->num_channels = 1;
 
+	st->pin_gain = AD4000_1_GAIN;
 	if (device_property_present(&spi->dev, "adi,gain-milli")) {
 		u32 val;
 
@@ -485,8 +486,6 @@ static int ad4000_probe(struct spi_device *spi)
 			return dev_err_probe(&spi->dev, -EINVAL,
 					     "Invalid firmware provided gain\n");
 		}
-	} else {
-		st->pin_gain = AD4000_1_GAIN;
 	}
 
 	/*
