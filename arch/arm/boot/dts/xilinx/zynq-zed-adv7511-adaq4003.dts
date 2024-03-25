@@ -81,11 +81,6 @@
 			reg = <0>;
 			spi-max-frequency = <102000000>;
 
-			dmas = <&rx_dma 0>;
-			dma-names = "rx";
-			pwms = <&axi_pwm_gen 0 0>;
-			pwm-names = "cnv";
-
 			adi,spi-cs-mode;
 			vref-supply = <&vref>;
 			adi,gain-milli = <454>;
