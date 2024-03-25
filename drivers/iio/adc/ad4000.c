@@ -409,7 +409,7 @@ static int ad4000_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	chip = (const struct ad4000_chip_info *)device_get_match_data(&spi->dev);
+	chip = device_get_match_data(&spi->dev);
 	if (!chip)
 		return -EINVAL;
 
@@ -529,38 +529,22 @@ static const struct spi_device_id ad4000_id[] = {
 MODULE_DEVICE_TABLE(spi, ad4000_id);
 
 static const struct of_device_id ad4000_of_match[] = {
-	{ .compatible = "adi,ad4000",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4000] },
-	{ .compatible = "adi,ad4001",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4001] },
-	{ .compatible = "adi,ad4002",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4002] },
-	{ .compatible = "adi,ad4003",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4003] },
-	{ .compatible = "adi,ad4004",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4004] },
-	{ .compatible = "adi,ad4005",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4005] },
-	{ .compatible = "adi,ad4006",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4006] },
-	{ .compatible = "adi,ad4007",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4007] },
-	{ .compatible = "adi,ad4008",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4008] },
-	{ .compatible = "adi,ad4010",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4010] },
-	{ .compatible = "adi,ad4011",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4011] },
-	{ .compatible = "adi,ad4020",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4020] },
-	{ .compatible = "adi,ad4021",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4021] },
-	{ .compatible = "adi,ad4022",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_AD4022] },
-	{ .compatible = "adi,adaq4001",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_ADAQ4001] },
-	{ .compatible = "adi,adaq4003",
-	  .data = (struct ad4000_chip_info *)&ad4000_chips[ID_ADAQ4003] },
+	{ .compatible = "adi,ad4000", .data = &ad4000_chips[ID_AD4000] },
+	{ .compatible = "adi,ad4001", .data = &ad4000_chips[ID_AD4001] },
+	{ .compatible = "adi,ad4002", .data = &ad4000_chips[ID_AD4002] },
+	{ .compatible = "adi,ad4003", .data = &ad4000_chips[ID_AD4003] },
+	{ .compatible = "adi,ad4004", .data = &ad4000_chips[ID_AD4004] },
+	{ .compatible = "adi,ad4005", .data = &ad4000_chips[ID_AD4005] },
+	{ .compatible = "adi,ad4006", .data = &ad4000_chips[ID_AD4006] },
+	{ .compatible = "adi,ad4007", .data = &ad4000_chips[ID_AD4007] },
+	{ .compatible = "adi,ad4008", .data = &ad4000_chips[ID_AD4008] },
+	{ .compatible = "adi,ad4010", .data = &ad4000_chips[ID_AD4010] },
+	{ .compatible = "adi,ad4011", .data = &ad4000_chips[ID_AD4011] },
+	{ .compatible = "adi,ad4020", .data = &ad4000_chips[ID_AD4020] },
+	{ .compatible = "adi,ad4021", .data = &ad4000_chips[ID_AD4021] },
+	{ .compatible = "adi,ad4022", .data = &ad4000_chips[ID_AD4022] },
+	{ .compatible = "adi,adaq4001", .data = &ad4000_chips[ID_ADAQ4001] },
+	{ .compatible = "adi,adaq4003", .data = &ad4000_chips[ID_ADAQ4003] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad4000_of_match);
