@@ -511,7 +511,15 @@ static int ad4000_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	st->spi = spi;
 
-	vref_reg = devm_regulator_get(&spi->dev, "vref");
+	ret = devm_regulator_get_enable(&spi->dev, "vdd");
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "Failed to enable VDD supply\n");
+
+	ret = devm_regulator_get_enable(&spi->dev, "vio");
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "Failed to enable VIO supply\n");
+
+	vref_reg = devm_regulator_get(&spi->dev, "ref");
 	if (IS_ERR(vref_reg))
 		return dev_err_probe(&spi->dev, PTR_ERR(vref_reg),
 				     "Failed to get vref regulator\n");
