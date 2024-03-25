@@ -97,7 +97,7 @@
 			reg = <0>;
 			spi-max-frequency = <102000000>;
 
-			adi,spi-cs-mode;
+			adi,spi-mode = "single";
 			vdd-supply = <&adc_vdd>;
 			vio-supply = <&adc_vio>;
 			vref-supply = <&adc_vref>;
