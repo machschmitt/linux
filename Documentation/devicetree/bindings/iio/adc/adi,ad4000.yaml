@@ -182,7 +182,7 @@ examples:
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
-        /* Example for a ADAQ4000 devices */
+        /* Example for a ADAQ devices */
         adc@0 {
             compatible = "adi,adaq4003";
             reg = <0>;
