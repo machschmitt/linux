@@ -334,120 +334,6 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static ssize_t ad4000_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad4000_state *st = iio_priv(indio_dev);
-
-	switch ((u32)this_attr->address) {
-	case AD4000_STATUS:
-		return sysfs_emit(buf, "%d\n", st->status_bits);
-	case AD4000_SPAN_COMP:
-		return sysfs_emit(buf, "%d\n", st->span_comp);
-	case AD4000_HIGHZ:
-		return sysfs_emit(buf, "%d\n", st->high_z_mode);
-	case AD4000_TURBO:
-		return sysfs_emit(buf, "%d\n", st->turbo_mode);
-	default:
-		return -EINVAL;
-	}
-}
-
-static ssize_t ad4000_store(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad4000_state *st = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	unsigned int reg_val;
-	bool val;
-	int ret;
-
-	ret = kstrtobool(buf, &val);
-	if (ret < 0)
-		return ret;
-
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-
-	ret = ad4000_read_reg(st, &reg_val);
-	if (ret < 0)
-		goto err_release;
-
-	switch ((u32)this_attr->address) {
-	case AD4000_STATUS:
-		reg_val &= ~AD4000_STATUS;
-		reg_val |= FIELD_PREP(AD4000_STATUS, val);
-		ret = ad4000_write_reg(st, reg_val);
-		if (ret < 0)
-			goto err_release;
-
-		st->status_bits = val;
-		break;
-	case AD4000_SPAN_COMP:
-		reg_val &= ~AD4000_SPAN_COMP;
-		reg_val |= FIELD_PREP(AD4000_SPAN_COMP, val);
-		ret = ad4000_write_reg(st, reg_val);
-		if (ret < 0)
-			goto err_release;
-
-		st->span_comp = val;
-		break;
-	case AD4000_HIGHZ:
-		reg_val &= ~AD4000_HIGHZ;
-		reg_val |= FIELD_PREP(AD4000_HIGHZ, val);
-		ret = ad4000_write_reg(st, reg_val);
-		if (ret < 0)
-			goto err_release;
-
-		st->high_z_mode = val;
-		break;
-	case AD4000_TURBO:
-		reg_val &= ~AD4000_TURBO;
-		reg_val |= FIELD_PREP(AD4000_TURBO, val);
-		ret = ad4000_write_reg(st, reg_val);
-		if (ret < 0)
-			goto err_release;
-
-		st->turbo_mode = val;
-		break;
-	default:
-		ret = -EINVAL;
-		goto err_release;
-	}
-
-err_release:
-	iio_device_release_direct_mode(indio_dev);
-	return ret ? ret : len;
-}
-
-static IIO_DEVICE_ATTR(status_bits_en, 0644, ad4000_show, ad4000_store,
-		       AD4000_STATUS);
-
-static IIO_DEVICE_ATTR(span_compression_en, 0644, ad4000_show, ad4000_store,
-		       AD4000_SPAN_COMP);
-
-static IIO_DEVICE_ATTR(high_impedance_en, 0644, ad4000_show, ad4000_store,
-		       AD4000_HIGHZ);
-
-static IIO_DEVICE_ATTR(turbo_en, 0644, ad4000_show, ad4000_store,
-		       AD4000_TURBO);
-
-static struct attribute *ad4000_attributes[] = {
-	&iio_dev_attr_status_bits_en.dev_attr.attr,
-	&iio_dev_attr_span_compression_en.dev_attr.attr,
-	&iio_dev_attr_high_impedance_en.dev_attr.attr,
-	&iio_dev_attr_turbo_en.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group ad4000_attribute_group = {
-	.attrs = ad4000_attributes,
-};
-
 static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -484,7 +370,6 @@ err_out:
 
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
-	.attrs = &ad4000_attribute_group,
 };
 
 static void ad4000_config(struct ad4000_state *st)
