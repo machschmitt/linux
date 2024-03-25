@@ -487,6 +487,27 @@ static const struct iio_info ad4000_info = {
 	.attrs = &ad4000_attribute_group,
 };
 
+static void ad4000_config(struct ad4000_state *st)
+{
+	unsigned int reg_val;
+	int ret;
+
+	reg_val = FIELD_PREP(AD4000_TURBO, 1);
+
+	if (device_property_present(&st->spi->dev, "adi,high-z-input"))
+		reg_val |= FIELD_PREP(AD4000_HIGHZ, 1);
+
+	/*
+	 * The ADC SDI pin might be connected to controller CS line in which
+	 * case the write will fail. This, however, does not prevent the device
+	 * from functioning even though in a configuration other than the
+	 * requested one.
+	 */
+	ret = ad4000_write_reg(st, reg_val);
+	if (ret < 0)
+		dev_dbg(&st->spi->dev, "Failed to config device\n");
+}
+
 static void ad4000_regulator_disable(void *reg)
 {
 	regulator_disable(reg);
@@ -548,6 +569,8 @@ static int ad4000_probe(struct spi_device *spi)
 					     "Failed to get CNV GPIO");
 		}
 	}
+
+	ad4000_config(st);
 
 	indio_dev->name = chip->dev_name;
 	indio_dev->info = &ad4000_info;
