@@ -96,6 +96,13 @@ properties:
       CS line of the SPI controller.
     maxItems: 1
 
+  adi,high-z-input:
+    type: boolean
+    description:
+      High-Z mode allows the amplifier and RC filter in front of the ADC to be
+      chosen based on the signal bandwidth of interest, rather than the settling
+      requirements of the switched capacitor SAR ADC inputs.
+
   interrupts:
     description:
       The SDO pin can also function as a busy indicator. This node should be
