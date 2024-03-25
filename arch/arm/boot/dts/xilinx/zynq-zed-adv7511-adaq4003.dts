@@ -100,7 +100,7 @@
 			adi,spi-mode = "single";
 			vdd-supply = <&adc_vdd>;
 			vio-supply = <&adc_vio>;
-			vref-supply = <&adc_vref>;
+			ref-supply = <&adc_vref>;
 			adi,gain-milli = <454>;
 			#io-channel-cells = <1>;
 		};
