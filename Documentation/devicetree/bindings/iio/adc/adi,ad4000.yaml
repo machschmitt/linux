@@ -17,6 +17,8 @@ description: |
     https://www.analog.com/media/en/technical-documentation/data-sheets/ad4002-4006-4010.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/ad4003-4007-4011.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/ad4020-4021-4022.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4001.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4003.pdf
 
 $ref: /schemas/spi/spi-peripheral-props.yaml#
 
@@ -37,6 +39,8 @@ properties:
       - adi,ad4020
       - adi,ad4021
       - adi,ad4022
+      - adi,adaq4001
+      - adi,adaq4003
 
   reg:
     maxItems: 1
@@ -103,6 +107,16 @@ properties:
       chosen based on the signal bandwidth of interest, rather than the settling
       requirements of the switched capacitor SAR ADC inputs.
 
+  adi,gain-milli:
+    description: |
+      The hardware gain applied to the ADC input (in milli units).
+      The gain provided by the ADC input scaler is defined by the hardware
+      connections between chip pins OUT+, R1K-, R1K1-, R1K+, R1K1+, and OUT-.
+      If not present, default to 1000 (no actual gain applied).
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [454, 909, 1000, 1900]
+    default: 1000
+
   interrupts:
     description:
       The SDO pin can also function as a busy indicator. This node should be
@@ -161,5 +175,21 @@ examples:
             vio-supply = <&supply_1_8V>;
             ref-supply = <&supply_5V>;
             cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
+        };
+    };
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        /* Example for a ADAQ4000 devices */
+        adc@0 {
+            compatible = "adi,adaq4003";
+            reg = <0>;
+            spi-max-frequency = <80000000>;
+            vdd-supply = <&supply_1_8V>;
+            vio-supply = <&supply_1_8V>;
+            ref-supply = <&supply_5V>;
+            adi,spi-mode = "single";
+            adi,gain-milli = <454>;
         };
     };
