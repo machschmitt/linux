@@ -167,6 +167,7 @@ examples:
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
+        /* Example for a AD devices */
         adc@0 {
             compatible = "adi,ad4020";
             reg = <0>;
