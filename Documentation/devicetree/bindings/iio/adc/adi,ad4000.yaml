@@ -190,6 +190,7 @@ examples:
             vdd-supply = <&supply_1_8V>;
             vio-supply = <&supply_1_8V>;
             ref-supply = <&supply_5V>;
+            adi,high-z-input;
             adi,spi-mode = "single";
             adi,gain-milli = <454>;
         };
