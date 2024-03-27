@@ -259,15 +259,9 @@ static int ad4000_read_sample(struct ad4000_state *st,
 
 	spi_message_init_with_transfers(&m, &t, 1);
 
-	if (st->cnv_gpio)
-		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
-
 	ret = spi_sync(st->spi, &m);
 	if (ret < 0)
 		return ret;
-
-	if (st->cnv_gpio)
-		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	return 0;
 }
@@ -283,7 +277,13 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
+	if (st->cnv_gpio)
+		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
+
 	ret = ad4000_read_sample(st, chan);
+
+	if (st->cnv_gpio)
+		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	if (chan->scan_type.storagebits > 16)
 		sample = get_unaligned_be32(&st->data.scan);
