@@ -443,16 +443,16 @@ static int ad4000_probe(struct spi_device *spi)
 	if (st->vref < 0)
 		return dev_err_probe(&spi->dev, st->vref, "Failed to get vref\n");
 
-	if (!device_property_present(&spi->dev, "adi,spi-cs-mode")) {
-		st->cnv_gpio = devm_gpiod_get(&spi->dev, "cnv", GPIOD_OUT_HIGH);
-		if (IS_ERR(st->cnv_gpio)) {
-			if (PTR_ERR(st->cnv_gpio) == -EPROBE_DEFER)
-				return -EPROBE_DEFER;
+	//if (!device_property_present(&spi->dev, "adi,spi-mode")) {
+	//	st->cnv_gpio = devm_gpiod_get(&spi->dev, "cnv", GPIOD_OUT_HIGH);
+	//	if (IS_ERR(st->cnv_gpio)) {
+	//		if (PTR_ERR(st->cnv_gpio) == -EPROBE_DEFER)
+	//			return -EPROBE_DEFER;
 
-			return dev_err_probe(&spi->dev, PTR_ERR(st->cnv_gpio),
-					     "Failed to get CNV GPIO");
-		}
-	}
+	//		return dev_err_probe(&spi->dev, PTR_ERR(st->cnv_gpio),
+	//				     "Failed to get CNV GPIO");
+	//	}
+	//}
 
 	ad4000_config(st);
 
