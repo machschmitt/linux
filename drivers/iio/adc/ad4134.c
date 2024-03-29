@@ -84,6 +84,9 @@ static int _ad4134_set_odr(struct ad4134_state *st, unsigned int odr)
 	struct pwm_state state;
 	int ret;
 
+	if (!st->odr_pwm)
+		return 0;
+
 	if (odr < AD4134_ODR_MIN || odr > AD4134_ODR_MAX)
 		return -EINVAL;
 
@@ -112,6 +115,9 @@ static int ad4134_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
 	int ret;
+
+	if (IS_ERR(st->odr_pwm))
+		return 0;
 
 	ret = iio_device_claim_direct_mode(indio_dev);
 	if (ret)
@@ -325,22 +331,22 @@ static int ad4134_setup(struct ad4134_state *st)
 	gpiod_set_value_cansleep(reset_gpio, 0);
 
 	st->odr_pwm = devm_pwm_get(dev, "odr_pwm");
-	if (IS_ERR(st->odr_pwm))
-		return dev_err_probe(dev, PTR_ERR(st->odr_pwm),
-				     "Failed to find ODR PWM\n");
+	if (!IS_ERR(st->odr_pwm)) {
+		ret = _ad4134_set_odr(st, AD4134_ODR_DEFAULT);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to initialize ODR\n");
 
-	ret = _ad4134_set_odr(st, AD4134_ODR_DEFAULT);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to initialize ODR\n");
+		ret = pwm_enable(st->odr_pwm);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to enable ODR PWM\n");
 
-	ret = pwm_enable(st->odr_pwm);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, ad4134_disable_pwm, st->odr_pwm);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add ODR PWM disable action\n");
+		ret = devm_add_action_or_reset(dev, ad4134_disable_pwm, st->odr_pwm);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					"Failed to add ODR PWM disable action\n");
+	} else {
+		dev_warn(dev, "Failed to find ODR PWM\n");
+	}
 
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
