@@ -129,6 +129,7 @@ properties:
 required:
   - compatible
   - reg
+  - spi-cpha
   - vdd-supply
   - vio-supply
   - ref-supply
@@ -171,6 +172,7 @@ examples:
         adc@0 {
             compatible = "adi,ad4020";
             reg = <0>;
+            spi-cpha;
             spi-max-frequency = <71000000>;
             vdd-supply = <&supply_1_8V>;
             vio-supply = <&supply_1_8V>;
@@ -186,6 +188,7 @@ examples:
         adc@0 {
             compatible = "adi,adaq4003";
             reg = <0>;
+            spi-cpha;
             spi-max-frequency = <80000000>;
             vdd-supply = <&supply_1_8V>;
             vio-supply = <&supply_1_8V>;
