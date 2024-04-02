@@ -333,21 +333,12 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad4000_state *st = iio_priv(indio_dev);
-	struct spi_transfer t = {0};
-	struct spi_message m;
 	int ret;
-
-	t.rx_buf = st->scan.sample_buf;
-	t.len = 4;
-	t.delay.value = 60;
-	t.delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	spi_message_init_with_transfers(&m, &t, 1);
 
 	if (st->cnv_gpio)
 		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_HIGH);
 
-	ret = spi_sync(st->spi, &m);
+	ret = ad4000_read_sample(st, &indio_dev->channels[0]);
 	if (ret < 0)
 		goto err_out;
 
