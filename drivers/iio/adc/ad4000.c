@@ -48,7 +48,7 @@
 		.scan_type = {						\
 			.sign = _sign,					\
 			.realbits = _real_bits,				\
-			.storagebits = 32,				\
+			.storagebits = _real_bits > 16 ? 32 : 16,	\
 			.endianness = IIO_BE,				\
 		},							\
 	}								\
