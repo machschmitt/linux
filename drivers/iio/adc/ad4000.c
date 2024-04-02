@@ -178,13 +178,13 @@ struct ad4000_state {
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	union {
-		struct {
-			u8 sample_buf[4];
-			s64 timestamp;
-		} scan;
-		u8 d8[2];
-	} data __aligned(IIO_DMA_MINALIGN);
+
+	struct {
+		u8 sample_buf[4];
+		s64 timestamp __aligned(8);
+	} scan;
+	__be16 tx_transf __aligned(IIO_DMA_MINALIGN);
+	__be16 rx_transf;
 };
 
 static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits)
@@ -208,21 +208,29 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits)
 
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
-	put_unaligned_be16(AD400X_WRITE_COMMAND << BITS_PER_BYTE | val, st->data.d8);
-	return spi_write(st->spi, st->data.d8, 2);
+	put_unaligned_be16(AD400X_WRITE_COMMAND << BITS_PER_BYTE | val,
+				&st->tx_transf);
+	return spi_write(st->spi, &st->tx_transf, 2);
 }
 
 static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 {
+	struct spi_transfer t[] = {
+		{
+			.tx_buf = &st->tx_transf,
+			.rx_buf = &st->rx_transf,
+			.len = 2,
+		},
+	};
 	int ret;
 
-	st->data.d8[0] = AD400X_READ_COMMAND;
+	put_unaligned_be16(AD400X_READ_COMMAND << BITS_PER_BYTE | 0xFF, &st->tx_transf);
 
-	ret = spi_write_then_read(st->spi, st->data.d8, 2, st->data.d8, 2);
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
 
-	*val = FIELD_GET(AD4000_CONFIG_REG_MSK, get_unaligned_be16(st->data.d8));
+	*val = get_unaligned_be16(&st->rx_transf);
 
 	return ret;
 }
@@ -234,7 +242,7 @@ static int ad4000_read_sample(struct ad4000_state *st,
 	struct spi_message m;
 	int ret;
 
-	t.rx_buf = &st->data.scan.sample_buf;
+	t.rx_buf = st->scan.sample_buf;
 	t.len = 4;
 	t.delay.value = 60;
 	t.delay.unit = SPI_DELAY_UNIT_NSECS;
@@ -268,9 +276,9 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	if (chan->scan_type.storagebits > 16)
-		sample = get_unaligned_be32(&st->data.scan);
+		sample = get_unaligned_be32(st->scan.sample_buf);
 	else
-		sample = get_unaligned_be16(&st->data.scan);
+		sample = get_unaligned_be16(st->scan.sample_buf);
 
 	iio_device_release_direct_mode(indio_dev);
 
@@ -328,7 +336,7 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	struct spi_message m;
 	int ret;
 
-	t.rx_buf = &st->data.scan.sample_buf;
+	t.rx_buf = st->scan.sample_buf;
 	t.len = 4;
 	t.delay.value = 60;
 	t.delay.unit = SPI_DELAY_UNIT_NSECS;
@@ -345,7 +353,7 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	if (st->cnv_gpio)
 		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_LOW);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->data.scan,
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan,
 					   iio_get_time_ns(indio_dev));
 
 err_out:
@@ -456,7 +464,7 @@ static int ad4000_probe(struct spi_device *spi)
 	//	}
 	//}
 
-	ad4000_config(st);
+	//ad4000_config(st);
 
 	indio_dev->name = chip->dev_name;
 	indio_dev->info = &ad4000_info;
