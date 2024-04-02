@@ -238,18 +238,19 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 static int ad4000_read_sample(struct ad4000_state *st,
 			      const struct iio_chan_spec *chan)
 {
-	struct spi_transfer t = {0};
-	struct spi_message m;
+	struct spi_transfer t[] = {
+		{
+			.rx_buf = st->scan.sample_buf,
+			.len = BITS_TO_BYTES(chan->scan_type.storagebits),
+			.delay = {
+				.value = 60, /* meet tQuiet2 */
+				.unit = SPI_DELAY_UNIT_NSECS,
+			},
+		},
+	};
 	int ret;
 
-	t.rx_buf = st->scan.sample_buf;
-	t.len = 4;
-	t.delay.value = 60;
-	t.delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	spi_message_init_with_transfers(&m, &t, 1);
-
-	ret = spi_sync(st->spi, &m);
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
 
