@@ -208,35 +208,17 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits)
 
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
-	struct spi_transfer t = {
-		.tx_buf	= st->data.d8,
-		.len = 2,
-	};
-	struct spi_message m;
-
 	put_unaligned_be16(AD400X_WRITE_COMMAND << BITS_PER_BYTE | val, st->data.d8);
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-
-	return spi_sync(st->spi, &m);
+	return spi_write(st->spi, st->data.d8, 2);
 }
 
 static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 {
-	struct spi_transfer t = {0};
-	struct spi_message m;
 	int ret;
 
 	st->data.d8[0] = AD400X_READ_COMMAND;
 
-	t.rx_buf = st->data.d8;
-	t.tx_buf = st->data.d8;
-	t.len = 2;
-
-	spi_message_init_with_transfers(&m, &t, 1);
-
-	ret = spi_sync(st->spi, &m);
+	ret = spi_write_then_read(st->spi, st->data.d8, 2, st->data.d8, 2);
 	if (ret < 0)
 		return ret;
 
