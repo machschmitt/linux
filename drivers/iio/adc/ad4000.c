@@ -210,86 +210,27 @@ static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
 	put_unaligned_be16(AD400X_WRITE_COMMAND << BITS_PER_BYTE | val,
 				&st->tx_transf);
-	//put_unaligned_be16(AD400X_WRITE_COMMAND | val << BITS_PER_BYTE,
-	//			&st->tx_transf);
-	//put_unaligned_be32(AD400X_WRITE_COMMAND << 24 | val << 16,
-	//			&st->tx_transf);
 	return spi_write(st->spi, &st->tx_transf, 2);
 }
 
-//static int ad400x_read_reg(struct ad4000_state *st, unsigned int *val)
-//{
-//	struct spi_message m;
-//	struct spi_transfer t = {0};
-//	int ret;
-//
-//	//st->data[0] = AD400X_READ_COMMAND;
-//	put_unaligned_be16(AD400X_READ_COMMAND << BITS_PER_BYTE | 0xFF, &st->tx_transf);
-//
-//	//t.rx_buf = st->data;
-//	t.rx_buf = &st->rx_transf;
-//	//t.tx_buf = st->data;
-//	t.tx_buf = &st->tx_transf;
-//	t.len = 2;
-//	//t.bits_per_word = 16; /* reg reads are only 16 clocks pulses */
-//
-//	spi_message_init_with_transfers(&m, &t, 1);
-//
-//	//if (st->bus_locked)
-//	//	ret = spi_sync_locked(st->spi, &m);
-//	//else
-//		ret = spi_sync(st->spi, &m);
-//
-//	if (ret < 0)
-//		return ret;
-//
-//	//*val = st->data[0];
-//	*val = get_unaligned_be16(&st->rx_transf);
-//
-//	return ret;
-//}
-
 static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 {
-	int ret;
 	struct spi_transfer t[] = {
 		{
 			.tx_buf = &st->tx_transf,
 			.rx_buf = &st->rx_transf,
 			.len = 2,
-			//.bits_per_word	= 16, //st->num_bits,
-			//.cs_change = 1,
-
 		},
-		//{
-		//	//.tx_buf = &st->tx_transf,
-		//	.rx_buf = &st->rx_transf,
-		//	.len = 2,
-		//	.bits_per_word	= 16, //st->num_bits,
-		//},
 	};
+	int ret;
 
-	//put_unaligned_be16(AD400X_READ_COMMAND << BITS_PER_BYTE, &st->tx_transf);
 	put_unaligned_be16(AD400X_READ_COMMAND << BITS_PER_BYTE | 0xFF, &st->tx_transf);
-	//put_unaligned_be32(AD400X_READ_COMMAND << 24 | 0xFFFFFF, &st->tx_transf);
-	//put_unaligned_be16(AD400X_READ_COMMAND, &st->tx_transf);
-	//st->data.d8[1] = AD400X_READ_COMMAND;
-
-	dev_info(&st->spi->dev, " tx_transf: 0x%08X\n",
-			get_unaligned_be16(&st->tx_transf));
-	//ret = spi_write_then_read(st->spi, &st->tx_transf, 2, &st->rx_transf, 2);
 
 	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
 
-	//*val = FIELD_GET(AD4000_CONFIG_REG_MSK, get_unaligned_be16(st->data.d8));
-	//*val = st->data.d8[1] << 8 | st->data.d8[0];
-	//dev_info(&st->spi->dev, " tx_transf after: 0x%04X\n",
-	//		get_unaligned_be16(&st->tx_transf));
-	dev_info(&st->spi->dev, " rx_transf after: 0x%08X\n", st->rx_transf);
 	*val = get_unaligned_be16(&st->rx_transf);
-	//*val = get_unaligned_be32(&st->rx_transf);
 
 	return ret;
 }
@@ -430,7 +371,6 @@ static int ad4000_reg_access(struct iio_dev *indio_dev,
 
        if (readval)
                ret = ad4000_read_reg(st, readval);
-		//ret = ad400x_read_reg(st, readval);
        else
                ret = ad4000_write_reg(st, writeval);
 
