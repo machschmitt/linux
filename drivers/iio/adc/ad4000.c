@@ -245,7 +245,8 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	return ret;
 }
 
-static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
+static int ad4000_read_sample(struct ad4000_state *st,
+			      const struct iio_chan_spec *chan)
 {
 	struct spi_transfer t = {0};
 	struct spi_message m;
@@ -268,8 +269,6 @@ static int ad4000_read_sample(struct ad4000_state *st, uint32_t *val)
 	if (st->cnv_gpio)
 		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
-	*val = get_unaligned_be32(&st->data.scan.sample_buf);
-
 	return 0;
 }
 
@@ -284,7 +283,12 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	ret = ad4000_read_sample(st, &sample);
+	ret = ad4000_read_sample(st, chan);
+
+	if (chan->scan_type.storagebits > 16)
+		sample = get_unaligned_be32(&st->data.scan);
+	else
+		sample = get_unaligned_be16(&st->data.scan);
 
 	iio_device_release_direct_mode(indio_dev);
 
