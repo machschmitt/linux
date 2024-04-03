@@ -156,7 +156,7 @@ enum ad4000_gains {
 };
 
 /*
- * Gains stored and computed as fractions to avoid introducing rounding erros.
+ * Gains stored and computed as fractions to avoid introducing rounding errors.
  */
 static const int ad4000_gains_frac[AD4000_GAIN_LEN][2] = {
 	[AD4000_0454_GAIN] = { 227, 500 },
