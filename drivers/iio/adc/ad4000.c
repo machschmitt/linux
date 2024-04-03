@@ -18,6 +18,7 @@
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
 #include <linux/units.h>
+#include <linux/util_macros.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -48,6 +49,7 @@
 		.channel2 = 1,						\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
 				      BIT(IIO_CHAN_INFO_SCALE),		\
+		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),\
 		.scan_type = {						\
 			.sign = _sign,					\
 			.realbits = _real_bits,				\
@@ -188,7 +190,7 @@ struct ad4000_state {
 	bool high_z_mode;
 
 	enum ad4000_gains pin_gain;
-	int scale_tbl[AD4000_GAIN_LEN][2];
+	int scale_tbl[AD4000_GAIN_LEN][2][2];
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -203,8 +205,10 @@ struct ad4000_state {
 	__be16 rx_transf;
 };
 
-static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits)
+static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
+				  const struct ad4000_chip_info *chip)
 {
+	int diff = chip->chan_spec.differential;
 	int val, val2, tmp0, tmp1, i;
 	u64 tmp2;
 
@@ -217,8 +221,15 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits)
 		/* Would multiply by NANO here but we already multiplied by MILLI */
 		tmp2 = shift_right((u64)val * MICRO, val2);
 		tmp0 = (int)div_s64_rem(tmp2, NANO, &tmp1);
-		st->scale_tbl[i][0] = tmp0; /* Integer part */
-		st->scale_tbl[i][1] = abs(tmp1); /* Fractional part */
+		/* Store scale for when span copmression is disabled */
+		st->scale_tbl[i][0][0] = tmp0; /* Integer part */
+		st->scale_tbl[i][0][1] = abs(tmp1); /* Fractional part */
+		/* Store scale for when span copmression is enabled */
+		st->scale_tbl[i][1][0] = tmp0;
+		if (diff)
+			st->scale_tbl[i][1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 4, 5);
+		else
+			st->scale_tbl[i][1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 9, 10);
 	}
 }
 
@@ -327,11 +338,79 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 			return ad4000_single_conversion(indio_dev, chan, val);
 		unreachable();
 	case IIO_CHAN_INFO_SCALE:
-		*val = st->scale_tbl[st->pin_gain][0];
-		*val2 = st->scale_tbl[st->pin_gain][1];
-		if (st->span_comp)
-			*val2 = DIV_ROUND_CLOSEST(*val2 * 4, 5);
+		if (st->span_comp) {
+			*val = st->scale_tbl[st->pin_gain][1][0];
+			*val2 = st->scale_tbl[st->pin_gain][1][1];
+		} else {
+			*val = st->scale_tbl[st->pin_gain][0][0];
+			*val2 = st->scale_tbl[st->pin_gain][0][1];
+		}
 		return IIO_VAL_INT_PLUS_NANO;
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int ad4000_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long info)
+{
+	struct ad4000_state *st = iio_priv(indio_dev);
+
+	switch (info) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = (int *)st->scale_tbl[st->pin_gain];
+		*length = 2 * 2;
+		*type = IIO_VAL_INT_PLUS_NANO;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad4000_write_raw_get_fmt(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan, long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	default:
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+	return -EINVAL;
+}
+
+static int ad4000_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan, int val, int val2,
+			    long mask)
+{
+	struct ad4000_state *st = iio_priv(indio_dev);
+	unsigned int reg_val;
+	bool span_comp_en;
+	int ret;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+			ret = ad4000_read_reg(st, &reg_val);
+			if (ret < 0)
+				return ret;
+
+			span_comp_en = (val2 == st->scale_tbl[st->pin_gain][1][1]);
+			reg_val &= ~AD4000_SPAN_COMP;
+			reg_val |= FIELD_PREP(AD4000_SPAN_COMP, span_comp_en);
+
+			ret = ad4000_write_reg(st, reg_val);
+			if (ret < 0)
+				return ret;
+
+			st->span_comp = span_comp_en;
+			return 0;
+		}
+		unreachable();
 	default:
 		break;
 	}
@@ -382,6 +461,9 @@ static int ad4000_reg_access(struct iio_dev *indio_dev,
 
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
+	.read_avail = &ad4000_read_avail,
+	.write_raw = &ad4000_write_raw,
+	.write_raw_get_fmt = &ad4000_write_raw_get_fmt,
 	.debugfs_reg_access = &ad4000_reg_access,
 
 };
@@ -521,9 +603,11 @@ static int ad4000_probe(struct spi_device *spi)
 	 * voltage magnitude.
 	 */
 	if (chip->chan_spec.scan_type.sign == 's')
-		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits - 1);
+		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits - 1,
+				      chip);
 	else
-		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits);
+		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits,
+				      chip);
 
 	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
 					      &iio_pollfunc_store_time,
