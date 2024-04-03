@@ -484,7 +484,7 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, -EINVAL,
 				     "chain mode is not supported\n");
 
-	//ad4000_config(st);
+	ad4000_config(st);
 
 	indio_dev->name = chip->dev_name;
 	indio_dev->info = &ad4000_info;
