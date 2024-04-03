@@ -429,7 +429,7 @@ static int ad4000_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	chip = device_get_match_data(&spi->dev);
+	chip = spi_get_device_match_data(spi);
 	if (!chip)
 		return -EINVAL;
 
