@@ -280,14 +280,12 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	u32 sample;
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-
 	if (st->cnv_gpio)
 		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
 
 	ret = ad4000_read_sample(st, chan);
+	if (ret)
+		return ret;
 
 	if (st->cnv_gpio)
 		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
@@ -296,11 +294,6 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 		sample = get_unaligned_be32(st->scan.sample_buf);
 	else
 		sample = get_unaligned_be16(st->scan.sample_buf);
-
-	iio_device_release_direct_mode(indio_dev);
-
-	if (ret)
-		return ret;
 
 	switch (chan->scan_type.realbits) {
 	case 16:
@@ -330,7 +323,9 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
-		return ad4000_single_conversion(indio_dev, chan, val);
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev)
+			return ad4000_single_conversion(indio_dev, chan, val);
+		unreachable();
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->scale_tbl[st->pin_gain][0];
 		*val2 = st->scale_tbl[st->pin_gain][1];
