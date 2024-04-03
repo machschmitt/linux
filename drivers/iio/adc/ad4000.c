@@ -52,7 +52,7 @@
 			.sign = _sign,					\
 			.realbits = _real_bits,				\
 			.storagebits = _real_bits > 16 ? 32 : 16,	\
-			.endianness = IIO_BE,				\
+			.endianness = IIO_CPU,				\
 		},							\
 	}								\
 
