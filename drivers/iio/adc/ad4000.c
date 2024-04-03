@@ -162,9 +162,22 @@ static const int ad4000_gains_frac[AD4000_GAIN_LEN][2] = {
 	[AD4000_1900_GAIN] = { 19, 10 },
 };
 
+enum ad4000_spi_mode {
+	AD4000_SPI_MODE_DEFAULT,
+	AD4000_SPI_MODE_SINGLE,
+	AD4000_SPI_MODE_CHAIN,
+};
+
+static const char * const ad4000_spi_modes[] = {
+	[AD4000_SPI_MODE_DEFAULT] = "",
+	[AD4000_SPI_MODE_SINGLE] = "single",
+	[AD4000_SPI_MODE_CHAIN] = "chain",
+};
+
 struct ad4000_state {
 	struct spi_device *spi;
 	struct gpio_desc *cnv_gpio;
+	enum ad4000_spi_mode spi_mode;
 	int vref;
 	bool status_bits;
 	bool span_comp;
@@ -447,16 +460,29 @@ static int ad4000_probe(struct spi_device *spi)
 	if (st->vref < 0)
 		return dev_err_probe(&spi->dev, st->vref, "Failed to get vref\n");
 
-	//if (!device_property_present(&spi->dev, "adi,spi-mode")) {
-	//	st->cnv_gpio = devm_gpiod_get(&spi->dev, "cnv", GPIOD_OUT_HIGH);
-	//	if (IS_ERR(st->cnv_gpio)) {
-	//		if (PTR_ERR(st->cnv_gpio) == -EPROBE_DEFER)
-	//			return -EPROBE_DEFER;
+	st->cnv_gpio = devm_gpiod_get_optional(&spi->dev, "cnv", GPIOD_OUT_HIGH);
+	if (IS_ERR(st->cnv_gpio)) {
+		if (PTR_ERR(st->cnv_gpio) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 
-	//		return dev_err_probe(&spi->dev, PTR_ERR(st->cnv_gpio),
-	//				     "Failed to get CNV GPIO");
-	//	}
-	//}
+		return dev_err_probe(&spi->dev, PTR_ERR(st->cnv_gpio),
+				     "Failed to get CNV GPIO");
+	}
+
+	ret = device_property_match_property_string(&spi->dev, "adi,spi-mode",
+						    ad4000_spi_modes,
+						    ARRAY_SIZE(ad4000_spi_modes));
+	if (ret == -EINVAL)
+		st->spi_mode = AD4000_SPI_MODE_DEFAULT;
+	else if (ret < 0)
+		return dev_err_probe(&spi->dev, ret,
+				     "Failed to match adi,spi-mode property\n");
+	else
+		st->spi_mode = ret;
+
+	if (st->spi_mode == AD4000_SPI_MODE_CHAIN)
+		return dev_err_probe(&spi->dev, -EINVAL,
+				     "chain mode is not supported\n");
 
 	//ad4000_config(st);
 
