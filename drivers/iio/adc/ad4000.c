@@ -36,7 +36,6 @@
 #define AD4000_HIGHZ		BIT(2) /* High impedance mode  */
 #define AD4000_TURBO		BIT(1) /* Turbo mode */
 
-#define AD4000_16BIT_MSK	GENMASK(31, 16)
 #define AD4000_18BIT_MSK	GENMASK(31, 14)
 #define AD4000_20BIT_MSK	GENMASK(31, 12)
 
@@ -328,7 +327,6 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 
 	switch (chan->scan_type.realbits) {
 	case 16:
-		sample = FIELD_GET(AD4000_16BIT_MSK, sample);
 		break;
 	case 18:
 		sample = FIELD_GET(AD4000_18BIT_MSK, sample);
