@@ -272,8 +272,7 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	};
 	int ret;
 
-	put_unaligned_be16(AD400X_READ_COMMAND << BITS_PER_BYTE | 0xFF, &st->tx_transf);
-
+	put_unaligned_be16(AD400X_READ_COMMAND << BITS_PER_BYTE, &st->tx_transf);
 	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
