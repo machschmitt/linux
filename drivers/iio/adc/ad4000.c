@@ -338,13 +338,8 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 			return ad4000_single_conversion(indio_dev, chan, val);
 		unreachable();
 	case IIO_CHAN_INFO_SCALE:
-		if (st->span_comp) {
-			*val = st->scale_tbl[st->pin_gain][1][0];
-			*val2 = st->scale_tbl[st->pin_gain][1][1];
-		} else {
-			*val = st->scale_tbl[st->pin_gain][0][0];
-			*val2 = st->scale_tbl[st->pin_gain][0][1];
-		}
+		*val = st->scale_tbl[st->pin_gain][st->span_comp][0];
+		*val2 = st->scale_tbl[st->pin_gain][st->span_comp][1];
 		return IIO_VAL_INT_PLUS_NANO;
 	default:
 		break;
