@@ -201,7 +201,6 @@ struct ad4000_state {
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
-
 	struct {
 		union {
 			u16 sample_buf16;
@@ -244,7 +243,7 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
 	put_unaligned_be16(AD400X_WRITE_COMMAND << BITS_PER_BYTE | val,
-				&st->tx_transf);
+			   &st->tx_transf);
 	return spi_write(st->spi, &st->tx_transf, 2);
 }
 
