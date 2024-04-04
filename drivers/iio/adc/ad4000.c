@@ -40,15 +40,32 @@
 #define AD4000_18BIT_MSK	GENMASK(31, 14)
 #define AD4000_20BIT_MSK	GENMASK(31, 12)
 
-#define AD4000_CHANNEL(_sign, _diff,  _real_bits)			\
+#define AD4000_DIFF_CHANNEL(_sign, _real_bits)				\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
-		.differential = _diff,					\
+		.differential = 1,					\
 		.channel = 0,						\
 		.channel2 = 1,						\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
 				      BIT(IIO_CHAN_INFO_SCALE),		\
+		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),\
+		.scan_type = {						\
+			.sign = _sign,					\
+			.realbits = _real_bits,				\
+			.storagebits = _real_bits > 16 ? 32 : 16,	\
+			.endianness = IIO_CPU,				\
+		},							\
+	}								\
+
+#define AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits)			\
+	{								\
+		.type = IIO_VOLTAGE,					\
+		.indexed = 1,						\
+		.channel = 0,						\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+				      BIT(IIO_CHAN_INFO_SCALE) |	\
+				      BIT(IIO_CHAN_INFO_OFFSET),	\
 		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),\
 		.scan_type = {						\
 			.sign = _sign,					\
@@ -85,67 +102,67 @@ struct ad4000_chip_info {
 static const struct ad4000_chip_info ad4000_chips[] = {
 	[ID_AD4000] = {
 		.dev_name = "ad4000",
-		.chan_spec = AD4000_CHANNEL('u', 0, 16),
+		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
 	},
 	[ID_AD4001] = {
 		.dev_name = "ad4001",
-		.chan_spec = AD4000_CHANNEL('s', 1, 16),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
 	},
 	[ID_AD4002] = {
 		.dev_name = "ad4002",
-		.chan_spec = AD4000_CHANNEL('u', 0, 18),
+		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
 	},
 	[ID_AD4003] = {
 		.dev_name = "ad4003",
-		.chan_spec = AD4000_CHANNEL('s', 1, 18),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
 	},
 	[ID_AD4004] = {
 		.dev_name = "ad4004",
-		.chan_spec = AD4000_CHANNEL('u', 0, 16),
+		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
 	},
 	[ID_AD4005] = {
 		.dev_name = "ad4005",
-		.chan_spec = AD4000_CHANNEL('s', 1, 16),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
 	},
 	[ID_AD4006] = {
 		.dev_name = "ad4006",
-		.chan_spec = AD4000_CHANNEL('u', 0, 18),
+		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
 	},
 	[ID_AD4007] = {
 		.dev_name = "ad4007",
-		.chan_spec = AD4000_CHANNEL('s', 1, 18),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
 	},
 	[ID_AD4008] = {
 		.dev_name = "ad4008",
-		.chan_spec = AD4000_CHANNEL('u', 0, 16),
+		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
 	},
 	[ID_AD4010] = {
 		.dev_name = "ad4010",
-		.chan_spec = AD4000_CHANNEL('u', 0, 18),
+		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
 	},
 	[ID_AD4011] = {
 		.dev_name = "ad4011",
-		.chan_spec = AD4000_CHANNEL('s', 1, 18),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
 	},
 	[ID_AD4020] = {
 		.dev_name = "ad4020",
-		.chan_spec = AD4000_CHANNEL('s', 1, 20),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
 	},
 	[ID_AD4021] = {
 		.dev_name = "ad4021",
-		.chan_spec = AD4000_CHANNEL('s', 1, 20),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
 	},
 	[ID_AD4022] = {
 		.dev_name = "ad4022",
-		.chan_spec = AD4000_CHANNEL('s', 1, 20),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
 	},
 	[ID_ADAQ4001] = {
 		.dev_name = "adaq4001",
-		.chan_spec = AD4000_CHANNEL('s', 1, 16),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
 	},
 	[ID_ADAQ4003] = {
 		.dev_name = "adaq4003",
-		.chan_spec = AD4000_CHANNEL('s', 1, 18),
+		.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
 	},
 };
 
@@ -341,6 +358,12 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 		*val = st->scale_tbl[st->pin_gain][st->span_comp][0];
 		*val2 = st->scale_tbl[st->pin_gain][st->span_comp][1];
 		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_OFFSET:
+		*val = 0;
+		if (st->span_comp)
+			*val = mult_frac(st->vref / 1000, 1, 10);
+
+		return IIO_VAL_INT;
 	default:
 		break;
 	}
