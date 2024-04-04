@@ -97,8 +97,8 @@ properties:
       The Convert Input (CNV). This input has multiple functions. It initiates
       the conversions and selects the SPI mode of the device (chain or CS). In
       'single' mode, this property is omitted if the CNV pin is connected to the
-      CS line of the SPI controller. If 'single' mode is selected, CNV must be
-      active low.
+      CS line of the SPI controller. If 'single' mode is selected and this GPIO
+      is provided, it must be active low.
     maxItems: 1
 
   adi,high-z-input:
