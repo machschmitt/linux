@@ -450,20 +450,18 @@ err_out:
 	return IRQ_HANDLED;
 }
 
-static int ad4000_reg_access(struct iio_dev *indio_dev,
-                            unsigned int reg,
-                            unsigned int writeval,
-                            unsigned int *readval)
+static int ad4000_reg_access(struct iio_dev *indio_dev, unsigned int reg,
+			     unsigned int writeval, unsigned int *readval)
 {
-       struct ad4000_state *st = iio_priv(indio_dev);
-       int ret;
+	struct ad4000_state *st = iio_priv(indio_dev);
+	int ret;
 
-       if (readval)
-               ret = ad4000_read_reg(st, readval);
-       else
-               ret = ad4000_write_reg(st, writeval);
+	if (readval)
+		ret = ad4000_read_reg(st, readval);
+	else
+		ret = ad4000_write_reg(st, writeval);
 
-       return ret;
+	return ret;
 }
 
 static const struct iio_info ad4000_info = {
