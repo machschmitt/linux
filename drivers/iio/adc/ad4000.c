@@ -242,10 +242,10 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 		/* Would multiply by NANO here but we already multiplied by MILLI */
 		tmp2 = shift_right((u64)val * MICRO, val2);
 		tmp0 = (int)div_s64_rem(tmp2, NANO, &tmp1);
-		/* Store scale for when span copmression is disabled */
+		/* Store scale for when span compression is disabled */
 		st->scale_tbl[i][0][0] = tmp0; /* Integer part */
 		st->scale_tbl[i][0][1] = abs(tmp1); /* Fractional part */
-		/* Store scale for when span copmression is enabled */
+		/* Store scale for when span compression is enabled */
 		st->scale_tbl[i][1][0] = tmp0;
 		if (diff)
 			st->scale_tbl[i][1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 4, 5);
