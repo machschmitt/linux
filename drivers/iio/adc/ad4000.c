@@ -215,7 +215,10 @@ struct ad4000_state {
 	 */
 
 	struct {
-		u8 sample_buf[4];
+		union {
+			u16 sample_buf16;
+			u32 sample_buf32;
+		} data;
 		s64 timestamp __aligned(8);
 	} scan;
 	__be16 tx_transf __aligned(IIO_DMA_MINALIGN);
@@ -284,7 +287,7 @@ static int ad4000_read_sample(struct ad4000_state *st,
 {
 	struct spi_transfer t[] = {
 		{
-			.rx_buf = st->scan.sample_buf,
+			.rx_buf = &st->scan.data,
 			.len = BITS_TO_BYTES(chan->scan_type.storagebits),
 			.delay = {
 				.value = 60, /* meet tQuiet2 */
@@ -319,9 +322,9 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	if (chan->scan_type.storagebits > 16)
-		sample = get_unaligned_be32(st->scan.sample_buf);
+		sample = get_unaligned_be32(&st->scan.data);
 	else
-		sample = get_unaligned_be16(st->scan.sample_buf);
+		sample = get_unaligned_be16(&st->scan.data);
 
 	switch (chan->scan_type.realbits) {
 	case 16:
@@ -453,7 +456,7 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	if (st->cnv_gpio)
 		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_LOW);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan,
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan.data,
 					   iio_get_time_ns(indio_dev));
 
 err_out:
