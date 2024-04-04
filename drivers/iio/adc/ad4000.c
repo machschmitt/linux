@@ -36,6 +36,8 @@
 #define AD4000_HIGHZ		BIT(2) /* High impedance mode  */
 #define AD4000_TURBO		BIT(1) /* Turbo mode */
 
+#define AD4000_TQUIET2_NS		60
+
 #define AD4000_18BIT_MSK	GENMASK(31, 14)
 #define AD4000_20BIT_MSK	GENMASK(31, 12)
 
@@ -289,7 +291,7 @@ static int ad4000_read_sample(struct ad4000_state *st,
 			.rx_buf = &st->scan.data,
 			.len = BITS_TO_BYTES(chan->scan_type.storagebits),
 			.delay = {
-				.value = 60, /* meet tQuiet2 */
+				.value = AD4000_TQUIET2_NS,
 				.unit = SPI_DELAY_UNIT_NSECS,
 			},
 		},
@@ -499,7 +501,7 @@ static void ad4000_config(struct ad4000_state *st)
 
 	/*
 	 * The ADC SDI pin might be connected to controller CS line in which
-	 * case the write will fail. This, however, does not prevent the device
+	 * case the write might fail. This, however, does not prevent the device
 	 * from functioning even though in a configuration other than the
 	 * requested one.
 	 */
