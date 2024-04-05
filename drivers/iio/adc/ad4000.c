@@ -55,7 +55,8 @@
 			.sign = _sign,					\
 			.realbits = _real_bits,				\
 			.storagebits = _real_bits > 16 ? 32 : 16,	\
-			.endianness = IIO_CPU,				\
+			.shift = _real_bits > 16 ? 32 - _real_bits : 0,	\
+			.endianness = IIO_BE,				\
 		},							\
 	}								\
 
@@ -72,7 +73,8 @@
 			.sign = _sign,					\
 			.realbits = _real_bits,				\
 			.storagebits = _real_bits > 16 ? 32 : 16,	\
-			.endianness = IIO_CPU,				\
+			.shift = _real_bits > 16 ? 32 - _real_bits : 0,	\
+			.endianness = IIO_BE,				\
 		},							\
 	}								\
 
