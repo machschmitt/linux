@@ -443,7 +443,7 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	if (st->cnv_gpio)
 		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_LOW);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan.data,
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan,
 					   iio_get_time_ns(indio_dev));
 
 err_out:
