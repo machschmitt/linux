@@ -526,6 +526,8 @@ struct iio_info {
 	int (*hwfifo_set_watermark)(struct iio_dev *indio_dev, unsigned val);
 	int (*hwfifo_flush_to_buffer)(struct iio_dev *indio_dev,
 				      unsigned count);
+	struct iio_backend *(*get_iio_backend)(struct iio_dev *indio_dev,
+					       struct iio_chan_spec const *chan);
 };
 
 /**
