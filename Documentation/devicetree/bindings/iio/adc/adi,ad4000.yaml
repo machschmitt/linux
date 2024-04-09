@@ -159,6 +159,18 @@ allOf:
     else:
       properties:
         '#daisy-chained-devices': false
+  # Gain property only applies to ADAQ devices
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - adi,adaq4001
+                - adi,adaq4003
+    then:
+      properties:
+        adi,gain-milli: false
 
 unevaluatedProperties: false
 
