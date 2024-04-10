@@ -556,7 +556,7 @@ static int ad4000_probe(struct spi_device *spi)
 	}
 
 	/*
-	 * ADCs that output twos complement code have one less bit to express
+	 * ADCs that output two's complement code have one less bit to express
 	 * voltage magnitude.
 	 */
 	if (chip->chan_spec.scan_type.sign == 's')
