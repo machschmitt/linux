@@ -169,20 +169,6 @@ static const struct ad4000_chip_info ad4000_chips[] = {
 	},
 };
 
-enum ad4000_gains {
-	AD4000_0454_GAIN,
-	AD4000_0909_GAIN,
-	AD4000_1000_GAIN,
-	AD4000_1900_GAIN,
-};
-
-/*
- * Gains stored as fractions of 1000 so they can be expressed by integers.
- */
-static int ad4000_gains[] = {
-	454, 909, 1000, 1900,
-};
-
 struct ad4000_state {
 	struct spi_device *spi;
 	struct gpio_desc *cnv_gpio;
@@ -191,9 +177,8 @@ struct ad4000_state {
 	bool span_comp;
 	bool turbo_mode;
 	bool high_z_mode;
-
-	enum ad4000_gains pin_gain;
-	int scale_tbl[ARRAY_SIZE(ad4000_gains)][2][2];
+	int gain_milli;
+	int scale_tbl[2][2];
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -214,31 +199,30 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 				  const struct ad4000_chip_info *chip)
 {
 	int diff = chip->chan_spec.differential;
-	int val, val2, tmp0, tmp1, i;
+	int val, val2, tmp0, tmp1;
 	u64 tmp2;
 
 	val2 = scale_bits;
-	for (i = 0; i < ARRAY_SIZE(ad4000_gains); i++) {
-		val = st->vref / 1000;
-		/*
-		 * The gain is stored as a fraction of 1000 and, as we need to
-		 * divide vref by gain, we invert the gain/1000 fraction.
-		 * Also multiply by an extra MILLI to avoid losing precision.
-		 */
-		val = mult_frac(val, MILLI * MILLI, ad4000_gains[i]);
-		/* Would multiply by NANO here but we multiplied by extra MILLI */
-		tmp2 = shift_right((u64)val * MICRO, val2);
-		tmp0 = (int)div_s64_rem(tmp2, NANO, &tmp1);
-		/* Store scale for when span compression is disabled */
-		st->scale_tbl[i][0][0] = tmp0; /* Integer part */
-		st->scale_tbl[i][0][1] = abs(tmp1); /* Fractional part */
-		/* Store scale for when span compression is enabled */
-		st->scale_tbl[i][1][0] = tmp0;
-		if (diff)
-			st->scale_tbl[i][1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 4, 5);
-		else
-			st->scale_tbl[i][1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 9, 10);
-	}
+	val = st->vref / 1000;
+	/*
+	 * The gain is stored as a fraction of 1000 and, as we need to
+	 * divide vref by gain, we invert the gain/1000 fraction.
+	 * Also multiply by an extra MILLI to avoid losing precision.
+	 */
+	val = mult_frac(val, MILLI * MILLI, st->gain_milli);
+	/* Would multiply by NANO here but we multiplied by extra MILLI */
+	tmp2 = shift_right((u64)val * MICRO, val2);
+	tmp0 = (int)div_s64_rem(tmp2, NANO, &tmp1);
+	/* Store scale for when span compression is disabled */
+	st->scale_tbl[0][0] = tmp0; /* Integer part */
+	st->scale_tbl[0][1] = abs(tmp1); /* Fractional part */
+	/* Store scale for when span compression is enabled */
+	st->scale_tbl[1][0] = tmp0;
+	/* The integer part is always zero so don't bother to divide it. */
+	if (diff)
+		st->scale_tbl[1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 4, 5);
+	else
+		st->scale_tbl[1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 9, 10);
 }
 
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
@@ -344,8 +328,8 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 			return ad4000_single_conversion(indio_dev, chan, val);
 		unreachable();
 	case IIO_CHAN_INFO_SCALE:
-		*val = st->scale_tbl[st->pin_gain][st->span_comp][0];
-		*val2 = st->scale_tbl[st->pin_gain][st->span_comp][1];
+		*val = st->scale_tbl[st->span_comp][0];
+		*val2 = st->scale_tbl[st->span_comp][1];
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = 0;
@@ -369,7 +353,7 @@ static int ad4000_read_avail(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
-		*vals = (int *)st->scale_tbl[st->pin_gain];
+		*vals = (int *)st->scale_tbl;
 		*length = 2 * 2;
 		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
@@ -406,7 +390,7 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 			if (ret < 0)
 				return ret;
 
-			span_comp_en = (val2 == st->scale_tbl[st->pin_gain][1][1]);
+			span_comp_en = (val2 == st->scale_tbl[1][1]);
 			reg_val &= ~AD4000_CFG_SPAN_COMP;
 			reg_val |= FIELD_PREP(AD4000_CFG_SPAN_COMP, span_comp_en);
 
@@ -561,31 +545,14 @@ static int ad4000_probe(struct spi_device *spi)
 	indio_dev->channels = &chip->chan_spec;
 	indio_dev->num_channels = 1;
 
-	st->pin_gain = AD4000_1000_GAIN;
+	st->gain_milli = 1000;
 	if (device_property_present(&spi->dev, "adi,gain-milli")) {
-		u32 val;
 
-		ret = device_property_read_u32(&spi->dev, "adi,gain-milli", &val);
+		ret = device_property_read_u32(&spi->dev, "adi,gain-milli",
+					       &st->gain_milli);
 		if (ret)
-			return ret;
-
-		switch (val) {
-		case 454:
-			st->pin_gain = AD4000_0454_GAIN;
-			break;
-		case 909:
-			st->pin_gain = AD4000_0909_GAIN;
-			break;
-		case 1000:
-			st->pin_gain = AD4000_1000_GAIN;
-			break;
-		case 1900:
-			st->pin_gain = AD4000_1900_GAIN;
-			break;
-		default:
-			return dev_err_probe(&spi->dev, -EINVAL,
-					     "Invalid firmware provided gain\n");
-		}
+			return dev_err_probe(&spi->dev, ret,
+					     "Failed to read gain property\n");
 	}
 
 	/*
