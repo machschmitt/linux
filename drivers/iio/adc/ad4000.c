@@ -170,21 +170,17 @@ static const struct ad4000_chip_info ad4000_chips[] = {
 };
 
 enum ad4000_gains {
-	AD4000_0454_GAIN = 0,
-	AD4000_0909_GAIN = 1,
-	AD4000_1_GAIN = 2,
-	AD4000_1900_GAIN = 3,
-	AD4000_GAIN_LEN
+	AD4000_0454_GAIN,
+	AD4000_0909_GAIN,
+	AD4000_1000_GAIN,
+	AD4000_1900_GAIN,
 };
 
 /*
- * Gains stored and computed as fractions to avoid introducing rounding errors.
+ * Gains stored as fractions of 1000 so they can be expressed by integers.
  */
-static const int ad4000_gains_frac[AD4000_GAIN_LEN][2] = {
-	[AD4000_0454_GAIN] = { 227, 500 },
-	[AD4000_0909_GAIN] = { 909, 1000 },
-	[AD4000_1_GAIN] = { 1, 1 },
-	[AD4000_1900_GAIN] = { 19, 10 },
+static int ad4000_gains[] = {
+	454, 909, 1000, 1900,
 };
 
 struct ad4000_state {
@@ -197,7 +193,7 @@ struct ad4000_state {
 	bool high_z_mode;
 
 	enum ad4000_gains pin_gain;
-	int scale_tbl[AD4000_GAIN_LEN][2][2];
+	int scale_tbl[ARRAY_SIZE(ad4000_gains)][2][2];
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -222,12 +218,15 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 	u64 tmp2;
 
 	val2 = scale_bits;
-	for (i = 0; i < AD4000_GAIN_LEN; i++) {
+	for (i = 0; i < ARRAY_SIZE(ad4000_gains); i++) {
 		val = st->vref / 1000;
-		/* Multiply by MILLI here to avoid losing precision */
-		val = mult_frac(val, ad4000_gains_frac[i][1] * MILLI,
-				ad4000_gains_frac[i][0]);
-		/* Would multiply by NANO here but we already multiplied by MILLI */
+		/*
+		 * The gain is stored as a fraction of 1000 and, as we need to
+		 * divide vref by gain, we invert the gain/1000 fraction.
+		 * Also multiply by an extra MILLI to avoid losing precision.
+		 */
+		val = mult_frac(val, MILLI * MILLI, ad4000_gains[i]);
+		/* Would multiply by NANO here but we multiplied by extra MILLI */
 		tmp2 = shift_right((u64)val * MICRO, val2);
 		tmp0 = (int)div_s64_rem(tmp2, NANO, &tmp1);
 		/* Store scale for when span compression is disabled */
@@ -562,7 +561,7 @@ static int ad4000_probe(struct spi_device *spi)
 	indio_dev->channels = &chip->chan_spec;
 	indio_dev->num_channels = 1;
 
-	st->pin_gain = AD4000_1_GAIN;
+	st->pin_gain = AD4000_1000_GAIN;
 	if (device_property_present(&spi->dev, "adi,gain-milli")) {
 		u32 val;
 
@@ -578,7 +577,7 @@ static int ad4000_probe(struct spi_device *spi)
 			st->pin_gain = AD4000_0909_GAIN;
 			break;
 		case 1000:
-			st->pin_gain = AD4000_1_GAIN;
+			st->pin_gain = AD4000_1000_GAIN;
 			break;
 		case 1900:
 			st->pin_gain = AD4000_1900_GAIN;
