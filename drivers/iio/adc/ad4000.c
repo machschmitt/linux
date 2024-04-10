@@ -293,9 +293,9 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	if (chan->scan_type.storagebits > 16)
-		sample = get_unaligned_be32(&st->scan.data);
+		sample = be32_to_cpu(st->scan.data.sample_buf32);
 	else
-		sample = get_unaligned_be16(&st->scan.data);
+		sample = be16_to_cpu(st->scan.data.sample_buf16);
 
 	switch (chan->scan_type.realbits) {
 	case 16:
