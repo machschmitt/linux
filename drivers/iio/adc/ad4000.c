@@ -205,8 +205,8 @@ struct ad4000_state {
 	 */
 	struct {
 		union {
-			u16 sample_buf16;
-			u32 sample_buf32;
+			__be16 sample_buf16;
+			__be32 sample_buf32;
 		} data;
 		s64 timestamp __aligned(8);
 	} scan;
