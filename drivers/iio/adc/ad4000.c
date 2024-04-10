@@ -31,10 +31,10 @@
 #define AD4000_CONFIG_REG_MSK	0xFF
 
 /* AD4000 Configuration Register programmable bits */
-#define AD4000_STATUS		BIT(4) /* Status bits output */
-#define AD4000_SPAN_COMP	BIT(3) /* Input span compression  */
-#define AD4000_HIGHZ		BIT(2) /* High impedance mode  */
-#define AD4000_TURBO		BIT(1) /* Turbo mode */
+#define AD4000_CFG_STATUS		BIT(4) /* Status bits output */
+#define AD4000_CFG_SPAN_COMP		BIT(3) /* Input span compression  */
+#define AD4000_CFG_HIGHZ		BIT(2) /* High impedance mode  */
+#define AD4000_CFG_TURBO		BIT(1) /* Turbo mode */
 
 #define AD4000_TQUIET2_NS		60
 
@@ -408,8 +408,8 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 				return ret;
 
 			span_comp_en = (val2 == st->scale_tbl[st->pin_gain][1][1]);
-			reg_val &= ~AD4000_SPAN_COMP;
-			reg_val |= FIELD_PREP(AD4000_SPAN_COMP, span_comp_en);
+			reg_val &= ~AD4000_CFG_SPAN_COMP;
+			reg_val |= FIELD_PREP(AD4000_CFG_SPAN_COMP, span_comp_en);
 
 			ret = ad4000_write_reg(st, reg_val);
 			if (ret < 0)
@@ -479,10 +479,10 @@ static void ad4000_config(struct ad4000_state *st)
 	unsigned int reg_val;
 	int ret;
 
-	reg_val = FIELD_PREP(AD4000_TURBO, 1);
+	reg_val = FIELD_PREP(AD4000_CFG_TURBO, 1);
 
 	if (device_property_present(&st->spi->dev, "adi,high-z-input"))
-		reg_val |= FIELD_PREP(AD4000_HIGHZ, 1);
+		reg_val |= FIELD_PREP(AD4000_CFG_HIGHZ, 1);
 
 	/*
 	 * The ADC SDI pin might be connected to controller CS line in which
