@@ -137,7 +137,7 @@ static int _ad4134_set_odr(struct ad4134_state *st, unsigned int odr)
 
 	if (odr < AD4134_ODR_MIN || odr > AD4134_ODR_MAX)
 		return -EINVAL;
-
+    
 	pwm_get_state(st->odr_pwm, &state);
 
 	/*
@@ -397,7 +397,7 @@ static int ad4134_setup(struct ad4134_state *st)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable regulators\n");
 
-	ret = regulator_get_voltage(st->regulators[AD4134_REFIN_REGULATOR].consumer);
+	ret = regulator_get_voltage(st->regulators[AD4134_REFIN_REGULATOR].consumer);\
 	if (ret < 0)
 		return ret;
 
@@ -438,11 +438,11 @@ static int ad4134_setup(struct ad4134_state *st)
 	} else {
 		dev_warn(dev, "Failed to find ODR PWM\n");
 	}
-
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 					    AD4134_DATA_FRAME_24BIT_CRC));
+
 	if (ret)
 		return ret;
 
