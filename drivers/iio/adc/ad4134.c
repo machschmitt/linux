@@ -38,14 +38,19 @@
 #define AD4134_DATA_PACKET_CONFIG_FRAME_MASK	GENMASK(5, 4)
 #define AD4134_DATA_FRAME_24BIT_CRC		0b11
 #define AD4134_DATA_FRAME_24BIT		    0b10
+#define AD4134_DATA_FRAME_16BIT_CRC		    0b01
 
 #define AD4134_DIG_IF_CFG_REG			0x12
 #define AD4134_DIF_IF_CFG_FORMAT_MASK		GENMASK(1, 0)
 #define AD4134_DATA_FORMAT_QUAD_CH_PARALLEL	0b10
 
+#define AD4134_CHAN_DIG_FILTER_SEL_REG			0x1E
+#define AD4134_CHAN_DIG_FILTER_SEL_CONFIG_FRAME_MASK	GENMASK(7, 0)
+#define AD4134_SINC6_FILTER		0b01010101
+
 #define AD4134_ODR_MIN				10
 #define AD4134_ODR_MAX				1496000
-#define AD4134_ODR_DEFAULT			300000
+#define AD4134_ODR_DEFAULT			1495000
 
 #define AD4134_NUM_CHANNELS			8
 #define AD4134_REAL_BITS			24
@@ -272,7 +277,8 @@ static const struct iio_info ad4134_info = {
 }
 
 /*#define AD4134_CHANNEL(index) {						\
-	.type = IIO_VOLTAGE,						\
+	.type = IIO_VOLTAGE,								\
+	.ext_info = ad7134_ext_info,						\
 	.indexed = 1,							\
 	.channel = (index),						\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) |	\
@@ -282,7 +288,7 @@ static const struct iio_info ad4134_info = {
 	.scan_index = (index),						\
 	.scan_type = {							\
 		.sign = 's',						\
-		.realbits = AD4134_REAL_BITS,				\
+		.realbits = 24,				\
 		.storagebits = 24,					\
 		.shift = 0		\
 	},								\
@@ -438,6 +444,14 @@ static int ad4134_setup(struct ad4134_state *st)
 				  AD4134_DEVICE_CONFIG_POWER_MODE_MASK,
 				  FIELD_PREP(AD4134_DEVICE_CONFIG_POWER_MODE_MASK,
 					     AD4134_POWER_MODE_HIGH_PERF));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
+				 AD4134_CHAN_DIG_FILTER_SEL_CONFIG_FRAME_MASK,
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_CONFIG_FRAME_MASK,
+					    AD4134_SINC6_FILTER));
+
 	if (ret)
 		return ret;
 
