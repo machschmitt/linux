@@ -337,10 +337,8 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	default:
-		break;
+		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
 static int ad4000_read_avail(struct iio_dev *indio_dev,
@@ -370,7 +368,6 @@ static int ad4000_write_raw_get_fmt(struct iio_dev *indio_dev,
 	default:
 		return IIO_VAL_INT_PLUS_MICRO;
 	}
-	return -EINVAL;
 }
 
 static int ad4000_write_raw(struct iio_dev *indio_dev,
@@ -402,10 +399,8 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 		}
 		unreachable();
 	default:
-		break;
+		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
 static irqreturn_t ad4000_trigger_handler(int irq, void *p)
