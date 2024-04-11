@@ -54,7 +54,7 @@
 
 #define AD4134_NUM_CHANNELS			8
 #define AD4134_REAL_BITS			24
-#define AD4134_WORD_BITS			32
+#define AD4134_WORD_BITS			24
 
 #define AD4134_RESET_TIME_US			10000000
 
@@ -258,7 +258,7 @@ static const struct iio_info ad4134_info = {
 	.debugfs_reg_access = ad4134_reg_access,
 };
 
-#define AD4134_CHANNEL(index) {						\
+/*#define AD4134_CHANNEL(index) {						\
 	.type = IIO_VOLTAGE,							 \
 	.ext_info = ad7134_ext_info,						\
 	.indexed = 1,							\
@@ -275,8 +275,8 @@ static const struct iio_info ad4134_info = {
 		.shift = AD4134_WORD_BITS - AD4134_REAL_BITS		\
 	},								\
 }
-
-/*#define AD4134_CHANNEL(index) {						\
+*/
+#define AD4134_CHANNEL(index) {						\
 	.type = IIO_VOLTAGE,								\
 	.ext_info = ad7134_ext_info,						\
 	.indexed = 1,							\
@@ -289,11 +289,11 @@ static const struct iio_info ad4134_info = {
 	.scan_type = {							\
 		.sign = 's',						\
 		.realbits = 24,				\
-		.storagebits = 24,					\
+		.storagebits = 32,					\
 		.shift = 0		\
 	},								\
 }
-*/
+
 static const struct iio_chan_spec ad4134_channels[] = {
 	AD4134_CHANNEL(0),
 	AD4134_CHANNEL(1),
@@ -429,7 +429,7 @@ static int ad4134_setup(struct ad4134_state *st)
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
-					    AD4134_DATA_FRAME_24BIT_CRC));
+					    AD4134_DATA_FRAME_24BIT));
 	if (ret)
 		return ret;
 
