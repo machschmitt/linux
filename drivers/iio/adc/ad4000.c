@@ -456,8 +456,6 @@ static void ad4000_config(struct ad4000_state *st)
 	unsigned int reg_val;
 	int ret;
 
-	reg_val = FIELD_PREP(AD4000_CFG_TURBO, 1);
-
 	if (device_property_present(&st->spi->dev, "adi,high-z-input"))
 		reg_val |= FIELD_PREP(AD4000_CFG_HIGHZ, 1);
 
