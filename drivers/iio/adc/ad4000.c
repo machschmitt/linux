@@ -519,13 +519,9 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, st->vref, "Failed to get vref\n");
 
 	st->cnv_gpio = devm_gpiod_get_optional(&spi->dev, "cnv", GPIOD_OUT_HIGH);
-	if (IS_ERR(st->cnv_gpio)) {
-		if (PTR_ERR(st->cnv_gpio) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
+	if (IS_ERR(st->cnv_gpio))
 		return dev_err_probe(&spi->dev, PTR_ERR(st->cnv_gpio),
 				     "Failed to get CNV GPIO");
-	}
 
 	ret = ad4000_config(st);
 	if (ret < 0)
