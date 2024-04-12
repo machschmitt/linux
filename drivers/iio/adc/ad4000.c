@@ -532,6 +532,7 @@ static int ad4000_probe(struct spi_device *spi)
 	indio_dev->channels = &chip->chan_spec;
 	indio_dev->num_channels = 1;
 
+	/* Hardware gain only applies to ADAQ devices */
 	st->gain_milli = 1000;
 	if (device_property_present(&spi->dev, "adi,gain-milli")) {
 
