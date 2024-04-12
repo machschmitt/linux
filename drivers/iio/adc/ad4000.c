@@ -281,15 +281,13 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	u32 sample;
 	int ret;
 
-	if (st->cnv_gpio)
-		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
+	gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
 
 	ret = ad4000_read_sample(st, chan);
 	if (ret)
 		return ret;
 
-	if (st->cnv_gpio)
-		gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
+	gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	if (chan->scan_type.storagebits > 16)
 		sample = be32_to_cpu(st->scan.data.sample_buf32);
@@ -410,15 +408,13 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	struct ad4000_state *st = iio_priv(indio_dev);
 	int ret;
 
-	if (st->cnv_gpio)
-		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_HIGH);
+	gpiod_set_value(st->cnv_gpio, GPIOD_OUT_HIGH);
 
 	ret = ad4000_read_sample(st, &indio_dev->channels[0]);
 	if (ret < 0)
 		goto err_out;
 
-	if (st->cnv_gpio)
-		gpiod_set_value(st->cnv_gpio, GPIOD_OUT_LOW);
+	gpiod_set_value(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan,
 					   iio_get_time_ns(indio_dev));
