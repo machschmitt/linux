@@ -53,7 +53,7 @@
 #define AD4134_ODR_DEFAULT			1495000
 
 #define AD4134_NUM_CHANNELS			8
-#define AD4134_REAL_BITS			24
+#define AD4134_REAL_BITS			16
 #define AD4134_WORD_BITS			24
 
 #define AD4134_RESET_TIME_US			10000000
@@ -288,9 +288,9 @@ static const struct iio_info ad4134_info = {
 	.scan_index = (index),						\
 	.scan_type = {							\
 		.sign = 's',						\
-		.realbits = 24,				\
+		.realbits = 16,				\
 		.storagebits = 32,					\
-		.shift = 0		\
+		.shift = 8		\
 	},								\
 }
 
@@ -429,7 +429,7 @@ static int ad4134_setup(struct ad4134_state *st)
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
-					    AD4134_DATA_FRAME_24BIT));
+					    AD4134_DATA_FRAME_16BIT_CRC));
 	if (ret)
 		return ret;
 
