@@ -451,10 +451,9 @@ static const struct iio_info ad4000_info = {
 
 };
 
-static void ad4000_config(struct ad4000_state *st)
+static int ad4000_config(struct ad4000_state *st)
 {
 	unsigned int reg_val;
-	int ret;
 
 	if (device_property_present(&st->spi->dev, "adi,high-z-input"))
 		reg_val |= FIELD_PREP(AD4000_CFG_HIGHZ, 1);
@@ -465,9 +464,7 @@ static void ad4000_config(struct ad4000_state *st)
 	 * from functioning even though in a configuration other than the
 	 * requested one.
 	 */
-	ret = ad4000_write_reg(st, reg_val);
-	if (ret < 0)
-		dev_dbg(&st->spi->dev, "Failed to config device\n");
+	return ad4000_write_reg(st, reg_val);
 }
 
 static void ad4000_regulator_disable(void *reg)
@@ -530,7 +527,9 @@ static int ad4000_probe(struct spi_device *spi)
 				     "Failed to get CNV GPIO");
 	}
 
-	ad4000_config(st);
+	ret = ad4000_config(st);
+	if (ret < 0)
+		dev_dbg(&st->spi->dev, "Failed to config device\n");
 
 	indio_dev->name = chip->dev_name;
 	indio_dev->info = &ad4000_info;
