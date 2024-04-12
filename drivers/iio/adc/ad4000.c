@@ -264,7 +264,6 @@ static int ad4000_read_sample(struct ad4000_state *st,
 	};
 
 	return spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
-
 }
 
 static int ad4000_single_conversion(struct iio_dev *indio_dev,
