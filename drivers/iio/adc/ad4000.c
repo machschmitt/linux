@@ -173,10 +173,7 @@ struct ad4000_state {
 	struct spi_device *spi;
 	struct gpio_desc *cnv_gpio;
 	int vref;
-	bool status_bits;
 	bool span_comp;
-	bool turbo_mode;
-	bool high_z_mode;
 	int gain_milli;
 	int scale_tbl[2][2];
 
