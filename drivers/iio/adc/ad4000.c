@@ -36,7 +36,9 @@
 #define AD4000_CFG_HIGHZ		BIT(2) /* High impedance mode  */
 #define AD4000_CFG_TURBO		BIT(1) /* Turbo mode */
 
+#define AD4000_TQUIET1_NS		190
 #define AD4000_TQUIET2_NS		60
+#define AD4000_TCONV_NS			320
 
 #define AD4000_18BIT_MSK	GENMASK(31, 14)
 #define AD4000_20BIT_MSK	GENMASK(31, 12)
@@ -172,8 +174,11 @@ static const struct ad4000_chip_info ad4000_chips[] = {
 struct ad4000_state {
 	struct spi_device *spi;
 	struct gpio_desc *cnv_gpio;
+	struct spi_transfer xfers[2];
+	struct spi_message msg;
 	int vref;
 	bool span_comp;
+	bool turbo_mode;
 	int gain_milli;
 	int scale_tbl[2][2];
 
@@ -264,6 +269,59 @@ static int ad4000_read_sample(struct ad4000_state *st,
 	};
 
 	return spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
+}
+
+static void ad4000_unoptimize_msg(void *msg)
+{
+	spi_unoptimize_message(msg);
+}
+
+/*
+ * This executes a data sample transfer for when the device connections are
+ * in "3-wire" mode, selected by the seting the"single" pincontrol state.
+ * In this connection mode, the ADC SDI pin is connected to VIO and ADC CNV pin
+ * is connected either to a SPI controller CS or to a GPIO.
+ * AD4000 series of devices initiate conversions on the rising edge of CNV pin.
+ *
+ * If the CNV pin is connected to an SPI controller CS line (which is by default
+ * active low), the ADC readings would have a latency (delay) of one read.
+ * Moreover, since read_sample is also called for filling the buffer on triggered
+ * buffer mode, the timestamps of buffer readings would also be disarranged.
+ * To prevent the read latency and reduce the time discrepancy between the
+ * sample read request and the time of actual sampling by the ADC, do a
+ * preparatory transfer to pulse the CS/CNV line.
+ */
+static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
+					     const struct iio_chan_spec *chan)
+{
+	unsigned int cnv_pulse_time = st->turbo_mode ? AD4000_TQUIET1_NS
+						     : AD4000_TCONV_NS;
+	struct spi_transfer *xfers = st->xfers;
+	int ret;
+
+	xfers[0].cs_change = 1;
+	xfers[0].cs_change_delay.value = cnv_pulse_time;
+	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	xfers[1].rx_buf = &st->scan.data;
+	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
+	xfers[1].delay.value = AD4000_TQUIET2_NS;
+	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
+
+	ret = spi_optimize_message(st->spi, &st->msg);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(&st->spi->dev, ad4000_unoptimize_msg,
+					&st->msg);
+}
+
+static int ad4000_read_sample_3wire_mode(struct ad4000_state *st,
+					  const struct iio_chan_spec *chan)
+{
+	return spi_sync(st->spi, &st->msg);
 }
 
 static int ad4000_single_conversion(struct iio_dev *indio_dev,
