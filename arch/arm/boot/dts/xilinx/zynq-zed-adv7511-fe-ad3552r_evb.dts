@@ -14,19 +14,6 @@
 #include "zynq-zed-adv7511.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pwm/pwm.h>
-
-/ {
-	axi_ad3552r: axi-ad3552r {
-		compatible = "adi,axi-ad3552r";
-
-		reset-gpios = <&gpio0 92 GPIO_ACTIVE_LOW>;
-
-		adi,shared-clock;
-		clocks = <&ref_clk>;
-		clock-names = "sampl_clk";
-	};
-};
 
 &fpga_axi {
 
@@ -61,17 +48,4 @@
 		};
 	};
 
-
-	cf_ad3552r_dac_core_0: cf-ad3552r-dds-core-lpc@44a74000 {
-		compatible = "adi,axi-ad3552r-dds-6.00.a";
-		reg = <0x44a74000 0x1000>;
-
-		dmas = <&dac_tx_dma 0>;
-		dma-names = "tx";
-
-		adi,axi-dds-default-scale = <0x800>;
-		adi,axi-dds-default-frequency = <1000000>;
-
-		platformbus-connected = <&axi_ad3552r>;
-	};
 };
