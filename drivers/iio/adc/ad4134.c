@@ -28,7 +28,7 @@
 #define AD4134_IF_CONFIG_B_REG					0x01
 #define AD4134_IF_CONFIG_B_SINGLE_INSTR			BIT(7)
 #define AD4134_IF_CONFIG_B_MASTER_SLAVE_RD_CTRL	BIT(5)
-#define AD4134_IF_CONFIG_B_DIG_IF_RESET			BIT(1)
+#define AD4134_IF_CONFIG_B_RESET			BIT(1)
 
 #define AD4134_DEVICE_CONFIG_REG		0x02
 #define AD4134_DEVICE_CONFIG_POWER_MODE_MASK	BIT(0)
@@ -46,12 +46,17 @@
 #define AD4134_DATA_FORMAT_QUAD_CH_PARALLEL	0b10
 
 #define AD4134_CHAN_DIG_FILTER_SEL_REG			0x1E
-#define AD4134_CHAN_DIG_FILTER_SEL_CONFIG_FRAME_MASK	GENMASK(7, 0)
+#define AD4134_CHAN_DIG_FILTER_SEL_MASK	GENMASK(7, 0)
+#define AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH0 GENMASK(1, 0)
+#define AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH1 GENMASK(3, 2)
+#define AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH2 GENMASK(5, 4)
+#define AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH3 GENMASK(7, 6)
+
 #define AD4134_SINC6_FILTER		0b01010101
 
 #define AD4134_ODR_MIN				10
 #define AD4134_ODR_MAX				1496000
-#define AD4134_ODR_DEFAULT			1495000
+#define AD4134_ODR_DEFAULT			1496000
 
 #define AD4134_NUM_CHANNELS			8
 #define AD4134_REAL_BITS			16
@@ -67,14 +72,40 @@ enum ad4134_regulators {
 	AD4134_NUM_REGULATORS
 };
 
-static ssize_t ad7134_set_sync(struct iio_dev *indio_dev,
-			       uintptr_t private,
+enum ad7134_flt_type {
+	WIDEBAND,
+	SINC6,
+	SINC3,
+	SINC3_REJECTION
+};
+static const char * const ad7134_filter_enum[] = {
+	[WIDEBAND] = "WIDEBAND",
+	[SINC6] = "SINC6",
+	[SINC3] = "SINC3",
+	[SINC3_REJECTION] = "SINC3_REJECTION",
+};
+
+static ssize_t ad7134_set_sync(struct iio_dev *indio_dev, uintptr_t private,
 			       const struct iio_chan_spec *chan,
 			       const char *buf, size_t len);
 static ssize_t ad7134_get_sync(struct iio_dev *indio_dev, uintptr_t private,
 			       const struct iio_chan_spec *chan, char *buf);
+static int ad7134_set_dig_fil(struct iio_dev *dev,
+			       const struct iio_chan_spec *chan,
+			       unsigned int filter);
+static int ad7134_get_dig_fil(struct iio_dev *dev,
+			      const struct iio_chan_spec *chan);
+
+static const struct iio_enum ad7134_flt_type_iio_enum = {
+	.items = ad7134_filter_enum,
+	.num_items = ARRAY_SIZE(ad7134_filter_enum),
+	.set = ad7134_set_dig_fil,
+	.get = ad7134_get_dig_fil,
+};
 
 static struct iio_chan_spec_ext_info ad7134_ext_info[] = {
+	IIO_ENUM("filter_type", IIO_SHARED_BY_ALL, &ad7134_flt_type_iio_enum),
+	IIO_ENUM_AVAILABLE("filter_type", IIO_SHARED_BY_ALL, &ad7134_flt_type_iio_enum),
 
 	{
 	 .name = "ad7134_sync",
@@ -103,6 +134,8 @@ struct ad4134_state {
 	struct spi_transfer		buf_read_xfer;
 
 	unsigned int			odr;
+	unsigned int            filter_type;
+
 	unsigned long			sys_clk_rate;
 	int				refin_mv;
 	struct gpio_desc *cs_gpio;
@@ -114,23 +147,60 @@ static ssize_t ad7134_get_sync(struct iio_dev *indio_dev, uintptr_t private,
 	return sprintf(buf, "enable\n");
 }
 
-static ssize_t ad7134_set_sync(struct iio_dev *indio_dev,
-				     uintptr_t private,
-				     const struct iio_chan_spec *chan,
-				     const char *buf, size_t len)
+static ssize_t ad7134_set_sync(struct iio_dev *indio_dev, uintptr_t private,
+			       const struct iio_chan_spec *chan,
+			       const char *buf, size_t len)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
 	int ret;
 
-    gpiod_set_value_cansleep(st->cs_gpio, 1);
+	gpiod_set_value_cansleep(st->cs_gpio, 1);
 	ret = regmap_update_bits(st->regmap, AD4134_IF_CONFIG_B_REG,
-				 (AD4134_IF_CONFIG_B_DIG_IF_RESET |  AD4134_IF_CONFIG_B_SINGLE_INSTR),
-				 (AD4134_IF_CONFIG_B_DIG_IF_RESET |  AD4134_IF_CONFIG_B_SINGLE_INSTR));
+				 (AD4134_IF_CONFIG_B_RESET |  AD4134_IF_CONFIG_B_SINGLE_INSTR),
+				 (AD4134_IF_CONFIG_B_RESET |  AD4134_IF_CONFIG_B_SINGLE_INSTR));
 	if (ret)
 		return ret;
 	gpiod_set_value_cansleep(st->cs_gpio, 0);
 
 	return ret ? ret : len;
+}
+
+static int ad7134_set_dig_fil(struct iio_dev *dev,
+			      const struct iio_chan_spec *chan,
+			      unsigned int filter)
+{
+	struct ad4134_state *st = iio_priv(dev);
+	int ret;
+
+	st->filter_type = filter;
+	gpiod_set_value_cansleep(st->cs_gpio, 1);
+
+	ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
+				 AD4134_CHAN_DIG_FILTER_SEL_MASK,
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH0, filter) |
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH1, filter) |
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH2, filter) |
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH3, filter));
+
+	gpiod_set_value_cansleep(st->cs_gpio, 0);
+
+	if (ret)
+		return ret;
+	return 0;
+}
+
+static int ad7134_get_dig_fil(struct iio_dev *dev,
+			      const struct iio_chan_spec *chan)
+{
+	struct ad4134_state *st = iio_priv(dev);
+	int ret;
+	unsigned int readval;
+
+	ret = regmap_read(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG, &readval);
+	if (ret)
+		return ret;
+
+	return FIELD_GET(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH0, readval);
 }
 
 static int ad4134_samp_freq_avail[] = { AD4134_ODR_MIN, 1, AD4134_ODR_MAX };
@@ -449,8 +519,8 @@ static int ad4134_setup(struct ad4134_state *st)
 		return ret;
 
 	ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
-				 AD4134_CHAN_DIG_FILTER_SEL_CONFIG_FRAME_MASK,
-				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_CONFIG_FRAME_MASK,
+				 AD4134_CHAN_DIG_FILTER_SEL_MASK,
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_MASK,
 					    AD4134_SINC6_FILTER));
 
 	if (ret)
