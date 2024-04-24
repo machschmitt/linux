@@ -17,6 +17,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-engine.h>
 #include <linux/units.h>
+#include <linux/err.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/buffer-dma.h>
@@ -59,30 +60,10 @@
 #define AD4134_ODR_DEFAULT			1496000
 
 #define AD4134_NUM_CHANNELS			8
-#define AD4134_REAL_BITS			16
-#define AD4134_WORD_BITS			16
 
-#define AD7134_MAX_CHANNEL_NR		8
+#define AD4134_CHANNEL_MASK			0xFF
 
 #define AD4134_RESET_TIME_US			10000000
-
- #define AD4134_CHANNEL(index, _real, _shift) {			\
-	.type = IIO_VOLTAGE,						\
-	.ext_info = ad7134_ext_info,					\
-	.indexed = 1,							\
-	.channel = (index),						\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) |	\
-				    BIT(IIO_CHAN_INFO_SCALE),		\
-	.info_mask_shared_by_type_available =				\
-				    BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
-	.scan_index = (index),						\
-	.scan_type = {							\
-		.sign = 's',						\
-		.realbits = _real,					\
-		.storagebits = 32,					\
-		.shift = _shift						\
-	},								\
-}
 
 enum {
 	ODR_SET_FREQ,
@@ -96,13 +77,6 @@ enum ad4134_regulators {
 	AD4134_NUM_REGULATORS
 };
 
-enum ad7134_flt_type {
-	WIDEBAND,
-	SINC6,
-	SINC3,
-	SINC3_REJECTION
-};
-
 enum ad7134_output_frame {
 	AD7134_16,
 	AD7134_16CRC,
@@ -110,11 +84,11 @@ enum ad7134_output_frame {
 	AD7134_24CRC
 };
 
-enum ad7134_ids {
-	ID_AD7134_16,
-	ID_AD7134_16CRC,
-	ID_AD7134_24,
-	ID_AD7134_24CRC,
+enum ad7134_flt_type {
+	WIDEBAND,
+	SINC6,
+	SINC3,
+	SINC3_REJECTION
 };
 
 static const char * const ad7134_filter_enum[] = {
@@ -170,75 +144,6 @@ static struct iio_chan_spec_ext_info ad7134_ext_info[] = {
 	{ },
 };
 
-struct ad7134_chip_info {
-	struct iio_chan_spec chan_spec[AD7134_MAX_CHANNEL_NR];
-	enum ad7134_output_frame output_frame;
-	u32 word_bits;
-};
-
-static const struct ad7134_chip_info ad7134_chips[] = {
-		[ID_AD7134_16] = {
-		.chan_spec = {
-			AD4134_CHANNEL(0, 16, 0),
-			AD4134_CHANNEL(1, 16, 0),
-			AD4134_CHANNEL(2, 16, 0),
-			AD4134_CHANNEL(3, 16, 0),
-			AD4134_CHANNEL(4, 16, 0),
-			AD4134_CHANNEL(5, 16, 0),
-			AD4134_CHANNEL(6, 16, 0),
-			AD4134_CHANNEL(7, 16, 0),
-			AD4134_CHANNEL(8, 16, 0),
-		},
-		.word_bits = 16,
-		.output_frame = AD7134_16,
-	},
-	[ID_AD7134_16CRC] = {
-		.chan_spec = {
-			AD4134_CHANNEL(0, 16, 8),
-			AD4134_CHANNEL(1, 16, 8),
-			AD4134_CHANNEL(2, 16, 8),
-			AD4134_CHANNEL(3, 16, 8),
-			AD4134_CHANNEL(4, 16, 8),
-			AD4134_CHANNEL(5, 16, 8),
-			AD4134_CHANNEL(6, 16, 8),
-			AD4134_CHANNEL(7, 16, 8),
-			AD4134_CHANNEL(8, 16, 8),
-		},
-		.word_bits = 24,
-		.output_frame = AD7134_16CRC,
-	},
-	[ID_AD7134_24] = {
-		.chan_spec = {
-			AD4134_CHANNEL(0,24, 0),
-			AD4134_CHANNEL(1,24, 0),
-			AD4134_CHANNEL(2,24, 0),
-			AD4134_CHANNEL(3,24, 0),
-			AD4134_CHANNEL(4,24, 0),
-			AD4134_CHANNEL(5,24, 0),
-			AD4134_CHANNEL(6,24, 0),
-			AD4134_CHANNEL(7,24, 0),
-			AD4134_CHANNEL(8,24, 0),
-		},
-		.word_bits = 24,
-		.output_frame = AD7134_24,
-	},
-	[ID_AD7134_24CRC] = {
-		.chan_spec = {
-            AD4134_CHANNEL(0,24, 8),
-			AD4134_CHANNEL(1,24, 8),
-			AD4134_CHANNEL(2,24, 8),
-			AD4134_CHANNEL(3,24, 8),
-			AD4134_CHANNEL(4,24, 8),
-			AD4134_CHANNEL(5,24, 8),
-			AD4134_CHANNEL(6,24, 8),
-			AD4134_CHANNEL(7,24, 8),
-			AD4134_CHANNEL(8,24, 8),
-		},
-		.word_bits = 32,
-		.output_frame = AD7134_24CRC,
-	},
-};
-
 struct ad4134_state {
 	struct fwnode_handle		*spi_engine_fwnode;
 	struct regmap			*regmap;
@@ -255,15 +160,20 @@ struct ad4134_state {
 
 	struct spi_message		buf_read_msg;
 	struct spi_transfer		buf_read_xfer;
+	struct gpio_desc		*cs_gpio;
+	struct clk			*adc_clk;
 
 	unsigned int			odr;
-	unsigned int            filter_type;
-	unsigned int            frame_type;
+	unsigned int			filter_type;
 
 	unsigned long			sys_clk_rate;
 	int				refin_mv;
-	struct gpio_desc *cs_gpio;
-	const struct ad7134_chip_info *chip;
+	u32				_realbits; /*Data output frame control*/
+	u32				_wordbits;
+	u32				_shift;
+	enum ad7134_output_frame	output_frame;
+	unsigned long			channels_mask;
+	u8				num_channels;
 };
 
 static ssize_t ad7134_get_sync(struct iio_dev *indio_dev, uintptr_t private,
@@ -635,7 +545,7 @@ static int ad4134_setup(struct ad4134_state *st)
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
-					    st->chip->output_frame));
+					    st->output_frame));
 	if (ret)
 		return ret;
 
@@ -662,6 +572,49 @@ static int ad4134_setup(struct ad4134_state *st)
 		return ret;
 
 	return 0;
+}
+
+static int ad7134_adc_channel_init(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	struct iio_chan_spec *chan_array;
+	int bit, idx = 0;
+	unsigned long rsvd_mask = 0;
+
+	st->channels_mask = AD4134_CHANNEL_MASK;
+	st->num_channels = AD4134_NUM_CHANNELS;
+
+	indio_dev->num_channels = bitmap_weight(&st->channels_mask,
+						st->num_channels) + 1;
+
+	chan_array = devm_kzalloc(&indio_dev->dev,
+				  ((indio_dev->num_channels + 1) *
+					sizeof(struct iio_chan_spec)),
+				  GFP_KERNEL);
+
+	if (!chan_array)
+		return -ENOMEM;
+
+	for_each_set_bit(bit, &st->channels_mask, st->num_channels) {
+		struct iio_chan_spec *chan = chan_array + idx;
+
+		chan->type = IIO_VOLTAGE;
+		chan->ext_info = ad7134_ext_info;
+		chan->indexed = 1;
+		chan->channel = bit;
+		chan->scan_index = idx;
+		chan->scan_type.sign = 's';
+		chan->scan_type.realbits = st->_realbits;
+		chan->scan_type.storagebits = 32;
+		chan->scan_type.shift = st->_shift;
+		chan->info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+						 BIT(IIO_CHAN_INFO_SCALE);
+		chan->info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SAMP_FREQ);
+		idx++;
+	}
+
+	indio_dev->channels = chan_array;
+	return indio_dev->num_channels;
 }
 
 static const struct regmap_config ad4134_regmap_config = {
@@ -717,22 +670,19 @@ static int ad4134_probe(struct spi_device *spi)
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct iio_dev *indio_dev;
 	struct ad4134_state *st;
-	const struct ad7134_chip_info *chip;
+	struct device_node *node = spi->dev.of_node;
+	struct iio_chan_spec const *chan;
 	int ret;
+	char *s;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
-	chip = (const struct ad7134_chip_info *)device_get_match_data(&spi->dev);
-	if (!chip)
-		return -EINVAL;
-
 	st = iio_priv(indio_dev);
 
 	mutex_init(&st->lock);
 	st->spi = spi;
-	st->chip = chip;
 
 	dev_set_drvdata(dev, indio_dev);
 
@@ -741,13 +691,44 @@ static int ad4134_probe(struct spi_device *spi)
 	st->regulators[AD4134_IOVDD_REGULATOR].supply = "iovdd";
 	st->regulators[AD4134_REFIN_REGULATOR].supply = "refin";
 
+	if (!of_property_read_string(node, "ad7134,adc-frame",
+				     (const char **)&s) &&
+				     !strcmp(s, "ad7134_16")) {
+		st->_realbits = 16;
+		st->_wordbits = 16;
+		st->_shift = 0;
+		st->output_frame = AD7134_16;
+	} else if (!of_property_read_string(node, "ad7134,adc-frame",
+					    (const char **)&s) &&
+					    !strcmp(s, "ad7134_16CRC")) {
+		st->_realbits = 16;
+		st->_wordbits = 24;
+		st->_shift = 8;
+		st->output_frame = AD7134_16CRC;
+	} else if (!of_property_read_string(node, "ad7134,adc-frame",
+					    (const char **)&s) &&
+					    !strcmp(s, "ad7134_24")) {
+		st->_realbits = 24;
+		st->_wordbits = 24;
+		st->_shift = 0;
+		st->output_frame = AD7134_24;
+	} else if (!of_property_read_string(node, "ad7134,adc-frame",
+					    (const char **)&s) &&
+					    !strcmp(s, "ad7134_24CRC")) {
+		st->_realbits = 24;
+		st->_wordbits = 32;
+		st->_shift = 8;
+		st->output_frame = AD7134_24CRC;
+	}
+
 	/*
 	 * Receive buffer needs to be non-zero for the SPI engine master
 	 * to mark the transfer as a read.
 	 */
+
 	st->buf_read_xfer.rx_buf = (void *)-1;
 	st->buf_read_xfer.len = 1;
-	st->buf_read_xfer.bits_per_word = st->chip->word_bits;
+	st->buf_read_xfer.bits_per_word = st->_wordbits;
 	spi_message_init_with_transfers(&st->buf_read_msg,
 					&st->buf_read_xfer, 1);
 
@@ -755,9 +736,13 @@ static int ad4134_probe(struct spi_device *spi)
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
 
-	indio_dev->channels = st->chip->chan_spec;
+	ret = ad7134_adc_channel_init(indio_dev);
+	if (ret < 0) {
+		dev_err(&spi->dev, "Couldn't initialize the channels.\n");
+		goto error_disable_adc_clk;
+	}
+
 	indio_dev->num_channels = 8;
-	indio_dev->available_scan_masks = ad4134_channel_masks;
 	indio_dev->name = spi->dev.of_node->name;
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_HARDWARE;
 	indio_dev->setup_ops = &ad4134_buffer_ops;
@@ -786,6 +771,10 @@ static int ad4134_probe(struct spi_device *spi)
 				    st->spi_engine_fwnode);
 
 	return component_master_add_with_match(dev, &ad4134_comp_ops, match);
+
+error_disable_adc_clk:
+		clk_disable_unprepare(st->adc_clk);
+		return ret;
 }
 
 static void ad4134_remove(struct spi_device *spi)
@@ -794,24 +783,18 @@ static void ad4134_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad4134_id[] = {
-	{ "ad7134-16", (kernel_ulong_t)&ad7134_chips[ID_AD7134_16] },
-	{ "ad7134-16CRC", (kernel_ulong_t)&ad7134_chips[ID_AD7134_16CRC] },
-	{ "ad7134-24", (kernel_ulong_t)&ad7134_chips[ID_AD7134_24] },
-	{ "ad7134-24CRC", (kernel_ulong_t)&ad7134_chips[ID_AD7134_24CRC] },
-	{},
-
+	{ "ad4134", 0 },
+	{ },
 };
 MODULE_DEVICE_TABLE(spi, ad4134_id);
 
 static const struct of_device_id ad4134_of_match[] = {
-	{ .compatible = "adi,ad7134-16", .data = (struct ad7134_chip_info *)&ad7134_chips[ID_AD7134_16] },
-	{ .compatible = "adi,ad7134-16CRC", .data = (struct ad7134_chip_info *)&ad7134_chips[ID_AD7134_16CRC] },
-	{ .compatible = "adi,ad7134-24", .data = (struct ad7134_chip_info *)&ad7134_chips[ID_AD7134_24] },
-	{ .compatible = "adi,ad7134-24CRC", .data = (struct ad7134_chip_info *)&ad7134_chips[ID_AD7134_24CRC] },
+	{
+		.compatible = "adi,ad4134",
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad4134_of_match);
-
 
 static struct spi_driver ad4134_driver = {
 	.driver = {
