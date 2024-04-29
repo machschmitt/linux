@@ -220,18 +220,21 @@ static int max30208_probe(struct i2c_client *i2c)
 
 static const struct i2c_device_id max30208_id_table[] = {
 	{ "max30208" },
+	{ "max30210" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max30208_id_table);
 
 static const struct acpi_device_id max30208_acpi_match[] = {
 	{ "MAX30208" },
+	{ "MAX30210" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, max30208_acpi_match);
 
 static const struct of_device_id max30208_of_match[] = {
 	{ .compatible = "maxim,max30208" },
+	{ .compatible = "maxim,max30210" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max30208_of_match);
