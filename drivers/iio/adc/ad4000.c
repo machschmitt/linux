@@ -25,8 +25,8 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
-#define AD400X_READ_COMMAND	0x54
-#define AD400X_WRITE_COMMAND	0x14
+#define AD4000_READ_COMMAND	0x54
+#define AD4000_WRITE_COMMAND	0x14
 
 #define AD4000_CONFIG_REG_MSK	0xFF
 
@@ -229,7 +229,7 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
-	st->tx_buf = cpu_to_be16(AD400X_READ_COMMAND << BITS_PER_BYTE | val);
+	st->tx_buf = cpu_to_be16(AD4000_WRITE_COMMAND << BITS_PER_BYTE | val);
 	return spi_write(st->spi, &st->tx_buf, 2);
 }
 
@@ -244,7 +244,7 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	};
 	int ret;
 
-	st->tx_buf = cpu_to_be16(AD400X_READ_COMMAND << BITS_PER_BYTE);
+	st->tx_buf = cpu_to_be16(AD4000_READ_COMMAND << BITS_PER_BYTE);
 	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		return ret;
