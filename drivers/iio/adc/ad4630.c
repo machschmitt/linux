@@ -1326,7 +1326,8 @@ static int ad4630_config(struct ad4630_state *st)
 		return ret;
 
 	if (lane_mode == AD4630_ONE_LANE_PER_CH && !data_rate &&
-	    st->chip->modes[st->out_data].data_width == 32)
+	    (st->out_data == AD4630_16_DIFF_8_COM ||
+	     st->out_data == AD4630_24_DIFF_8_COM))
 		st->max_rate = AD4630_MAX_RATE_1_LANE;
 	else
 		st->max_rate = AD4630_MAX_RATE;
