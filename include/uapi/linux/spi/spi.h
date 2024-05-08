@@ -29,6 +29,7 @@
 #define	SPI_3WIRE_HIZ		_BITUL(15)	/* high impedance turnaround */
 #define	SPI_RX_CPHA_FLIP	_BITUL(16)	/* flip CPHA on Rx only xfer */
 #define SPI_MOSI_IDLE_LOW	_BITUL(17)	/* leave mosi line low when idle */
+#define SPI_MOSI_IDLE_HIGH	_BITUL(18)	/* leave mosi line high when idle */
 
 /*
  * All the bits defined above should be covered by SPI_MODE_USER_MASK.
