@@ -569,6 +569,10 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, PTR_ERR(st->cnv_gpio),
 				     "Failed to get CNV GPIO");
 
+	spi->mode = SPI_MODE_1 | SPI_MOSI_IDLE_HIGH;
+	if(spi_setup(spi))
+		dev_warn(&st->spi->dev, "Failed to config SPI controller mode\n");
+
 	ret = ad4000_config(st);
 	if (ret < 0)
 		dev_dbg(&st->spi->dev, "Failed to config device\n");
