@@ -626,6 +626,15 @@ static int ad4000_probe(struct spi_device *spi)
 		if (ret)
 			return ret;
 
+		/*
+		 * In "3-wire mode", the ADC SDI line must be kept high when
+		 * data is not being clocked out of the controller.
+		 * Request the SPI controller to make MOSI idle high.
+		 */
+		spi->mode = SPI_MODE_0 | SPI_MOSI_IDLE_HIGH;
+		if (spi_setup(spi))
+			dev_warn(&st->spi->dev, "SPI controller setup failed\n");
+
 		break;
 	}
 
