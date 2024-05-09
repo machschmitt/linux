@@ -74,6 +74,8 @@ static unsigned bitbang_txrx_8(
 
 		if (tx)
 			word = *tx++;
+		else
+			word = (spi->mode & SPI_MOSI_IDLE_HIGH) ? 0xFF : 0;
 		word = txrx_word(spi, ns, word, bits, flags);
 		if (rx)
 			*rx++ = word;
@@ -108,6 +110,8 @@ static unsigned bitbang_txrx_16(
 
 		if (tx)
 			word = *tx++;
+		else
+			word = (spi->mode & SPI_MOSI_IDLE_HIGH) ? 0xFFFF : 0;
 		word = txrx_word(spi, ns, word, bits, flags);
 		if (rx)
 			*rx++ = word;
@@ -142,6 +146,8 @@ static unsigned bitbang_txrx_32(
 
 		if (tx)
 			word = *tx++;
+		else
+			word = (spi->mode & SPI_MOSI_IDLE_HIGH) ? 0xFFFFFFFF : 0;
 		word = txrx_word(spi, ns, word, bits, flags);
 		if (rx)
 			*rx++ = word;
