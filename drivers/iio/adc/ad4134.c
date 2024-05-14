@@ -37,10 +37,6 @@
 
 #define AD4134_DATA_PACKET_CONFIG_REG		0x11
 #define AD4134_DATA_PACKET_CONFIG_FRAME_MASK	GENMASK(5, 4)
-#define AD4134_DATA_FRAME_24BIT_CRC		0b11
-#define AD4134_DATA_FRAME_24BIT		    0b10
-#define AD4134_DATA_FRAME_16BIT_CRC		0b01
-#define AD4134_DATA_FRAME_16BIT			0b00
 
 #define AD4134_DIG_IF_CFG_REG			0x12
 #define AD4134_DIF_IF_CFG_FORMAT_MASK		GENMASK(1, 0)
@@ -142,6 +138,7 @@ struct ad4134_state {
 	struct spi_device		*spi;
 	struct spi_device		*spi_engine;
 	struct pwm_device		*odr_pwm;
+	struct pwm_device		*trigger_pwm;
 	struct regulator_bulk_data	regulators[AD4134_NUM_REGULATORS];
 
 	/*
@@ -228,10 +225,8 @@ static int ad7134_get_dig_fil(struct iio_dev *dev,
 	if (ret)
 		return ret;
 
-    printk("ad4134_channel: %d", chan->channel);
-	printk("ad4134_readval: %d", readval);
 
-		return FIELD_GET(AD4134_CHAN_DIG_FILTER_SEL_CONFIG_FRAME_MASK_CH0, readval);
+	return FIELD_GET(AD4134_CHAN_DIG_FILTER_SEL_CONFIG_FRAME_MASK_CH0, readval);
 }
 
 static ssize_t ad7134_ext_info_read(struct iio_dev *indio_dev,
@@ -241,14 +236,12 @@ static ssize_t ad7134_ext_info_read(struct iio_dev *indio_dev,
 
 	int ret = -EINVAL;
 	long long val;
-    struct pwm_state state;
 	struct ad4134_state *st = iio_priv(indio_dev);
 
     mutex_lock(&st->lock);
 
 	switch (private) {
 		case ODR_SET_FREQ:
-		   printk("ad4134_in_case");
 			val = st->odr;
 	    break;
 
@@ -265,16 +258,21 @@ static int ad4134_samp_freq_avail[] = { AD4134_ODR_MIN, 1, AD4134_ODR_MAX };
 
 static int _ad4134_set_odr(struct ad4134_state *st, unsigned int odr)
 {
-	struct pwm_state state;
+	struct pwm_state state_odr;
+	struct pwm_state state_trigger;
 	int ret;
+	u64 ref_clk_period_ps = DIV_ROUND_CLOSEST_ULL(PICO, st->sys_clk_rate);
 
 	if (!st->odr_pwm)
 		return 0;
 
+	if (!st->trigger_pwm)
+		return 0;
+
 	if (odr < AD4134_ODR_MIN || odr > AD4134_ODR_MAX)
 		return -EINVAL;
-    
-	pwm_get_state(st->odr_pwm, &state);
+
+	pwm_get_state(st->odr_pwm, &state_odr);
 
 	/*
 	 * fDIGCLK = fSYSCLK / 2
@@ -282,15 +280,29 @@ static int _ad4134_set_odr(struct ad4134_state *st, unsigned int odr)
 	 * tODR_HIGH_TIME = 3 * tDIGCLK
 	 * See datasheet page 10, Table 3. Data Interface Timing with Gated DCLK.
 	 */
-	state.duty_cycle = DIV_ROUND_CLOSEST_ULL(PICO * 6, st->sys_clk_rate) - 1;
-	state.period = DIV_ROUND_CLOSEST_ULL(PICO, odr);
-	state.time_unit = PWM_UNIT_PSEC;
+	state_odr.duty_cycle = DIV_ROUND_CLOSEST_ULL(PICO * 13, st->sys_clk_rate);
+	state_odr.period = DIV_ROUND_CLOSEST_ULL(PICO, odr);
+	state_odr.time_unit = PWM_UNIT_PSEC;
 
-	ret = pwm_apply_state(st->odr_pwm, &state);
+	ret = pwm_apply_state(st->odr_pwm, &state_odr);
 	if (ret)
 		return ret;
 
 	st->odr = odr;
+
+	pwm_get_state(st->trigger_pwm, &state_trigger);
+
+	printk("ad4134_before_state_phase: %llu", state_trigger.phase);
+
+    //state_trigger.duty_cycle = DIV_ROUND_CLOSEST_ULL(PICO * 6, st->sys_clk_rate) - 1;
+	state_trigger.duty_cycle = ref_clk_period_ps;
+	state_trigger.period = DIV_ROUND_CLOSEST_ULL(PICO, odr);
+	state_trigger.time_unit = PWM_UNIT_PSEC;
+	state_trigger.phase = state_odr.duty_cycle - DIV_ROUND_CLOSEST_ULL(PICO * 10, st->sys_clk_rate) ;
+	printk("ad4134_state_phase: %llu", state_trigger.phase);
+	ret = pwm_apply_state(st->trigger_pwm, &state_trigger);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -301,6 +313,9 @@ static int ad4134_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 	int ret;
 
 	if (IS_ERR(st->odr_pwm))
+		return 0;
+
+	if (IS_ERR(st->trigger_pwm))
 		return 0;
 
 	ret = iio_device_claim_direct_mode(indio_dev);
@@ -417,10 +432,6 @@ static const struct iio_info ad4134_info = {
 	.debugfs_reg_access = ad4134_reg_access,
 };
 
-static const unsigned long ad4134_channel_masks[] = {
-	GENMASK(AD4134_NUM_CHANNELS - 1, 0),
-	0,
-};
 
 static const unsigned long ad4134_duo_channel_masks[] = {
 	GENMASK(AD4134_DUO_NUM_CHANNELS - 1, 0),
@@ -431,7 +442,8 @@ static int ad4134_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
 	int ret;
-
+	//enable_pwm
+	//pwm_enable(st->odr_pwm);
 	ret = spi_engine_offload_load_msg(st->spi_engine, &st->buf_read_msg);
 	if (ret)
 		return ret;
@@ -446,6 +458,8 @@ static int ad4134_buffer_predisable(struct iio_dev *indio_dev)
 	struct ad4134_state *st = iio_priv(indio_dev);
 
 	spi_engine_offload_enable(st->spi_engine, false);
+	//disable_pwm
+	//pwm_disable(st->odr_pwm);
 
 	return 0;
 }
@@ -491,7 +505,9 @@ static int ad4134_setup(struct ad4134_state *st)
 	struct clk *clk;
 	int ret;
 
-	clk = devm_clk_get(dev, "sys_clk");
+	mutex_lock(&st->lock);
+
+	clk = devm_clk_get(dev, "cnv_ext_clk");
 	if (IS_ERR(clk))
 		return dev_err_probe(dev, PTR_ERR(clk), "Failed to find SYS clock\n");
 
@@ -508,6 +524,8 @@ static int ad4134_setup(struct ad4134_state *st)
 	if (!st->sys_clk_rate)
 		return dev_err_probe(dev, -EINVAL, "Failed to get SYS clock rate\n");
 
+	st->sys_clk_rate = clk_round_rate(clk, 100000000);
+	printk("ad4134_sys_clk_round_rate %lu", st->sys_clk_rate);
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(st->regulators),
 				      st->regulators);
 	if (ret)
@@ -517,7 +535,7 @@ static int ad4134_setup(struct ad4134_state *st)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable regulators\n");
 
-	ret = regulator_get_voltage(st->regulators[AD4134_REFIN_REGULATOR].consumer);\
+	ret = regulator_get_voltage(st->regulators[AD4134_REFIN_REGULATOR].consumer);
 	if (ret < 0)
 		return ret;
 
@@ -555,9 +573,24 @@ static int ad4134_setup(struct ad4134_state *st)
 		if (ret)
 			return dev_err_probe(dev, ret,
 					"Failed to add ODR PWM disable action\n");
+
+		st->trigger_pwm = devm_pwm_get(dev, "trigger_pwm");
+		if (IS_ERR(st->trigger_pwm))
+			return dev_err_probe(dev, "Failed to find trigger PWM\n");
+
+		ret = devm_add_action_or_reset(dev, ad4134_disable_pwm, st->trigger_pwm);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to add ODR PWM disable action\n");
+
+		fsleep(3000);
+		ret = pwm_enable(st->trigger_pwm);
+		if (ret)
+			return dev_err_probe(dev, "Failed to enable ODR PWM\n");
 	} else {
 		dev_warn(dev, "Failed to find ODR PWM\n");
 	}
+
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
@@ -588,6 +621,8 @@ static int ad4134_setup(struct ad4134_state *st)
 	if (ret)
 		return ret;
 
+	mutex_unlock(&st->lock);
+
 	return 0;
 }
 
@@ -596,7 +631,6 @@ static int ad7134_adc_channel_init(struct iio_dev *indio_dev)
 	struct ad4134_state *st = iio_priv(indio_dev);
 	struct iio_chan_spec *chan_array;
 	int bit, idx = 0;
-	unsigned long rsvd_mask = 0;
 
 	st->channels_mask = AD4134_CHANNEL_MASK;
 	st->num_channels = AD4134_DUO_NUM_CHANNELS;
@@ -687,7 +721,6 @@ static int ad4134_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	struct ad4134_state *st;
 	struct device_node *node = spi->dev.of_node;
-	struct iio_chan_spec const *chan;
 	int ret;
 	char *s;
 
@@ -778,6 +811,7 @@ static int ad4134_probe(struct spi_device *spi)
 	indio_dev->setup_ops = &ad4134_buffer_ops;
 	indio_dev->info = &ad4134_info;
 
+	dev_info(&spi->dev, "ad4134_probe_before_setup");
 	ret = ad4134_setup(st);
 	if (ret)
 		return ret;
