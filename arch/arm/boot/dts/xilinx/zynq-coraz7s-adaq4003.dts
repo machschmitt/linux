@@ -75,14 +75,6 @@
 			ref-supply = <&adc_vref>;
 			adi,high-z-input;
 			adi,gain-milli = <454>;
-
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			channel@0 {
-				reg = <0>;
-				diff-channels = <0 1>;
-			};
 		};
 	};
 
