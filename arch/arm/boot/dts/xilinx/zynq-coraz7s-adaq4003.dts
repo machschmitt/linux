@@ -2,10 +2,10 @@
 /*
  * Analog Devices ADAQ4003
  *
- * hdl_project: <pulsar_adc_pmdz>
+ * hdl_project: <pulsar_adc>
  * board_revision: <A>
  *
- * Copyright (C) 2023 Analog Devices Inc.
+ * Copyright (C) 2024 Analog Devices Inc.
  */
 /dts-v1/;
 #include "zynq-coraz7s.dtsi"
@@ -13,11 +13,27 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	vref: regulator-vref {
+	adc_vref: regulator-vref {
 		compatible = "regulator-fixed";
-		regulator-name = "fixed-supply";
+		regulator-name = "EVAL 5V Vref";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
+	adc_vdd: regulator-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "Eval VDD supply";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	adc_vio: regulator-vio {
+		compatible = "regulator-fixed";
+		regulator-name = "Eval VIO supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
 };
@@ -54,7 +70,11 @@
 			dma-names = "rx";
 			pwms = <&adc_trigger 0 0>;
 			pwm-names = "cnv";
-			vref-supply = <&vref>;
+			vdd-supply = <&adc_vdd>;
+			vio-supply = <&adc_vio>;
+			ref-supply = <&adc_vref>;
+			adi,high-z-input;
+			adi,gain-milli = <454>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
