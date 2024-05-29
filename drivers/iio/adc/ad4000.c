@@ -99,6 +99,19 @@ enum ad4000_ids {
 	ID_ADAQ4003,
 };
 
+enum ad4000_spi_mode {
+	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
+	AD4000_SPI_MODE_DEFAULT,
+	/* datasheet calls this "3-wire mode" (not related to SPI_3WIRE!) */
+	AD4000_SPI_MODE_SINGLE,
+};
+
+/* maps adi,spi-mode property value to enum */
+static const char * const ad4000_spi_modes[] = {
+	[AD4000_SPI_MODE_DEFAULT] = "",
+	[AD4000_SPI_MODE_SINGLE] = "single",
+};
+
 struct ad4000_chip_info {
 	const char *dev_name;
 	struct iio_chan_spec chan_spec;
@@ -177,6 +190,7 @@ struct ad4000_state {
 	struct spi_transfer xfers[2];
 	struct spi_message msg;
 	int vref;
+	enum ad4000_spi_mode spi_mode;
 	bool span_comp;
 	bool turbo_mode;
 	int gain_milli;
@@ -254,23 +268,6 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	return ret;
 }
 
-static int ad4000_read_sample(struct ad4000_state *st,
-			      const struct iio_chan_spec *chan)
-{
-	struct spi_transfer t[] = {
-		{
-			.rx_buf = &st->scan.data,
-			.len = BITS_TO_BYTES(chan->scan_type.storagebits),
-			.delay = {
-				.value = AD4000_TQUIET2_NS,
-				.unit = SPI_DELAY_UNIT_NSECS,
-			},
-		},
-	};
-
-	return spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
-}
-
 static void ad4000_unoptimize_msg(void *msg)
 {
 	spi_unoptimize_message(msg);
@@ -318,10 +315,20 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 					&st->msg);
 }
 
-static int ad4000_read_sample_3wire_mode(struct ad4000_state *st,
-					  const struct iio_chan_spec *chan)
+static int ad4000_convert_and_acquire(struct ad4000_state *st)
 {
-	return spi_sync(st->spi, &st->msg);
+	int ret;
+
+	/*
+	 * In 4-wire mode, the CNV line is held high for the entire conversion
+	 * and acquisition process. In other modes st->cnv_gpio is NULL and is
+	 * ignored (CS is wired to CNV in those cases).
+	 */
+	gpiod_set_value_cansleep(st->cnv_gpio, 1);
+	ret = spi_sync(st->spi, &st->msg);
+	gpiod_set_value_cansleep(st->cnv_gpio, 0);
+
+	return ret;
 }
 
 static int ad4000_single_conversion(struct iio_dev *indio_dev,
@@ -331,13 +338,7 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	u32 sample;
 	int ret;
 
-	gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_HIGH);
-
-	ret = ad4000_read_sample(st, chan);
-	if (ret)
-		return ret;
-
-	gpiod_set_value_cansleep(st->cnv_gpio, GPIOD_OUT_LOW);
+	ret = ad4000_convert_and_acquire(st);
 
 	if (chan->scan_type.storagebits > 16)
 		sample = be32_to_cpu(st->scan.data.sample_buf32);
@@ -458,13 +459,9 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	struct ad4000_state *st = iio_priv(indio_dev);
 	int ret;
 
-	gpiod_set_value(st->cnv_gpio, GPIOD_OUT_HIGH);
-
-	ret = ad4000_read_sample(st, &indio_dev->channels[0]);
+	ret = ad4000_convert_and_acquire(st);
 	if (ret < 0)
 		goto err_out;
-
-	gpiod_set_value(st->cnv_gpio, GPIOD_OUT_LOW);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan,
 					   iio_get_time_ns(indio_dev));
@@ -568,6 +565,29 @@ static int ad4000_probe(struct spi_device *spi)
 	if (IS_ERR(st->cnv_gpio))
 		return dev_err_probe(&spi->dev, PTR_ERR(st->cnv_gpio),
 				     "Failed to get CNV GPIO");
+
+	ret = device_property_match_property_string(&spi->dev, "adi,spi-mode",
+						    ad4000_spi_modes,
+						    ARRAY_SIZE(ad4000_spi_modes));
+	/* Default to 4-wire mode if adi,spi-mode property is not present */
+	if (ret == -EINVAL)
+		st->spi_mode = AD4000_SPI_MODE_DEFAULT;
+	else if (ret < 0)
+		return dev_err_probe(&spi->dev, ret,
+				     "getting adi,spi-mode property failed\n");
+	else
+		st->spi_mode = ret;
+
+	switch (st->spi_mode) {
+	case AD4000_SPI_MODE_DEFAULT:
+		break;
+	case AD4000_SPI_MODE_SINGLE:
+		ret = ad4000_prepare_3wire_mode_message(st, &chip->chan_spec);
+		if (ret)
+			return ret;
+
+		break;
+	}
 
 	ret = ad4000_config(st);
 	if (ret < 0)
