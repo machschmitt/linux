@@ -275,15 +275,15 @@ static void ad4000_unoptimize_msg(void *msg)
 
 /*
  * This executes a data sample transfer for when the device connections are
- * in "3-wire" mode, selected by the seting the"single" pincontrol state.
- * In this connection mode, the ADC SDI pin is connected to VIO and ADC CNV pin
- * is connected either to a SPI controller CS or to a GPIO.
+ * in "3-wire" mode, selected by setting the adi,spi-mode device tree property
+ * to "single". In this connection mode, the ADC SDI pin is connected to MOSI or
+ * to VIO and ADC CNV pin is connected either to a SPI controller CS or to a GPIO.
  * AD4000 series of devices initiate conversions on the rising edge of CNV pin.
  *
  * If the CNV pin is connected to an SPI controller CS line (which is by default
  * active low), the ADC readings would have a latency (delay) of one read.
- * Moreover, since read_sample is also called for filling the buffer on triggered
- * buffer mode, the timestamps of buffer readings would also be disarranged.
+ * Moreover, since we also do ADC sampling for filling the buffer on triggered
+ * buffer mode, the timestamps of buffer readings would be disarranged.
  * To prevent the read latency and reduce the time discrepancy between the
  * sample read request and the time of actual sampling by the ADC, do a
  * preparatory transfer to pulse the CS/CNV line.
