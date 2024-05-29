@@ -315,6 +315,42 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 					&st->msg);
 }
 
+/*
+ * This executes a data sample transfer for when the device connections are
+ * in "4-wire" mode, selected when the adi,spi-mode device tree
+ * property is absent or empty. In this connection mode, the controller CS pin
+ * is connected to ADC SDI pin and a GPIO is connected to ADC CNV pin.
+ * The GPIO connected to ADC CNV pin is set outside of the SPI transfer.
+ */
+static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
+					     const struct iio_chan_spec *chan)
+{
+	unsigned int cnv_to_sdi_time = st->turbo_mode ? AD4000_TQUIET1_NS
+						      : AD4000_TCONV_NS;
+	struct spi_transfer *xfers = st->xfers;
+	int ret;
+
+	/*
+	 * Dummy transfer to cause enough delay between CNV going high and SDI
+	 * going low.
+	 */
+	xfers[0].cs_off = 1;
+	xfers[0].delay.value = cnv_to_sdi_time;
+	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	xfers[1].rx_buf = &st->scan.data;
+	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
+
+	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
+
+	ret = spi_optimize_message(st->spi, &st->msg);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(&st->spi->dev, ad4000_unoptimize_msg,
+					&st->msg);
+}
+
 static int ad4000_convert_and_acquire(struct ad4000_state *st)
 {
 	int ret;
@@ -580,6 +616,10 @@ static int ad4000_probe(struct spi_device *spi)
 
 	switch (st->spi_mode) {
 	case AD4000_SPI_MODE_DEFAULT:
+		ret = ad4000_prepare_4wire_mode_message(st, &chip->chan_spec);
+		if (ret)
+			return ret;
+
 		break;
 	case AD4000_SPI_MODE_SINGLE:
 		ret = ad4000_prepare_3wire_mode_message(st, &chip->chan_spec);
