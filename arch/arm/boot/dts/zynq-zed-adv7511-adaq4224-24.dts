@@ -140,7 +140,7 @@
 					<&gpio0 88 GPIO_ACTIVE_HIGH>;
 			adi,lane-mode = <1>;
 			adi,clock-mode = <0>;
-			adi,out-data-mode = <3>;
+			adi,out-data-mode = <0>;
 			adi,spi-trigger;
 			clocks = <&cnv_ext_clk>;
 			clock-names = "trigger_clock";
