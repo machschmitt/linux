@@ -730,7 +730,6 @@ static struct spi_driver ad4000_driver = {
 };
 module_spi_driver(ad4000_driver);
 
-MODULE_AUTHOR("Mircea Caprioru <mircea.caprioru@analog.com>");
 MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD4000 ADC driver");
 MODULE_LICENSE("GPL");
