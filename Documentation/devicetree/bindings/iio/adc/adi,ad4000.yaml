@@ -66,9 +66,9 @@ properties:
       * single: The datasheet calls this "3-wire mode". (NOTE: The datasheet's
         definition of 3-wire mode is NOT at all related to the standard
         spi-3wire property!) This mode is often used when the ADC is the only
-        device on the bus. In this mode, SDI is tied to VIO, and the CNV line
-        can be connected to the CS line of the SPI controller or to a GPIO, in
-        which case the CS line of the controller is unused.
+        device on the bus. In this mode, SDI is connected to MOSI or to VIO, and
+        the CNV line can be connected to the CS line of the SPI controller or to
+        a GPIO, in which case the CS line of the controller is unused.
       * chain: The datasheet calls this "chain mode". This mode is used to save
         on wiring when multiple ADCs are used. In this mode, the SDI line of
         one chip is tied to the SDO of the next chip in the chain and the SDI of
