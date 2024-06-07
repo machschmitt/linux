@@ -24,23 +24,36 @@ $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:
-    enum:
-      - adi,ad4000
-      - adi,ad4001
-      - adi,ad4002
-      - adi,ad4003
-      - adi,ad4004
-      - adi,ad4005
-      - adi,ad4006
-      - adi,ad4007
-      - adi,ad4008
-      - adi,ad4010
-      - adi,ad4011
-      - adi,ad4020
-      - adi,ad4021
-      - adi,ad4022
-      - adi,adaq4001
-      - adi,adaq4003
+    oneOf:
+      - const: adi,ad4000
+      - items:
+          - enum:
+              - adi,ad4004
+              - adi,ad4008
+          - const: adi,ad4000
+      - const: adi,ad4001
+      - items:
+          - enum:
+              - adi,ad4005
+          - const: adi,ad4001
+      - const: adi,ad4002
+      - items:
+          - enum:
+              - adi,ad4006
+              - adi,ad4010
+          - const: adi,ad4002
+      - const: adi,ad4003
+      - items:
+          - enum:
+              - adi,ad4007
+              - adi,ad4011
+          - const: adi,ad4003
+      - const: adi,ad4020
+      - items:
+          - enum:
+              - adi,ad4021
+              - adi,ad4022
+          - const: adi,ad4020
 
   reg:
     maxItems: 1
