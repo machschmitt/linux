@@ -196,12 +196,12 @@ examples:
         adc@0 {
             compatible = "adi,adaq4003";
             reg = <0>;
-            adi,spi-mode = "single";
             spi-max-frequency = <80000000>;
             vdd-supply = <&supply_1_8V>;
             vio-supply = <&supply_1_8V>;
             ref-supply = <&supply_5V>;
             adi,high-z-input;
             adi,gain-milli = <454>;
+            adi,spi-mode = "single";
         };
     };
