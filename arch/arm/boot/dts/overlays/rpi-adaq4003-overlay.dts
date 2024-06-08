@@ -8,12 +8,28 @@
 };
 
 &{/} {
-	adc_vref: fixed-regulator@1 {
+	adc_vref: regulator-vref {
 		compatible = "regulator-fixed";
-		regulator-name = "fixed-supply";
+		regulator-name = "EVAL 5V Vref";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	adc_vdd: regulator-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "Eval VDD supply";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	adc_vio: regulator-vio {
+		compatible = "regulator-fixed";
+		regulator-name = "Eval VIO supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 };
 
@@ -22,16 +38,17 @@
 
 	adaq4003@0 {
 		compatible = "adi,adaq4003";
-		reg = <0x0>;
-
-		spi-max-frequency = <100000000>;
-
-		vref-supply = <&adc_vref>;
-
-		channel@0 {
-			reg = <0>;
-			diff-channels = <0 1>;
-		};
+		reg = <0>;
+		//spi-max-frequency = <80000000>; //doesn't work
+		//spi-max-frequency = <80000>; //sclk doesn't look good
+		//spi-max-frequency = <10000>; //sclk looks good
+		spi-max-frequency = <1000>; //sclk always looks great
+		vdd-supply = <&adc_vdd>;
+		vio-supply = <&adc_vio>;
+		ref-supply = <&adc_vref>;
+		adi,high-z-input;
+		adi,gain-milli = <454>;
+		adi,spi-mode = "single";
 	};
 };
 
