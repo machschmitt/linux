@@ -80,25 +80,6 @@
 		},							\
 	}								\
 
-enum ad4000_ids {
-	ID_AD4000,
-	ID_AD4001,
-	ID_AD4002,
-	ID_AD4003,
-	ID_AD4004,
-	ID_AD4005,
-	ID_AD4006,
-	ID_AD4007,
-	ID_AD4008,
-	ID_AD4010,
-	ID_AD4011,
-	ID_AD4020,
-	ID_AD4021,
-	ID_AD4022,
-	ID_ADAQ4001,
-	ID_ADAQ4003,
-};
-
 enum ad4000_spi_mode {
 	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
 	AD4000_SPI_MODE_DEFAULT,
@@ -117,71 +98,84 @@ struct ad4000_chip_info {
 	struct iio_chan_spec chan_spec;
 };
 
-static const struct ad4000_chip_info ad4000_chips[] = {
-	[ID_AD4000] = {
-		.dev_name = "ad4000",
-		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
-	},
-	[ID_AD4001] = {
-		.dev_name = "ad4001",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
-	},
-	[ID_AD4002] = {
-		.dev_name = "ad4002",
-		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
-	},
-	[ID_AD4003] = {
-		.dev_name = "ad4003",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
-	},
-	[ID_AD4004] = {
-		.dev_name = "ad4004",
-		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
-	},
-	[ID_AD4005] = {
-		.dev_name = "ad4005",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
-	},
-	[ID_AD4006] = {
-		.dev_name = "ad4006",
-		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
-	},
-	[ID_AD4007] = {
-		.dev_name = "ad4007",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
-	},
-	[ID_AD4008] = {
-		.dev_name = "ad4008",
-		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
-	},
-	[ID_AD4010] = {
-		.dev_name = "ad4010",
-		.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
-	},
-	[ID_AD4011] = {
-		.dev_name = "ad4011",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
-	},
-	[ID_AD4020] = {
-		.dev_name = "ad4020",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
-	},
-	[ID_AD4021] = {
-		.dev_name = "ad4021",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
-	},
-	[ID_AD4022] = {
-		.dev_name = "ad4022",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
-	},
-	[ID_ADAQ4001] = {
-		.dev_name = "adaq4001",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
-	},
-	[ID_ADAQ4003] = {
-		.dev_name = "adaq4003",
-		.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
-	},
+static const struct ad4000_chip_info ad4000_chip_info = {
+	.dev_name = "ad4000",
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
+};
+
+static const struct ad4000_chip_info ad4001_chip_info = {
+	.dev_name = "ad4001",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
+};
+
+static const struct ad4000_chip_info ad4002_chip_info = {
+	.dev_name = "ad4002",
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
+};
+
+static const struct ad4000_chip_info ad4003_chip_info = {
+	.dev_name = "ad4003",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
+};
+
+static const struct ad4000_chip_info ad4004_chip_info = {
+	.dev_name = "ad4004",
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
+};
+
+static const struct ad4000_chip_info ad4005_chip_info = {
+	.dev_name = "ad4005",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
+};
+
+static const struct ad4000_chip_info ad4006_chip_info = {
+	.dev_name = "ad4006",
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
+};
+
+static const struct ad4000_chip_info ad4007_chip_info = {
+	.dev_name = "ad4007",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
+};
+
+static const struct ad4000_chip_info ad4008_chip_info = {
+	.dev_name = "ad4008",
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
+};
+
+static const struct ad4000_chip_info ad4010_chip_info = {
+	.dev_name = "ad4010",
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
+};
+
+static const struct ad4000_chip_info ad4011_chip_info = {
+	.dev_name = "ad4011",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
+};
+
+static const struct ad4000_chip_info ad4020_chip_info = {
+	.dev_name = "ad4020",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
+};
+
+static const struct ad4000_chip_info ad4021_chip_info = {
+	.dev_name = "ad4021",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
+};
+
+static const struct ad4000_chip_info ad4022_chip_info = {
+	.dev_name = "ad4022",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
+};
+
+static const struct ad4000_chip_info adaq4001_chip_info = {
+	.dev_name = "adaq4001",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
+};
+
+static const struct ad4000_chip_info adaq4003_chip_info = {
+	.dev_name = "adaq4003",
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
 };
 
 struct ad4000_state {
@@ -678,43 +672,43 @@ static int ad4000_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad4000_id[] = {
-	{ "ad4000", (kernel_ulong_t)&ad4000_chips[ID_AD4000] },
-	{ "ad4001", (kernel_ulong_t)&ad4000_chips[ID_AD4001] },
-	{ "ad4002", (kernel_ulong_t)&ad4000_chips[ID_AD4002] },
-	{ "ad4003", (kernel_ulong_t)&ad4000_chips[ID_AD4003] },
-	{ "ad4004", (kernel_ulong_t)&ad4000_chips[ID_AD4004] },
-	{ "ad4005", (kernel_ulong_t)&ad4000_chips[ID_AD4005] },
-	{ "ad4006", (kernel_ulong_t)&ad4000_chips[ID_AD4006] },
-	{ "ad4007", (kernel_ulong_t)&ad4000_chips[ID_AD4007] },
-	{ "ad4008", (kernel_ulong_t)&ad4000_chips[ID_AD4008] },
-	{ "ad4010", (kernel_ulong_t)&ad4000_chips[ID_AD4010] },
-	{ "ad4011", (kernel_ulong_t)&ad4000_chips[ID_AD4011] },
-	{ "ad4020", (kernel_ulong_t)&ad4000_chips[ID_AD4020] },
-	{ "ad4021", (kernel_ulong_t)&ad4000_chips[ID_AD4021] },
-	{ "ad4022", (kernel_ulong_t)&ad4000_chips[ID_AD4022] },
-	{ "adaq4001", (kernel_ulong_t)&ad4000_chips[ID_ADAQ4001] },
-	{ "adaq4003", (kernel_ulong_t)&ad4000_chips[ID_ADAQ4003] },
+	{ "ad4000", (kernel_ulong_t)&ad4000_chip_info },
+	{ "ad4001", (kernel_ulong_t)&ad4001_chip_info },
+	{ "ad4002", (kernel_ulong_t)&ad4002_chip_info },
+	{ "ad4003", (kernel_ulong_t)&ad4003_chip_info },
+	{ "ad4004", (kernel_ulong_t)&ad4004_chip_info },
+	{ "ad4005", (kernel_ulong_t)&ad4005_chip_info },
+	{ "ad4006", (kernel_ulong_t)&ad4006_chip_info },
+	{ "ad4007", (kernel_ulong_t)&ad4007_chip_info },
+	{ "ad4008", (kernel_ulong_t)&ad4008_chip_info },
+	{ "ad4010", (kernel_ulong_t)&ad4010_chip_info },
+	{ "ad4011", (kernel_ulong_t)&ad4011_chip_info },
+	{ "ad4020", (kernel_ulong_t)&ad4020_chip_info },
+	{ "ad4021", (kernel_ulong_t)&ad4021_chip_info },
+	{ "ad4022", (kernel_ulong_t)&ad4022_chip_info },
+	{ "adaq4001", (kernel_ulong_t)&adaq4001_chip_info },
+	{ "adaq4003", (kernel_ulong_t)&adaq4003_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4000_id);
 
 static const struct of_device_id ad4000_of_match[] = {
-	{ .compatible = "adi,ad4000", .data = &ad4000_chips[ID_AD4000] },
-	{ .compatible = "adi,ad4001", .data = &ad4000_chips[ID_AD4001] },
-	{ .compatible = "adi,ad4002", .data = &ad4000_chips[ID_AD4002] },
-	{ .compatible = "adi,ad4003", .data = &ad4000_chips[ID_AD4003] },
-	{ .compatible = "adi,ad4004", .data = &ad4000_chips[ID_AD4004] },
-	{ .compatible = "adi,ad4005", .data = &ad4000_chips[ID_AD4005] },
-	{ .compatible = "adi,ad4006", .data = &ad4000_chips[ID_AD4006] },
-	{ .compatible = "adi,ad4007", .data = &ad4000_chips[ID_AD4007] },
-	{ .compatible = "adi,ad4008", .data = &ad4000_chips[ID_AD4008] },
-	{ .compatible = "adi,ad4010", .data = &ad4000_chips[ID_AD4010] },
-	{ .compatible = "adi,ad4011", .data = &ad4000_chips[ID_AD4011] },
-	{ .compatible = "adi,ad4020", .data = &ad4000_chips[ID_AD4020] },
-	{ .compatible = "adi,ad4021", .data = &ad4000_chips[ID_AD4021] },
-	{ .compatible = "adi,ad4022", .data = &ad4000_chips[ID_AD4022] },
-	{ .compatible = "adi,adaq4001", .data = &ad4000_chips[ID_ADAQ4001] },
-	{ .compatible = "adi,adaq4003", .data = &ad4000_chips[ID_ADAQ4003] },
+	{ .compatible = "adi,ad4000", .data = &ad4000_chip_info },
+	{ .compatible = "adi,ad4001", .data = &ad4001_chip_info },
+	{ .compatible = "adi,ad4002", .data = &ad4002_chip_info },
+	{ .compatible = "adi,ad4003", .data = &ad4003_chip_info },
+	{ .compatible = "adi,ad4004", .data = &ad4004_chip_info },
+	{ .compatible = "adi,ad4005", .data = &ad4005_chip_info },
+	{ .compatible = "adi,ad4006", .data = &ad4006_chip_info },
+	{ .compatible = "adi,ad4007", .data = &ad4007_chip_info },
+	{ .compatible = "adi,ad4008", .data = &ad4008_chip_info },
+	{ .compatible = "adi,ad4010", .data = &ad4010_chip_info },
+	{ .compatible = "adi,ad4011", .data = &ad4011_chip_info },
+	{ .compatible = "adi,ad4020", .data = &ad4020_chip_info },
+	{ .compatible = "adi,ad4021", .data = &ad4021_chip_info },
+	{ .compatible = "adi,ad4022", .data = &ad4022_chip_info },
+	{ .compatible = "adi,adaq4001", .data = &adaq4001_chip_info },
+	{ .compatible = "adi,adaq4003", .data = &adaq4003_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad4000_of_match);
