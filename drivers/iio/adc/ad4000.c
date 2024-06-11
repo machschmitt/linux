@@ -602,8 +602,9 @@ static int ad4000_probe(struct spi_device *spi)
 		 * Request the SPI controller to make MOSI idle high.
 		 */
 		spi->mode = SPI_MODE_0 | SPI_MOSI_IDLE_HIGH;
-		if (spi_setup(spi))
-			dev_warn(&st->spi->dev, "SPI controller setup failed\n");
+		ret = spi_setup(spi);
+		if (ret < 0)
+			return ret;
 
 		ret = ad4000_config(st);
 		if (ret < 0)
