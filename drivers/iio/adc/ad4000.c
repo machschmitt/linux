@@ -536,15 +536,9 @@ static int ad4000_config(struct ad4000_state *st)
 	return ad4000_write_reg(st, reg_val);
 }
 
-static void ad4000_regulator_disable(void *reg)
-{
-	regulator_disable(reg);
-}
-
 static int ad4000_probe(struct spi_device *spi)
 {
 	const struct ad4000_chip_info *chip;
-	struct regulator *vref_reg;
 	struct iio_dev *indio_dev;
 	struct ad4000_state *st;
 	int ret;
@@ -568,24 +562,10 @@ static int ad4000_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(&spi->dev, ret, "Failed to enable VIO supply\n");
 
-	vref_reg = devm_regulator_get(&spi->dev, "ref");
-	if (IS_ERR(vref_reg))
-		return dev_err_probe(&spi->dev, PTR_ERR(vref_reg),
-				     "Failed to get vref regulator\n");
-
-	ret = regulator_enable(vref_reg);
+	st->vref = devm_regulator_get_enable_read_voltage(&spi->dev, "ref");
 	if (ret < 0)
-		return dev_err_probe(&spi->dev, ret,
-				     "Failed to enable voltage regulator\n");
-
-	ret = devm_add_action_or_reset(&spi->dev, ad4000_regulator_disable, vref_reg);
-	if (ret)
-		return dev_err_probe(&spi->dev, ret,
-				     "Failed to add regulator disable action\n");
-
-	st->vref = regulator_get_voltage(vref_reg);
-	if (st->vref < 0)
-		return dev_err_probe(&spi->dev, st->vref, "Failed to get vref\n");
+		return dev_err_probe(&spi->dev, st->vref,
+				     "Failed to get ref regulator reference\n");
 
 	st->cnv_gpio = devm_gpiod_get_optional(&spi->dev, "cnv", GPIOD_OUT_HIGH);
 	if (IS_ERR(st->cnv_gpio))
