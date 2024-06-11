@@ -238,7 +238,7 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
 	st->tx_buf = cpu_to_be16(AD4000_WRITE_COMMAND << BITS_PER_BYTE | val);
-	return spi_write(st->spi, &st->tx_buf, 2);
+	return spi_write(st->spi, &st->tx_buf, sizeof(st->tx_buf));
 }
 
 static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
