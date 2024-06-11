@@ -467,7 +467,7 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 			if (ret < 0)
 				return ret;
 
-			span_comp_en = (val2 == st->scale_tbl[1][1]);
+			span_comp_en = val2 == st->scale_tbl[1][1];
 			reg_val &= ~AD4000_CFG_SPAN_COMP;
 			reg_val |= FIELD_PREP(AD4000_CFG_SPAN_COMP, span_comp_en);
 
