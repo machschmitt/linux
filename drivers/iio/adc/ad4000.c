@@ -350,8 +350,9 @@ static int ad4000_convert_and_acquire(struct ad4000_state *st)
 
 	/*
 	 * In 4-wire mode, the CNV line is held high for the entire conversion
-	 * and acquisition process. In other modes st->cnv_gpio is NULL and is
-	 * ignored (CS is wired to CNV in those cases).
+	 * and acquisition process. In other modes, the CNV GPIO is optional
+	 * and, if provided, replaces controller CS. If CNV GPIO is not defined
+	 * gpiod_set_value_cansleep() has no effect.
 	 */
 	gpiod_set_value_cansleep(st->cnv_gpio, 1);
 	ret = spi_sync(st->spi, &st->msg);
