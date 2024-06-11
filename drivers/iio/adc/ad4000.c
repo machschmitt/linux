@@ -183,7 +183,7 @@ struct ad4000_state {
 	struct gpio_desc *cnv_gpio;
 	struct spi_transfer xfers[2];
 	struct spi_message msg;
-	int vref;
+	int vref_mv;
 	enum ad4000_spi_mode spi_mode;
 	bool span_comp;
 	bool turbo_mode;
@@ -213,7 +213,7 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 	u64 tmp2;
 
 	val2 = scale_bits;
-	val = st->vref / 1000;
+	val = st->vref_mv;
 	/*
 	 * The gain is stored as a fraction of 1000 and, as we need to
 	 * divide vref by gain, we invert the gain/1000 fraction.
@@ -414,7 +414,7 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OFFSET:
 		*val = 0;
 		if (st->span_comp)
-			*val = mult_frac(st->vref / 1000, 1, 10);
+			*val = mult_frac(st->vref_mv, 1, 10);
 
 		return IIO_VAL_INT;
 	default:
@@ -562,10 +562,11 @@ static int ad4000_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(&spi->dev, ret, "Failed to enable VIO supply\n");
 
-	st->vref = devm_regulator_get_enable_read_voltage(&spi->dev, "ref");
+	st->vref_mv = devm_regulator_get_enable_read_voltage(&spi->dev, "ref");
 	if (ret < 0)
-		return dev_err_probe(&spi->dev, st->vref,
+		return dev_err_probe(&spi->dev, st->vref_mv,
 				     "Failed to get ref regulator reference\n");
+	st->vref_mv = st->vref_mv / 1000;
 
 	st->cnv_gpio = devm_gpiod_get_optional(&spi->dev, "cnv", GPIOD_OUT_HIGH);
 	if (IS_ERR(st->cnv_gpio))
