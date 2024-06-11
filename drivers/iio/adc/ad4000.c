@@ -533,12 +533,6 @@ static int ad4000_config(struct ad4000_state *st)
 	if (device_property_present(&st->spi->dev, "adi,high-z-input"))
 		reg_val |= FIELD_PREP(AD4000_CFG_HIGHZ, 1);
 
-	/*
-	 * The ADC SDI pin might be connected to controller CS line in which
-	 * case the write might fail. This, however, does not prevent the device
-	 * from functioning even though in a configuration other than the
-	 * requested one.
-	 */
 	return ad4000_write_reg(st, reg_val);
 }
 
@@ -631,12 +625,12 @@ static int ad4000_probe(struct spi_device *spi)
 		if (spi_setup(spi))
 			dev_warn(&st->spi->dev, "SPI controller setup failed\n");
 
+		ret = ad4000_config(st);
+		if (ret < 0)
+			dev_warn(&st->spi->dev, "Failed to config device\n");
+
 		break;
 	}
-
-	ret = ad4000_config(st);
-	if (ret < 0)
-		dev_dbg(&st->spi->dev, "Failed to config device\n");
 
 	indio_dev->name = chip->dev_name;
 	indio_dev->info = &ad4000_info;
