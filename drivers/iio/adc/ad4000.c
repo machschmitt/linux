@@ -187,7 +187,7 @@ struct ad4000_state {
 	enum ad4000_spi_mode spi_mode;
 	bool span_comp;
 	bool turbo_mode;
-	int gain_milli;
+	u16 gain_milli;
 	int scale_tbl[2][2];
 
 	/*
@@ -621,7 +621,7 @@ static int ad4000_probe(struct spi_device *spi)
 	/* Hardware gain only applies to ADAQ devices */
 	st->gain_milli = 1000;
 	if (device_property_present(&spi->dev, "adi,gain-milli")) {
-		ret = device_property_read_u32(&spi->dev, "adi,gain-milli",
+		ret = device_property_read_u16(&spi->dev, "adi,gain-milli",
 					       &st->gain_milli);
 		if (ret)
 			return dev_err_probe(&spi->dev, ret,
