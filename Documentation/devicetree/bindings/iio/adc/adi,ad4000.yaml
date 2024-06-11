@@ -153,6 +153,17 @@ allOf:
     then:
       required:
         - cnv-gpios
+  # The configuration register can only be accessed in '3-wire' mode
+  - if:
+      not:
+        properties:
+          adi,spi-mode:
+            contains:
+              enum:
+                - single
+    then:
+      properties:
+        adi,high-z-input: false
   # chain mode has lower SCLK max rate
   - if:
       required:
