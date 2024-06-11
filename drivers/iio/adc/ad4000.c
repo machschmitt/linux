@@ -369,6 +369,8 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	int ret;
 
 	ret = ad4000_convert_and_acquire(st);
+	if (ret < 0)
+		return ret;
 
 	if (chan->scan_type.storagebits > 16)
 		sample = be32_to_cpu(st->scan.data.sample_buf32);
