@@ -97,7 +97,6 @@
 			compatible = "adi,adaq4003";
 			reg = <0>;
 			spi-max-frequency = <80000000>;
-			spi-cpha;
 			adi,spi-mode = "single";
 			vdd-supply = <&adc_vdd>;
 			vio-supply = <&adc_vio>;
