@@ -124,7 +124,7 @@ properties:
       The gain provided by the ADC input scaler is defined by the hardware
       connections between chip pins OUT+, R1K-, R1K1-, R1K+, R1K1+, and OUT-.
       If not present, default to 1000 (no actual gain applied).
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint16
     enum: [454, 909, 1000, 1900]
     default: 1000
 
@@ -225,7 +225,7 @@ examples:
             vio-supply = <&supply_1_8V>;
             ref-supply = <&supply_5V>;
             adi,high-z-input;
-            adi,gain-milli = <454>;
+            adi,gain-milli = /bits/ 16 <454>;
             adi,spi-mode = "single";
         };
     };
