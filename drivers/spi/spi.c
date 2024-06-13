@@ -3944,9 +3944,9 @@ int spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	/* Check against conflicting MOSI idle configuration */
 	if ((spi->mode & SPI_MOSI_IDLE_LOW) && (spi->mode & SPI_MOSI_IDLE_HIGH)) {
-		dev_warn(&spi->dev,
-			"setup: erratic MOSI idle configuration. Set to idle low\n");
-		spi->mode &= ~SPI_MOSI_IDLE_HIGH;
+		dev_err(&spi->dev,
+			"setup: MOSI configured to idle low and high at the same time.\n");
+		return -EINVAL;
 	}
 	/*
 	 * Help drivers fail *cleanly* when they need options
