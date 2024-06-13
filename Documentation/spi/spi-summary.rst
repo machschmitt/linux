@@ -614,6 +614,75 @@ queue, and then start some asynchronous transfer engine (unless it's
 already running).
 
 
+Extensions to the SPI protocol
+------------------------------
+The fact that SPI doesn't have a formal specification or standard permits chip
+manufacturers to implement the SPI protocol in slightly different ways. In most
+cases, SPI protocol implementations from different vendors are compatible among
+each other. For example, in SPI mode 0 (CPOL=0, CPHA=0) the bus lines may behave
+like the following:
+
+nCSx _____                                                                  ____
+          \________________________________________________________________/
+          •                                                                •
+          •                                                                •
+SCLK          ___     ___     ___     ___     ___     ___     ___     ___
+     ________/   \___/   \___/   \___/   \___/   \___/   \___/   \___/   \______
+          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+MOSI _(*)__________         _______                 _______         ________(*)_
+0xA5 _(*)__/ 1     \_0_____/ 1     \_0_______0_____/ 1     \_0_____/ 1    \_(*)_
+          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+MISO _(*)__________         _______________________          _______        (*)_
+0xBA _(*)__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__(*)_
+
+Where • marks the start/end of transmission, : marks the time data is clocked
+into the peripheral, ; marks the time data is clocked into the controller, and
+(*) marks when line states are not specified.
+
+In some few cases, chips extend the SPI protocol by specifying line behaviors
+that other SPI protocols don't (e.g. data line state for when CS is inactive).
+Those distinct SPI protocols, modes, and configurations are supported by
+different SPI mode flags.
+
+MOSI idle state configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Common SPI protocol implementations don't specify any state or behavior for the
+MOSI line when the controller is not clocking out data. However, there do exist
+peripherals that require specific MOSI line state when data is not being clocked
+out. For example, if the peripheral expects the MOSI line to be high when the
+controller is not clocking out data (SPI_MOSI_IDLE_HIGH), then a transfer in SPI
+mode 0 would look like the following:
+
+nCSx _____                                                                  ____
+          \________________________________________________________________/
+          •                                                                •
+          •                                                                •
+SCLK          ___     ___     ___     ___     ___     ___     ___     ___
+     ________/   \___/   \___/   \___/   \___/   \___/   \___/   \___/   \______
+          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+MOSI ______         _______         _______         _______________         ____
+0x56       \_0_____/ 1     \_0_____/ 1     \_0_____/ 1       1     \_0_____/
+          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+MISO _(*)__________         _______________________          _______        (*)_
+0xBA _(*)__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__(*)_
+
+In this extension to the usual SPI protocol, the MOSI line state is specified to
+be kept high when CS is active but the controller is not clocking out data to
+the peripheral and also when CS is inactive.
+
+Peripherals that require this extension must request it by setting the
+SPI_MOSI_IDLE_HIGH bit into the mode attribute of their struct spi_device and
+call spi_setup(). Controllers that support this extension should indicate it by
+setting SPI_MOSI_IDLE_HIGH in the mode_bits attribute of their struct
+spi_controller. The configuration to idle MOSI low is analogous but uses the
+SPI_MOSI_IDLE_LOW mode bit.
+
+
 THANKS TO
 ---------
 Contributors to Linux-SPI discussions include (in alphabetical order,
