@@ -215,10 +215,11 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 	val2 = scale_bits;
 	/*
 	 * The gain is stored as a fraction of 1000 and, as we need to
-	 * divide vref by gain, we invert the gain/1000 fraction.
-	 * Also multiply by an extra MILLI to avoid losing precision.
+	 * divide vref_mv by the gain, we invert the gain/1000 fraction.
+	 * Also multiply by an extra MILLI to preserve precision.
+	 * Thus, we have MILLI * MILLI equals MICRO as fraction numerator.
 	 */
-	val = mult_frac(st->vref_mv, MILLI * MILLI, st->gain_milli);
+	val = mult_frac(st->vref_mv, MICRO, st->gain_milli);
 	/* Would multiply by NANO here but we multiplied by extra MILLI */
 	tmp2 = shift_right((u64)val * MICRO, val2);
 	tmp0 = div_s64_rem(tmp2, NANO, &tmp1);
