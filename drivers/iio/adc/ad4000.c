@@ -43,42 +43,42 @@
 #define AD4000_18BIT_MSK	GENMASK(31, 14)
 #define AD4000_20BIT_MSK	GENMASK(31, 12)
 
-#define AD4000_DIFF_CHANNEL(_sign, _real_bits)				\
-	{								\
-		.type = IIO_VOLTAGE,					\
-		.indexed = 1,						\
-		.differential = 1,					\
-		.channel = 0,						\
-		.channel2 = 1,						\
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
-				      BIT(IIO_CHAN_INFO_SCALE),		\
-		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),\
-		.scan_type = {						\
-			.sign = _sign,					\
-			.realbits = _real_bits,				\
-			.storagebits = _real_bits > 16 ? 32 : 16,	\
-			.shift = _real_bits > 16 ? 32 - _real_bits : 0,	\
-			.endianness = IIO_BE,				\
-		},							\
-	}
+#define AD4000_DIFF_CHANNEL(_sign, _real_bits, _3wire)				\
+{										\
+	.type = IIO_VOLTAGE,							\
+	.indexed = 1,								\
+	.differential = 1,							\
+	.channel = 0,								\
+	.channel2 = 1,								\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
+			      BIT(IIO_CHAN_INFO_SCALE),				\
+	.info_mask_separate_available = _3wire ? BIT(IIO_CHAN_INFO_SCALE) : 0,	\
+	.scan_type = {								\
+		.sign = _sign,							\
+		.realbits = _real_bits,						\
+		.storagebits = _real_bits > 16 ? 32 : 16,			\
+		.shift = _real_bits > 16 ? 32 - _real_bits : 0,			\
+		.endianness = IIO_BE,						\
+	},									\
+}
 
-#define AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits)			\
-	{								\
-		.type = IIO_VOLTAGE,					\
-		.indexed = 1,						\
-		.channel = 0,						\
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
-				      BIT(IIO_CHAN_INFO_SCALE) |	\
-				      BIT(IIO_CHAN_INFO_OFFSET),	\
-		.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),\
-		.scan_type = {						\
-			.sign = _sign,					\
-			.realbits = _real_bits,				\
-			.storagebits = _real_bits > 16 ? 32 : 16,	\
-			.shift = _real_bits > 16 ? 32 - _real_bits : 0,	\
-			.endianness = IIO_BE,				\
-		},							\
-	}
+#define AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _3wire)			\
+{										\
+	.type = IIO_VOLTAGE,							\
+	.indexed = 1,								\
+	.channel = 0,								\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
+			      BIT(IIO_CHAN_INFO_SCALE) |			\
+			      BIT(IIO_CHAN_INFO_OFFSET),			\
+	.info_mask_separate_available = _3wire ? BIT(IIO_CHAN_INFO_SCALE) : 0,	\
+	.scan_type = {								\
+		.sign = _sign,							\
+		.realbits = _real_bits,						\
+		.storagebits = _real_bits > 16 ? 32 : 16,			\
+		.shift = _real_bits > 16 ? 32 - _real_bits : 0,			\
+		.endianness = IIO_BE,						\
+	},									\
+}
 
 enum ad4000_spi_mode {
 	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
@@ -96,86 +96,103 @@ static const char * const ad4000_spi_modes[] = {
 struct ad4000_chip_info {
 	const char *dev_name;
 	struct iio_chan_spec chan_spec;
+	struct iio_chan_spec three_w_chan_spec;
 };
 
 static const struct ad4000_chip_info ad4000_chip_info = {
 	.dev_name = "ad4000",
-	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0),
+	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4001_chip_info = {
 	.dev_name = "ad4001",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4002_chip_info = {
 	.dev_name = "ad4002",
-	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0),
+	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4003_chip_info = {
 	.dev_name = "ad4003",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4004_chip_info = {
 	.dev_name = "ad4004",
-	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0),
+	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4005_chip_info = {
 	.dev_name = "ad4005",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4006_chip_info = {
 	.dev_name = "ad4006",
-	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0),
+	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4007_chip_info = {
 	.dev_name = "ad4007",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4008_chip_info = {
 	.dev_name = "ad4008",
-	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16),
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0),
+	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4010_chip_info = {
 	.dev_name = "ad4010",
-	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18),
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0),
+	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4011_chip_info = {
 	.dev_name = "ad4011",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4020_chip_info = {
 	.dev_name = "ad4020",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
 };
 
 static const struct ad4000_chip_info ad4021_chip_info = {
 	.dev_name = "ad4021",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
 };
 
 static const struct ad4000_chip_info ad4022_chip_info = {
 	.dev_name = "ad4022",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 20),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
 };
 
 static const struct ad4000_chip_info adaq4001_chip_info = {
 	.dev_name = "adaq4001",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 16),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
 };
 
 static const struct ad4000_chip_info adaq4003_chip_info = {
 	.dev_name = "adaq4003",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 18),
+	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
+	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
 };
 
 struct ad4000_state {
@@ -205,14 +222,22 @@ struct ad4000_state {
 	__be16 rx_buf;
 };
 
-static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
-				  const struct ad4000_chip_info *chip)
+static void ad4000_fill_scale_tbl(struct ad4000_state *st,
+				  struct iio_chan_spec const *chan)
 {
-	int diff = chip->chan_spec.differential;
-	int val, val2, tmp0, tmp1;
+	int val, tmp0, tmp1;
+	int scale_bits;
 	u64 tmp2;
 
-	val2 = scale_bits;
+	/*
+	 * ADCs that output two's complement code have one less bit to express
+	 * voltage magnitude.
+	 */
+	if (chan->scan_type.sign == 's')
+		scale_bits = chan->scan_type.realbits - 1;
+	else
+		scale_bits = chan->scan_type.realbits;
+
 	/*
 	 * The gain is stored as a fraction of 1000 and, as we need to
 	 * divide vref_mv by the gain, we invert the gain/1000 fraction.
@@ -221,7 +246,7 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 	 */
 	val = mult_frac(st->vref_mv, MICRO, st->gain_milli);
 	/* Would multiply by NANO here but we multiplied by extra MILLI */
-	tmp2 = shift_right((u64)val * MICRO, val2);
+	tmp2 = shift_right((u64)val * MICRO, scale_bits);
 	tmp0 = div_s64_rem(tmp2, NANO, &tmp1);
 	/* Store scale for when span compression is disabled */
 	st->scale_tbl[0][0] = tmp0; /* Integer part */
@@ -229,7 +254,7 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st, int scale_bits,
 	/* Store scale for when span compression is enabled */
 	st->scale_tbl[1][0] = tmp0;
 	/* The integer part is always zero so don't bother to divide it. */
-	if (diff)
+	if (chan->differential)
 		st->scale_tbl[1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 4, 5);
 	else
 		st->scale_tbl[1][1] = DIV_ROUND_CLOSEST(abs(tmp1) * 9, 10);
@@ -592,15 +617,17 @@ static int ad4000_probe(struct spi_device *spi)
 
 	switch (st->spi_mode) {
 	case AD4000_SPI_MODE_DEFAULT:
-		ret = ad4000_prepare_4wire_mode_message(st, &chip->chan_spec);
 		indio_dev->info = &ad4000_info;
+		indio_dev->channels = &chip->chan_spec;
+		ret = ad4000_prepare_4wire_mode_message(st, indio_dev->channels);
 		if (ret)
 			return ret;
 
 		break;
 	case AD4000_SPI_MODE_SINGLE:
-		ret = ad4000_prepare_3wire_mode_message(st, &chip->chan_spec);
 		indio_dev->info = &ad4000_3wire_info;
+		indio_dev->channels = &chip->three_w_chan_spec;
+		ret = ad4000_prepare_3wire_mode_message(st, indio_dev->channels);
 		if (ret)
 			return ret;
 
@@ -622,7 +649,6 @@ static int ad4000_probe(struct spi_device *spi)
 	}
 
 	indio_dev->name = chip->dev_name;
-	indio_dev->channels = &chip->chan_spec;
 	indio_dev->num_channels = 1;
 
 	/* Hardware gain only applies to ADAQ devices */
@@ -635,16 +661,7 @@ static int ad4000_probe(struct spi_device *spi)
 					     "Failed to read gain property\n");
 	}
 
-	/*
-	 * ADCs that output two's complement code have one less bit to express
-	 * voltage magnitude.
-	 */
-	if (chip->chan_spec.scan_type.sign == 's')
-		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits - 1,
-				      chip);
-	else
-		ad4000_fill_scale_tbl(st, chip->chan_spec.scan_type.realbits,
-				      chip);
+	ad4000_fill_scale_tbl(st, indio_dev->channels);
 
 	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
 					      &iio_pollfunc_store_time,
