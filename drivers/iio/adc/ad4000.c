@@ -518,13 +518,17 @@ static int ad4000_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 	return ret;
 }
 
-static const struct iio_info ad4000_info = {
+static const struct iio_info ad4000_3wire_info = {
 	.read_raw = &ad4000_read_raw,
 	.read_avail = &ad4000_read_avail,
 	.write_raw = &ad4000_write_raw,
 	.write_raw_get_fmt = &ad4000_write_raw_get_fmt,
 	.debugfs_reg_access = &ad4000_reg_access,
 
+};
+
+static const struct iio_info ad4000_info = {
+	.read_raw = &ad4000_read_raw,
 };
 
 static int ad4000_config(struct ad4000_state *st)
@@ -589,12 +593,14 @@ static int ad4000_probe(struct spi_device *spi)
 	switch (st->spi_mode) {
 	case AD4000_SPI_MODE_DEFAULT:
 		ret = ad4000_prepare_4wire_mode_message(st, &chip->chan_spec);
+		indio_dev->info = &ad4000_info;
 		if (ret)
 			return ret;
 
 		break;
 	case AD4000_SPI_MODE_SINGLE:
 		ret = ad4000_prepare_3wire_mode_message(st, &chip->chan_spec);
+		indio_dev->info = &ad4000_3wire_info;
 		if (ret)
 			return ret;
 
@@ -616,7 +622,6 @@ static int ad4000_probe(struct spi_device *spi)
 	}
 
 	indio_dev->name = chip->dev_name;
-	indio_dev->info = &ad4000_info;
 	indio_dev->channels = &chip->chan_spec;
 	indio_dev->num_channels = 1;
 
