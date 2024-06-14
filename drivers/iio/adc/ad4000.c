@@ -60,7 +60,7 @@
 			.shift = _real_bits > 16 ? 32 - _real_bits : 0,	\
 			.endianness = IIO_BE,				\
 		},							\
-	}								\
+	}
 
 #define AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits)			\
 	{								\
@@ -78,7 +78,7 @@
 			.shift = _real_bits > 16 ? 32 - _real_bits : 0,	\
 			.endianness = IIO_BE,				\
 		},							\
-	}								\
+	}
 
 enum ad4000_spi_mode {
 	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
