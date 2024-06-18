@@ -627,9 +627,6 @@ static int ad4000_probe(struct spi_device *spi)
 	case AD4000_SPI_MODE_SINGLE:
 		indio_dev->info = &ad4000_3wire_info;
 		indio_dev->channels = &chip->three_w_chan_spec;
-		ret = ad4000_prepare_3wire_mode_message(st, indio_dev->channels);
-		if (ret)
-			return ret;
 
 		/*
 		 * In "3-wire mode", the ADC SDI line must be kept high when
@@ -639,6 +636,10 @@ static int ad4000_probe(struct spi_device *spi)
 		spi->mode = SPI_MODE_0 | SPI_MOSI_IDLE_HIGH;
 		ret = spi_setup(spi);
 		if (ret < 0)
+			return ret;
+
+		ret = ad4000_prepare_3wire_mode_message(st, indio_dev->channels);
+		if (ret)
 			return ret;
 
 		ret = ad4000_config(st);
