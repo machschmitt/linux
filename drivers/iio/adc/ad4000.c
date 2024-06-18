@@ -28,7 +28,7 @@
 #define AD4000_READ_COMMAND	0x54
 #define AD4000_WRITE_COMMAND	0x14
 
-#define AD4000_CONFIG_REG_MSK	0xFF
+#define AD4000_CONFIG_REG_DEFAULT	0xE1
 
 /* AD4000 Configuration Register programmable bits */
 #define AD4000_CFG_STATUS		BIT(4) /* Status bits output */
@@ -558,7 +558,7 @@ static const struct iio_info ad4000_info = {
 
 static int ad4000_config(struct ad4000_state *st)
 {
-	unsigned int reg_val;
+	unsigned int reg_val = AD4000_CONFIG_REG_DEFAULT;
 
 	if (device_property_present(&st->spi->dev, "adi,high-z-input"))
 		reg_val |= FIELD_PREP(AD4000_CFG_HIGHZ, 1);
