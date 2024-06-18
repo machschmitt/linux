@@ -547,7 +547,6 @@ static int ad4000_probe(struct spi_device *spi)
 
 	st->gain_milli = 1000;
 	if (device_property_present(&spi->dev, "adi,gain-milli")) {
-
 		ret = device_property_read_u32(&spi->dev, "adi,gain-milli",
 					       &st->gain_milli);
 		if (ret)
