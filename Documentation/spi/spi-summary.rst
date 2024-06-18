@@ -622,24 +622,29 @@ cases, SPI protocol implementations from different vendors are compatible among
 each other. For example, in SPI mode 0 (CPOL=0, CPHA=0) the bus lines may behave
 like the following:
 
-nCSx _____                                                                  ____
-          \________________________________________________________________/
-          •                                                                •
-          •                                                                •
-SCLK          ___     ___     ___     ___     ___     ___     ___     ___
-     ________/   \___/   \___/   \___/   \___/   \___/   \___/   \___/   \______
-          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-MOSI _(*)__________         _______                 _______         ________(*)_
-0xA5 _(*)__/ 1     \_0_____/ 1     \_0_______0_____/ 1     \_0_____/ 1    \_(*)_
-          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-MISO _(*)__________         _______________________          _______        (*)_
-0xBA _(*)__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__(*)_
+::
 
-Where • marks the start/end of transmission, : marks the time data is clocked
-into the peripheral, ; marks the time data is clocked into the controller, and
-(*) marks when line states are not specified.
+  nCSx ___                                                                   ___
+          \_________________________________________________________________/
+          •                                                                 •
+          •                                                                 •
+  SCLK         ___     ___     ___     ___     ___     ___     ___     ___
+       _______/   \___/   \___/   \___/   \___/   \___/   \___/   \___/   \_____
+          •   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+          •   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+  MOSI (*)__________         _______                 _______         ________(*)
+  0xA5 (*)__/ 1     \_0_____/ 1     \_0_______0_____/ 1     \_0_____/ 1    \_(*)
+          •       ;       ;       ;       ;       ;       ;       ;       ; •
+          •       ;       ;       ;       ;       ;       ;       ;       ; •
+  MISO (*)__________         _______________________          _______        (*)
+  0xBA (*)__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__(*)
+
+Legend::
+
+  • marks the start/end of transmission;
+  : marks when data is clocked into the peripheral;
+  ; marks when data is clocked into the controller;
+  (*) marks when line states are not specified.
 
 In some few cases, chips extend the SPI protocol by specifying line behaviors
 that other SPI protocols don't (e.g. data line state for when CS is inactive).
@@ -656,20 +661,29 @@ out. For example, if the peripheral expects the MOSI line to be high when the
 controller is not clocking out data (SPI_MOSI_IDLE_HIGH), then a transfer in SPI
 mode 0 would look like the following:
 
-nCSx _____                                                                  ____
-          \________________________________________________________________/
-          •                                                                •
-          •                                                                •
-SCLK          ___     ___     ___     ___     ___     ___     ___     ___
-     ________/   \___/   \___/   \___/   \___/   \___/   \___/   \___/   \______
-          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-MOSI ______         _______         _______         _______________         ____
-0x56       \_0_____/ 1     \_0_____/ 1     \_0_____/ 1       1     \_0_____/
-          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-          •  :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-MISO _(*)__________         _______________________          _______        (*)_
-0xBA _(*)__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__(*)_
+::
+
+  nCSx ___                                                                   ___
+          \_________________________________________________________________/
+          •                                                                 •
+          •                                                                 •
+  SCLK         ___     ___     ___     ___     ___     ___     ___     ___
+       _______/   \___/   \___/   \___/   \___/   \___/   \___/   \___/   \_____
+          •   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+          •   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
+  MOSI _____         _______         _______         _______________         ___
+  0x56      \_0_____/ 1     \_0_____/ 1     \_0_____/ 1       1     \_0_____/
+          •       ;       ;       ;       ;       ;       ;       ;       ; •
+          •       ;       ;       ;       ;       ;       ;       ;       ; •
+  MISO (*)__________         _______________________          _______        (*)
+  0xBA (*)__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__(*)
+
+Legend::
+
+  • marks the start/end of transmission;
+  : marks when data is clocked into the peripheral;
+  ; marks when data is clocked into the controller;
+  (*) marks when line states are not specified.
 
 In this extension to the usual SPI protocol, the MOSI line state is specified to
 be kept high when CS is active but the controller is not clocking out data to
