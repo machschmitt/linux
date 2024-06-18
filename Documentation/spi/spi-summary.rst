@@ -632,19 +632,19 @@ like the following:
        _______/   \___/   \___/   \___/   \___/   \___/   \___/   \___/   \_____
           •   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
           •   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ;   :   ; •
-  MOSI (*)__________         _______                 _______         ________(*)
-  0xA5 (*)__/ 1     \_0_____/ 1     \_0_______0_____/ 1     \_0_____/ 1    \_(*)
+  MOSI XXX__________         _______                 _______         ________XXX
+  0xA5 XXX__/ 1     \_0_____/ 1     \_0_______0_____/ 1     \_0_____/ 1    \_XXX
           •       ;       ;       ;       ;       ;       ;       ;       ; •
           •       ;       ;       ;       ;       ;       ;       ;       ; •
-  MISO (*)__________         _______________________          _______        (*)
-  0xBA (*)__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__(*)
+  MISO XXX__________         _______________________          _______        XXX
+  0xBA XXX__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__XXX
 
 Legend::
 
   • marks the start/end of transmission;
   : marks when data is clocked into the peripheral;
   ; marks when data is clocked into the controller;
-  (*) marks when line states are not specified.
+  X marks when line states are not specified.
 
 In some few cases, chips extend the SPI protocol by specifying line behaviors
 that other SPI protocols don't (e.g. data line state for when CS is inactive).
@@ -675,15 +675,15 @@ mode 0 would look like the following:
   0x56      \_0_____/ 1     \_0_____/ 1     \_0_____/ 1       1     \_0_____/
           •       ;       ;       ;       ;       ;       ;       ;       ; •
           •       ;       ;       ;       ;       ;       ;       ;       ; •
-  MISO (*)__________         _______________________          _______        (*)
-  0xBA (*)__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__(*)
+  MISO XXX__________         _______________________          _______        XXX
+  0xBA XXX__/     1 \_____0_/     1       1       1 \_____0__/    1  \____0__XXX
 
 Legend::
 
   • marks the start/end of transmission;
   : marks when data is clocked into the peripheral;
   ; marks when data is clocked into the controller;
-  (*) marks when line states are not specified.
+  X marks when line states are not specified.
 
 In this extension to the usual SPI protocol, the MOSI line state is specified to
 be kept high when CS is active but the controller is not clocking out data to
