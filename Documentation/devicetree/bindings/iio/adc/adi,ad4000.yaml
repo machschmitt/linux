@@ -54,6 +54,8 @@ properties:
               - adi,ad4021
               - adi,ad4022
           - const: adi,ad4020
+      - const: adi,adaq4001
+      - const: adi,adaq4003
 
   reg:
     maxItems: 1
