@@ -658,7 +658,7 @@ Common SPI protocol implementations don't specify any state or behavior for the
 MOSI line when the controller is not clocking out data. However, there do exist
 peripherals that require specific MOSI line state when data is not being clocked
 out. For example, if the peripheral expects the MOSI line to be high when the
-controller is not clocking out data (SPI_MOSI_IDLE_HIGH), then a transfer in SPI
+controller is not clocking out data (``SPI_MOSI_IDLE_HIGH``), then a transfer in SPI
 mode 0 would look like the following:
 
 ::
@@ -690,11 +690,11 @@ be kept high when CS is active but the controller is not clocking out data to
 the peripheral and also when CS is inactive.
 
 Peripherals that require this extension must request it by setting the
-SPI_MOSI_IDLE_HIGH bit into the mode attribute of their struct spi_device and
+``SPI_MOSI_IDLE_HIGH`` bit into the mode attribute of their ``struct spi_device`` and
 call spi_setup(). Controllers that support this extension should indicate it by
-setting SPI_MOSI_IDLE_HIGH in the mode_bits attribute of their struct
-spi_controller. The configuration to idle MOSI low is analogous but uses the
-SPI_MOSI_IDLE_LOW mode bit.
+setting ``SPI_MOSI_IDLE_HIGH`` in the mode_bits attribute of their ``struct
+spi_controller``. The configuration to idle MOSI low is analogous but uses the
+``SPI_MOSI_IDLE_LOW`` mode bit.
 
 
 THANKS TO
