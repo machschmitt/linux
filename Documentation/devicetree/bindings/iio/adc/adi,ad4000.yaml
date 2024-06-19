@@ -160,9 +160,7 @@ allOf:
       not:
         properties:
           adi,spi-mode:
-            contains:
-              enum:
-                - single
+            const: single
     then:
       properties:
         adi,high-z-input: false
