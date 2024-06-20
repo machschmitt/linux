@@ -605,14 +605,11 @@ static int ad4000_probe(struct spi_device *spi)
 						    ad4000_spi_modes,
 						    ARRAY_SIZE(ad4000_spi_modes));
 	/* Default to 4-wire mode if adi,spi-mode property is not present */
-	if (ret == -EINVAL)
-		st->spi_mode = AD4000_SPI_MODE_DEFAULT;
-	else if (ret < 0)
+	if (ret < 0 && ret != -EINVAL)
 		return dev_err_probe(&spi->dev, ret,
 				     "getting adi,spi-mode property failed\n");
-	else
-		st->spi_mode = ret;
 
+	st->spi_mode = ret == -EINVAL ? AD4000_SPI_MODE_DEFAULT : ret;
 	switch (st->spi_mode) {
 	case AD4000_SPI_MODE_DEFAULT:
 		indio_dev->info = &ad4000_info;
