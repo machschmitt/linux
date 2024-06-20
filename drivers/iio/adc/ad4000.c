@@ -590,11 +590,11 @@ static int ad4000_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(&spi->dev, ret, "Failed to enable VIO supply\n");
 
-	st->vref_mv = devm_regulator_get_enable_read_voltage(&spi->dev, "ref");
+	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "ref");
 	if (ret < 0)
-		return dev_err_probe(&spi->dev, st->vref_mv,
+		return dev_err_probe(&spi->dev, ret,
 				     "Failed to get ref regulator reference\n");
-	st->vref_mv = st->vref_mv / 1000;
+	st->vref_mv = ret / 1000;
 
 	st->cnv_gpio = devm_gpiod_get_optional(&spi->dev, "cnv", GPIOD_OUT_HIGH);
 	if (IS_ERR(st->cnv_gpio))
