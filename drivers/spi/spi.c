@@ -3955,8 +3955,8 @@ int spi_setup(struct spi_device *spi)
 	 * so it is ignored here.
 	 */
 	bad_bits = spi->mode & ~(spi->controller->mode_bits | SPI_CS_WORD |
-				 SPI_NO_TX | SPI_NO_RX | SPI_MOSI_IDLE_LOW |
-				 SPI_MOSI_IDLE_HIGH);
+				 SPI_NO_TX | SPI_NO_RX);
+
 	ugly_bits = bad_bits &
 		    (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL |
 		     SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL);
