@@ -41,7 +41,7 @@
 #define AD4000_18BIT_MSK	GENMASK(31, 14)
 #define AD4000_20BIT_MSK	GENMASK(31, 12)
 
-#define AD4000_DIFF_CHANNEL(_sign, _real_bits, _3wire)				\
+#define AD4000_DIFF_CHANNEL(_sign, _real_bits, _reg_access)			\
 {										\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
@@ -50,7 +50,7 @@
 	.channel2 = 1,								\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
 			      BIT(IIO_CHAN_INFO_SCALE),				\
-	.info_mask_separate_available = _3wire ? BIT(IIO_CHAN_INFO_SCALE) : 0,	\
+	.info_mask_separate_available = _reg_access ? BIT(IIO_CHAN_INFO_SCALE) : 0,\
 	.scan_type = {								\
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
@@ -60,7 +60,7 @@
 	},									\
 }
 
-#define AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _3wire)			\
+#define AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _reg_access)		\
 {										\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
@@ -68,7 +68,7 @@
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
 			      BIT(IIO_CHAN_INFO_SCALE) |			\
 			      BIT(IIO_CHAN_INFO_OFFSET),			\
-	.info_mask_separate_available = _3wire ? BIT(IIO_CHAN_INFO_SCALE) : 0,	\
+	.info_mask_separate_available = _reg_access ? BIT(IIO_CHAN_INFO_SCALE) : 0,\
 	.scan_type = {								\
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
@@ -94,103 +94,103 @@ static const char * const ad4000_spi_modes[] = {
 struct ad4000_chip_info {
 	const char *dev_name;
 	struct iio_chan_spec chan_spec;
-	struct iio_chan_spec three_w_chan_spec;
+	struct iio_chan_spec reg_access_chan_spec;
 };
 
 static const struct ad4000_chip_info ad4000_chip_info = {
 	.dev_name = "ad4000",
 	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0),
-	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
+	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4001_chip_info = {
 	.dev_name = "ad4001",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4002_chip_info = {
 	.dev_name = "ad4002",
 	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0),
-	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
+	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4003_chip_info = {
 	.dev_name = "ad4003",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4004_chip_info = {
 	.dev_name = "ad4004",
 	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0),
-	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
+	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4005_chip_info = {
 	.dev_name = "ad4005",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4006_chip_info = {
 	.dev_name = "ad4006",
 	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0),
-	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
+	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4007_chip_info = {
 	.dev_name = "ad4007",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4008_chip_info = {
 	.dev_name = "ad4008",
 	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0),
-	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
+	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1),
 };
 
 static const struct ad4000_chip_info ad4010_chip_info = {
 	.dev_name = "ad4010",
 	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0),
-	.three_w_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
+	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4011_chip_info = {
 	.dev_name = "ad4011",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
 };
 
 static const struct ad4000_chip_info ad4020_chip_info = {
 	.dev_name = "ad4020",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
 };
 
 static const struct ad4000_chip_info ad4021_chip_info = {
 	.dev_name = "ad4021",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
 };
 
 static const struct ad4000_chip_info ad4022_chip_info = {
 	.dev_name = "ad4022",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1),
 };
 
 static const struct ad4000_chip_info adaq4001_chip_info = {
 	.dev_name = "adaq4001",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
 };
 
 static const struct ad4000_chip_info adaq4003_chip_info = {
 	.dev_name = "adaq4003",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
-	.three_w_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
+	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
 };
 
 struct ad4000_state {
@@ -624,7 +624,7 @@ static int ad4000_probe(struct spi_device *spi)
 		break;
 	case AD4000_SPI_MODE_SINGLE:
 		indio_dev->info = &ad4000_3wire_info;
-		indio_dev->channels = &chip->three_w_chan_spec;
+		indio_dev->channels = &chip->reg_access_chan_spec;
 
 		/*
 		 * In "3-wire mode", the ADC SDI line must be kept high when
