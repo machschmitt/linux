@@ -686,8 +686,8 @@ Legend::
   X marks when line states are not specified.
 
 In this extension to the usual SPI protocol, the MOSI line state is specified to
-be kept high when CS is active but the controller is not clocking out data to
-the peripheral and also when CS is inactive.
+be kept high when CS is asserted but the controller is not clocking out data to
+the peripheral and also when CS is not asserted.
 
 Peripherals that require this extension must request it by setting the
 ``SPI_MOSI_IDLE_HIGH`` bit into the mode attribute of their ``struct spi_device`` and
