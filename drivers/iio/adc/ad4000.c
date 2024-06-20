@@ -4,23 +4,21 @@
  *
  * Copyright 2024 Analog Devices Inc.
  */
-#include <asm/unaligned.h>
 #include <linux/bits.h>
 #include <linux/bitfield.h>
+#include <linux/byteorder/generic.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
-#include <linux/sysfs.h>
 #include <linux/units.h>
 #include <linux/util_macros.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
+
 #include <linux/iio/buffer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
