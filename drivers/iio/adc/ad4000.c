@@ -38,9 +38,6 @@
 #define AD4000_TQUIET2_NS		60
 #define AD4000_TCONV_NS			320
 
-#define AD4000_18BIT_MSK	GENMASK(31, 14)
-#define AD4000_20BIT_MSK	GENMASK(31, 12)
-
 #define AD4000_DIFF_CHANNEL(_sign, _real_bits, _reg_access)			\
 {										\
 	.type = IIO_VOLTAGE,							\
@@ -402,18 +399,7 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	else
 		sample = be16_to_cpu(st->scan.data.sample_buf16);
 
-	switch (chan->scan_type.realbits) {
-	case 16:
-		break;
-	case 18:
-		sample = FIELD_GET(AD4000_18BIT_MSK, sample);
-		break;
-	case 20:
-		sample = FIELD_GET(AD4000_20BIT_MSK, sample);
-		break;
-	default:
-		return -EINVAL;
-	}
+	sample >>= chan->scan_type.shift;
 
 	if (chan->scan_type.sign == 's')
 		*val = sign_extend32(sample, chan->scan_type.realbits - 1);
