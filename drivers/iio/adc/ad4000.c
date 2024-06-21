@@ -34,6 +34,8 @@
 #define AD4000_CFG_HIGHZ		BIT(2) /* High impedance mode  */
 #define AD4000_CFG_TURBO		BIT(1) /* Turbo mode */
 
+#define AD4000_SCALE_OPTIONS		2
+
 #define AD4000_TQUIET1_NS		190
 #define AD4000_TQUIET2_NS		60
 #define AD4000_TCONV_NS			320
@@ -201,7 +203,7 @@ struct ad4000_state {
 	bool span_comp;
 	bool turbo_mode;
 	u16 gain_milli;
-	int scale_tbl[2][2];
+	int scale_tbl[AD4000_SCALE_OPTIONS][2];
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -443,7 +445,7 @@ static int ad4000_read_avail(struct iio_dev *indio_dev,
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
 		*vals = (int *)st->scale_tbl;
-		*length = 2 * 2;
+		*length = AD4000_SCALE_OPTIONS * 2;
 		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
 	default:
