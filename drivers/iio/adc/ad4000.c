@@ -198,6 +198,7 @@ struct ad4000_state {
 	struct gpio_desc *cnv_gpio;
 	struct spi_transfer xfers[2];
 	struct spi_message msg;
+	struct mutex lock; /* Protect read modify write cycle */
 	int vref_mv;
 	enum ad4000_spi_mode spi_mode;
 	bool span_comp;
@@ -486,23 +487,28 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			ret = ad4000_read_reg(st, &reg_val);
-			if (ret < 0)
-				return ret;
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret < 0)
+			return ret;
 
-			span_comp_en = val2 == st->scale_tbl[1][1];
-			reg_val &= ~AD4000_CFG_SPAN_COMP;
-			reg_val |= FIELD_PREP(AD4000_CFG_SPAN_COMP, span_comp_en);
+		mutex_lock(&st->lock);
+		ret = ad4000_read_reg(st, &reg_val);
+		if (ret < 0)
+			goto err_unlock;
 
-			ret = ad4000_write_reg(st, reg_val);
-			if (ret < 0)
-				return ret;
+		span_comp_en = val2 == st->scale_tbl[1][1];
+		reg_val &= ~AD4000_CFG_SPAN_COMP;
+		reg_val |= FIELD_PREP(AD4000_CFG_SPAN_COMP, span_comp_en);
 
-			st->span_comp = span_comp_en;
-			return 0;
-		}
-		unreachable();
+		ret = ad4000_write_reg(st, reg_val);
+		if (ret < 0)
+			goto err_unlock;
+
+		st->span_comp = span_comp_en;
+err_unlock:
+		iio_device_release_direct_mode(indio_dev);
+		mutex_unlock(&st->lock);
+		return ret;
 	default:
 		return -EINVAL;
 	}
@@ -645,6 +651,8 @@ static int ad4000_probe(struct spi_device *spi)
 
 	indio_dev->name = chip->dev_name;
 	indio_dev->num_channels = 1;
+
+	devm_mutex_init(&spi->dev, &st->lock);
 
 	/* Hardware gain only applies to ADAQ devices */
 	st->gain_milli = 1000;
