@@ -40,7 +40,7 @@
 #define AD4000_TQUIET2_NS		60
 #define AD4000_TCONV_NS			320
 
-#define AD4000_DIFF_CHANNEL(_sign, _real_bits, _reg_access)			\
+#define __AD4000_DIFF_CHANNEL(_sign, _real_bits, _storage_bits, _reg_access)	\
 {										\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
@@ -53,13 +53,17 @@
 	.scan_type = {								\
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
-		.storagebits = _real_bits > 16 ? 32 : 16,			\
-		.shift = _real_bits > 16 ? 32 - _real_bits : 0,			\
+		.storagebits = _storage_bits,					\
+		.shift = _storage_bits - _real_bits,				\
 		.endianness = IIO_BE,						\
 	},									\
 }
 
-#define AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _reg_access)		\
+#define AD4000_DIFF_CHANNEL(_sign, _real_bits, _reg_access)			\
+	__AD4000_DIFF_CHANNEL((_sign), (_real_bits),				\
+				     ((_real_bits) > 16 ? 32 : 16), (_reg_access))
+
+#define __AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _storage_bits, _reg_access)\
 {										\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
@@ -71,11 +75,15 @@
 	.scan_type = {								\
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
-		.storagebits = _real_bits > 16 ? 32 : 16,			\
-		.shift = _real_bits > 16 ? 32 - _real_bits : 0,			\
+		.storagebits = _storage_bits,					\
+		.shift = _storage_bits - _real_bits,				\
 		.endianness = IIO_BE,						\
 	},									\
 }
+
+#define AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _reg_access)		\
+	__AD4000_PSEUDO_DIFF_CHANNEL((_sign), (_real_bits),			\
+				     ((_real_bits) > 16 ? 32 : 16), (_reg_access))
 
 enum ad4000_spi_mode {
 	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
