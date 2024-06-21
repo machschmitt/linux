@@ -207,8 +207,8 @@ struct ad4000_state {
 	int scale_tbl[2][2];
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
-	 * transfer buffers to live in their own cache lines.
+	 * DMA (thus cache coherency maintenance) requires the transfer buffers
+	 * to live in their own cache lines.
 	 */
 	struct {
 		union {
