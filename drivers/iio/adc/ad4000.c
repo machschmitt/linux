@@ -230,8 +230,8 @@ struct ad4000_state {
 		} data;
 		s64 timestamp __aligned(8);
 	} scan __aligned(IIO_DMA_MINALIGN);
-	__be16 tx_buf;
-	__be16 rx_buf;
+	u8 tx_buf[2];
+	u8 rx_buf[2];
 };
 
 static void ad4000_fill_scale_tbl(struct ad4000_state *st,
@@ -274,28 +274,26 @@ static void ad4000_fill_scale_tbl(struct ad4000_state *st,
 
 static int ad4000_write_reg(struct ad4000_state *st, uint8_t val)
 {
-	st->tx_buf = cpu_to_be16(AD4000_WRITE_COMMAND << BITS_PER_BYTE | val);
-	return spi_write(st->spi, &st->tx_buf, sizeof(st->tx_buf));
+	st->tx_buf[0] = AD4000_WRITE_COMMAND;
+	st->tx_buf[1] = val;
+	return spi_write(st->spi, st->tx_buf, ARRAY_SIZE(st->tx_buf));
 }
 
 static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 {
-	struct spi_transfer t[] = {
-		{
-			.tx_buf = &st->tx_buf,
-			.rx_buf = &st->rx_buf,
-			.len = 2,
-		},
+	struct spi_transfer t = {
+		.tx_buf = st->tx_buf,
+		.rx_buf = st->rx_buf,
+		.len = 2,
 	};
 	int ret;
 
-	st->tx_buf = cpu_to_be16(AD4000_READ_COMMAND << BITS_PER_BYTE);
-	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
+	st->tx_buf[0] = AD4000_READ_COMMAND;
+	ret = spi_sync_transfer(st->spi, &t, 1);
 	if (ret < 0)
 		return ret;
 
-	*val = be16_to_cpu(st->rx_buf);
-
+	*val = st->rx_buf[1];
 	return ret;
 }
 
