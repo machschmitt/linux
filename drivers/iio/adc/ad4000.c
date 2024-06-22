@@ -568,11 +568,12 @@ static int ad4000_config(struct ad4000_state *st)
 static int ad4000_probe(struct spi_device *spi)
 {
 	const struct ad4000_chip_info *chip;
+	struct device *dev = &spi->dev;
 	struct iio_dev *indio_dev;
 	struct ad4000_state *st;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -583,31 +584,31 @@ static int ad4000_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	st->spi = spi;
 
-	ret = devm_regulator_get_enable(&spi->dev, "vdd");
+	ret = devm_regulator_get_enable(dev, "vdd");
 	if (ret)
-		return dev_err_probe(&spi->dev, ret, "Failed to enable VDD supply\n");
+		return dev_err_probe(dev, ret, "Failed to enable VDD supply\n");
 
-	ret = devm_regulator_get_enable(&spi->dev, "vio");
+	ret = devm_regulator_get_enable(dev, "vio");
 	if (ret)
-		return dev_err_probe(&spi->dev, ret, "Failed to enable VIO supply\n");
+		return dev_err_probe(dev, ret, "Failed to enable VIO supply\n");
 
-	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "ref");
+	ret = devm_regulator_get_enable_read_voltage(dev, "ref");
 	if (ret < 0)
-		return dev_err_probe(&spi->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "Failed to get ref regulator reference\n");
 	st->vref_mv = ret / 1000;
 
-	st->cnv_gpio = devm_gpiod_get_optional(&spi->dev, "cnv", GPIOD_OUT_HIGH);
+	st->cnv_gpio = devm_gpiod_get_optional(dev, "cnv", GPIOD_OUT_HIGH);
 	if (IS_ERR(st->cnv_gpio))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->cnv_gpio),
+		return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
 				     "Failed to get CNV GPIO");
 
-	ret = device_property_match_property_string(&spi->dev, "adi,spi-mode",
+	ret = device_property_match_property_string(dev, "adi,spi-mode",
 						    ad4000_spi_modes,
 						    ARRAY_SIZE(ad4000_spi_modes));
 	/* Default to 4-wire mode if adi,spi-mode property is not present */
 	if (ret < 0 && ret != -EINVAL)
-		return dev_err_probe(&spi->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "getting adi,spi-mode property failed\n");
 
 	st->spi_mode = ret == -EINVAL ? AD4000_SPI_MODE_DEFAULT : ret;
@@ -640,7 +641,7 @@ static int ad4000_probe(struct spi_device *spi)
 
 		ret = ad4000_config(st);
 		if (ret < 0)
-			dev_warn(&st->spi->dev, "Failed to config device\n");
+			dev_warn(dev, "Failed to config device\n");
 
 		break;
 	}
@@ -648,27 +649,27 @@ static int ad4000_probe(struct spi_device *spi)
 	indio_dev->name = chip->dev_name;
 	indio_dev->num_channels = 1;
 
-	devm_mutex_init(&spi->dev, &st->lock);
+	devm_mutex_init(dev, &st->lock);
 
 	/* Hardware gain only applies to ADAQ devices */
 	st->gain_milli = 1000;
-	if (device_property_present(&spi->dev, "adi,gain-milli")) {
-		ret = device_property_read_u16(&spi->dev, "adi,gain-milli",
+	if (device_property_present(dev, "adi,gain-milli")) {
+		ret = device_property_read_u16(dev, "adi,gain-milli",
 					       &st->gain_milli);
 		if (ret)
-			return dev_err_probe(&spi->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "Failed to read gain property\n");
 	}
 
 	ad4000_fill_scale_tbl(st, indio_dev->channels);
 
-	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 					      &iio_pollfunc_store_time,
 					      &ad4000_trigger_handler, NULL);
 	if (ret)
 		return ret;
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct spi_device_id ad4000_id[] = {
