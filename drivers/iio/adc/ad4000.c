@@ -542,7 +542,7 @@ static int ad4000_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 	return ret;
 }
 
-static const struct iio_info ad4000_3wire_info = {
+static const struct iio_info ad4000_reg_access_info = {
 	.read_raw = &ad4000_read_raw,
 	.read_avail = &ad4000_read_avail,
 	.write_raw = &ad4000_write_raw,
@@ -621,7 +621,7 @@ static int ad4000_probe(struct spi_device *spi)
 
 		break;
 	case AD4000_SPI_MODE_SINGLE:
-		indio_dev->info = &ad4000_3wire_info;
+		indio_dev->info = &ad4000_reg_access_info;
 		indio_dev->channels = &chip->reg_access_chan_spec;
 
 		/*
