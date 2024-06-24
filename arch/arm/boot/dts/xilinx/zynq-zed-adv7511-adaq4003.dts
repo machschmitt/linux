@@ -102,7 +102,7 @@
 			vio-supply = <&adc_vio>;
 			ref-supply = <&adc_vref>;
 			adi,high-z-input;
-			adi,gain-milli = <454>;
+			adi,gain-milli = /bits/ 16 <454>;
 		};
 	};
 };
