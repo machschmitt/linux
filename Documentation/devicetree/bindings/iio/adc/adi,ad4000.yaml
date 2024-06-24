@@ -98,10 +98,8 @@ properties:
 
   cnv-gpios:
     description:
-      The Convert Input (CNV). This input has multiple functions. It initiates
-      the conversions and selects the SPI mode of the device (chain or CS). In
-      'single' mode, this property is omitted if the CNV pin is connected to the
-      CS line of the SPI controller.
+      The Convert Input (CNV). When provided, this property indicates the GPIO
+      that is connected to the CNV pin.
     maxItems: 1
 
   adi,high-z-input:
@@ -125,8 +123,8 @@ properties:
     description:
       The SDO pin can also function as a busy indicator. This node should be
       connected to an interrupt that is triggered when the SDO line goes low
-      while the SDI line is high and the CNV line is low ('single' mode) or the
-      SDI line is low and the CNV line is high ('multi' mode); or when the SDO
+      while the SDI line is high and the CNV line is low ("3-wire" mode) or the
+      SDI line is low and the CNV line is high ("4-wire" mode); or when the SDO
       line goes high while the SDI and CNV lines are high (chain mode),
     maxItems: 1
 
