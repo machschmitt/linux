@@ -167,39 +167,21 @@ required:
   - ref-supply
 
 allOf:
-  # in '4-wire' mode, cnv-gpios is required, for other modes it is optional
+  # The configuration register can only be accessed if SDI is connected to MOSI
   - if:
-      not:
-        required:
-          - adi,spi-mode
-    then:
       required:
-        - cnv-gpios
-  # The configuration register can only be accessed in '3-wire' mode
-  - if:
-      not:
-        properties:
-          adi,spi-mode:
-            const: single
+        - adi,sdi-pin
     then:
       properties:
         adi,high-z-input: false
   # chain mode has lower SCLK max rate
   - if:
       required:
-        - adi,spi-mode
-      properties:
-        adi,spi-mode:
-          const: chain
+        - '#daisy-chained-devices'
     then:
       properties:
         spi-max-frequency:
           maximum: 50000000 # for VIO > 2.7 V, 40000000 for VIO > 1.7 V
-      required:
-        - '#daisy-chained-devices'
-    else:
-      properties:
-        '#daisy-chained-devices': false
   # Gain property only applies to ADAQ devices
   - if:
       properties:
@@ -228,6 +210,7 @@ examples:
             vdd-supply = <&supply_1_8V>;
             vio-supply = <&supply_1_8V>;
             ref-supply = <&supply_5V>;
+            adi,sdi-pin = "cs";
             cnv-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
         };
     };
@@ -244,6 +227,5 @@ examples:
             ref-supply = <&supply_5V>;
             adi,high-z-input;
             adi,gain-milli = /bits/ 16 <454>;
-            adi,spi-mode = "single";
         };
     };
