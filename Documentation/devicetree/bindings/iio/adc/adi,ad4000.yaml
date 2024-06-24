@@ -63,35 +63,6 @@ properties:
   spi-max-frequency:
     maximum: 102040816 # for VIO > 2.7 V, 81300813 for VIO > 1.7 V
 
-  adi,spi-mode:
-    $ref: /schemas/types.yaml#/definitions/string
-    enum: [ single, chain ]
-    description: |
-      This property indicates the SPI wiring configuration.
-
-      When this property is omitted, it is assumed that the device is using what
-      the datasheet calls "4-wire mode". This is the conventional SPI mode used
-      when there are multiple devices on the same bus. In this mode, the CNV
-      line is used to initiate the conversion and the SDI line is connected to
-      CS on the SPI controller.
-
-      When this property is present, it indicates that the device is using one
-      of the following alternative wiring configurations:
-
-      * single: The datasheet calls this "3-wire mode". (NOTE: The datasheet's
-        definition of 3-wire mode is NOT at all related to the standard
-        spi-3wire property!) This mode is often used when the ADC is the only
-        device on the bus. In this mode, SDI is connected to MOSI or to VIO, and
-        the CNV line can be connected to the CS line of the SPI controller or to
-        a GPIO, in which case the CS line of the controller is unused.
-      * chain: The datasheet calls this "chain mode". This mode is used to save
-        on wiring when multiple ADCs are used. In this mode, the SDI line of
-        one chip is tied to the SDO of the next chip in the chain and the SDI of
-        the last chip in the chain is tied to GND. Only the first chip in the
-        chain is connected to the SPI bus. The CNV line of all chips are tied
-        together. The CS line of the SPI controller can be used as the CNV line
-        only if it is active high.
-
   adi,sdi-pin:
     $ref: /schemas/types.yaml#/definitions/string
     enum: [ high, low, cs, sdi ]
