@@ -85,17 +85,32 @@
 	__AD4000_PSEUDO_DIFF_CHANNEL((_sign), (_real_bits),			\
 				     ((_real_bits) > 16 ? 32 : 16), (_reg_access))
 
-enum ad4000_spi_mode {
+enum ad4000_sdi {
 	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
-	AD4000_SPI_MODE_DEFAULT,
+	AD4000_SDI_MOSI,
 	/* datasheet calls this "3-wire mode" (not related to SPI_3WIRE!) */
-	AD4000_SPI_MODE_SINGLE,
+	AD4000_SDI_VIO,
+	AD4000_SDI_CS,
 };
 
-/* maps adi,spi-mode property value to enum */
-static const char * const ad4000_spi_modes[] = {
-	[AD4000_SPI_MODE_DEFAULT] = "",
-	[AD4000_SPI_MODE_SINGLE] = "single",
+/* maps adi,sdi-pin property value to enum */
+static const char * const ad4000_sdi_pin[] = {
+	[AD4000_SDI_MOSI] = "",
+	[AD4000_SDI_VIO] = "high",
+	[AD4000_SDI_CS] = "cs",
+};
+
+enum ad4000_cnv {
+	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
+	AD4000_CNV_CS,
+	/* datasheet calls this "3-wire mode" (not related to SPI_3WIRE!) */
+	AD4000_CNV_GPIO,
+};
+
+/* maps adi,cnv-pin property value to enum */
+static const char * const ad4000_cnv_pin[] = {
+	[AD4000_CNV_CS] = "",
+	[AD4000_CNV_GPIO] = "gpio",
 };
 
 struct ad4000_chip_info {
@@ -207,7 +222,8 @@ struct ad4000_state {
 	struct spi_message msg;
 	struct mutex lock; /* Protect read modify write cycle */
 	int vref_mv;
-	enum ad4000_spi_mode spi_mode;
+	enum ad4000_sdi sdi_pin;
+	enum ad4000_cnv cnv_pin;
 	bool span_comp;
 	bool turbo_mode;
 	u16 gain_milli;
@@ -300,9 +316,10 @@ static void ad4000_unoptimize_msg(void *msg)
 
 /*
  * This executes a data sample transfer for when the device connections are
- * in "3-wire" mode, selected by setting the adi,spi-mode device tree property
- * to "single". In this connection mode, the ADC SDI pin is connected to MOSI or
- * to VIO and ADC CNV pin is connected either to a SPI controller CS or to a GPIO.
+ * in "3-wire" mode, selected when the adi,sdi-pin device tree property is
+ * absent or set to "high". In this connection mode, the ADC SDI pin is
+ * connected to MOSI or to VIO and ADC CNV pin is connected either to a SPI
+ * controller CS or to a GPIO.
  * AD4000 series of devices initiate conversions on the rising edge of CNV pin.
  *
  * If the CNV pin is connected to an SPI controller CS line (which is by default
@@ -342,9 +359,9 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 
 /*
  * This executes a data sample transfer for when the device connections are
- * in "4-wire" mode, selected when the adi,spi-mode device tree
- * property is absent or empty. In this connection mode, the controller CS pin
- * is connected to ADC SDI pin and a GPIO is connected to ADC CNV pin.
+ * in "4-wire" mode, selected when the adi,sdi-pin device tree property is
+ * set to "cs". In this connection mode, the controller CS pin is connected to
+ * ADC SDI pin and a GPIO is connected to ADC CNV pin.
  * The GPIO connected to ADC CNV pin is set outside of the SPI transfer.
  */
 static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
@@ -603,25 +620,17 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
 				     "Failed to get CNV GPIO");
 
-	ret = device_property_match_property_string(dev, "adi,spi-mode",
-						    ad4000_spi_modes,
-						    ARRAY_SIZE(ad4000_spi_modes));
-	/* Default to 4-wire mode if adi,spi-mode property is not present */
+	ret = device_property_match_property_string(dev, "adi,sdi-pin",
+						    ad4000_sdi_pin,
+						    ARRAY_SIZE(ad4000_sdi_pin));
 	if (ret < 0 && ret != -EINVAL)
 		return dev_err_probe(dev, ret,
-				     "getting adi,spi-mode property failed\n");
+				     "getting adi,sdi-pin property failed\n");
 
-	st->spi_mode = ret == -EINVAL ? AD4000_SPI_MODE_DEFAULT : ret;
-	switch (st->spi_mode) {
-	case AD4000_SPI_MODE_DEFAULT:
-		indio_dev->info = &ad4000_info;
-		indio_dev->channels = &chip->chan_spec;
-		ret = ad4000_prepare_4wire_mode_message(st, indio_dev->channels);
-		if (ret)
-			return ret;
-
-		break;
-	case AD4000_SPI_MODE_SINGLE:
+	/* Default to usual SPI connections if pin properties are not present */
+	st->sdi_pin = ret == -EINVAL ? AD4000_SDI_MOSI : ret;
+	switch (st->sdi_pin) {
+	case AD4000_SDI_MOSI:
 		indio_dev->info = &ad4000_reg_access_info;
 		indio_dev->channels = &chip->reg_access_chan_spec;
 
@@ -642,6 +651,22 @@ static int ad4000_probe(struct spi_device *spi)
 		ret = ad4000_config(st);
 		if (ret < 0)
 			dev_warn(dev, "Failed to config device\n");
+
+		break;
+	case AD4000_SDI_VIO:
+		indio_dev->info = &ad4000_info;
+		indio_dev->channels = &chip->chan_spec;
+		ret = ad4000_prepare_3wire_mode_message(st, indio_dev->channels);
+		if (ret)
+			return ret;
+
+		break;
+	case AD4000_SDI_CS:
+		indio_dev->info = &ad4000_info;
+		indio_dev->channels = &chip->chan_spec;
+		ret = ad4000_prepare_4wire_mode_message(st, indio_dev->channels);
+		if (ret)
+			return ret;
 
 		break;
 	}
