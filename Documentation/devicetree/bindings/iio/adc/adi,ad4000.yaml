@@ -92,6 +92,26 @@ properties:
         together. The CS line of the SPI controller can be used as the CNV line
         only if it is active high.
 
+  adi,sdi-pin:
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [ high, low, cs, sdi ]
+    default: sdi
+    description:
+      Describes how the ADC SDI pin is wired. A value of "sdi" indicates that
+      the ADC SDI is connected to host SDO. "high" indicates that the ADC SDI
+      pin is hard-wired to logic high (VIO). "low" indicates that it is
+      hard-wired low (GND). "cs" indicates that the ADC SDI pin is connected to
+      the host CS line.
+
+  adi,cnv-pin:
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [ gpio, pulse-gen ]
+    description:
+      Describes how the ADC CNV pin is wired. When this property is omitted,
+      ADC CNV is connected to host CS. "gpio" indicates that the ADC CNV pin is
+      connected to a GPIO. "pulse-gen" indicates that it is connected to pulse
+      generator which may be a clock generator, a PWM, or something else.
+
   '#daisy-chained-devices': true
 
   vdd-supply:
