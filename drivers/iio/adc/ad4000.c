@@ -100,19 +100,6 @@ static const char * const ad4000_sdi_pin[] = {
 	[AD4000_SDI_CS] = "cs",
 };
 
-enum ad4000_cnv {
-	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
-	AD4000_CNV_CS,
-	/* datasheet calls this "3-wire mode" (not related to SPI_3WIRE!) */
-	AD4000_CNV_GPIO,
-};
-
-/* maps adi,cnv-pin property value to enum */
-static const char * const ad4000_cnv_pin[] = {
-	[AD4000_CNV_CS] = "",
-	[AD4000_CNV_GPIO] = "gpio",
-};
-
 struct ad4000_chip_info {
 	const char *dev_name;
 	struct iio_chan_spec chan_spec;
@@ -226,7 +213,6 @@ struct ad4000_state {
 	struct mutex lock; /* Protect read modify write cycle */
 	int vref_mv;
 	enum ad4000_sdi sdi_pin;
-	enum ad4000_cnv cnv_pin;
 	bool span_comp;
 	bool turbo_mode;
 	u16 gain_milli;
