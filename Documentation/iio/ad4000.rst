@@ -44,8 +44,7 @@ same of standard spi-3wire mode.
 This is the only connection mode that allows configuration register access but
 it requires the SPI controller to support the ``SPI_MOSI_IDLE_HIGH`` feature.
 
-Omit both ``adi,sdi-pin`` and ``adi,cnv-pin`` properties in device tree to
-select this mode.
+Omit the ``adi,sdi-pin`` property in device tree to select this mode.
 
 ::
 
@@ -72,8 +71,7 @@ controller is not required to support ``SPI_MOSI_IDLE_HIGH`` but register access
 is not possible. This connection mode saves one wire and works with any SPI
 controller.
 
-Set the ``adi,sdi-pin`` device tree property to ``"high"`` and omit
-``adi,cnv-pin`` to select this mode.
+Set the ``adi,sdi-pin`` device tree property to ``"high"`` to select this mode.
 
 ::
 
@@ -91,9 +89,6 @@ Set the ``adi,sdi-pin`` device tree property to ``"high"`` and omit
 
 Alternatively, a GPIO may be connected to the device CNV pin. This is similar to
 the previous wiring configuration but saves the use of a CS line.
-
-Set ``adi,sdi-pin`` to ``"high"`` and ``adi,cnv-pin`` to ``"gpio"`` to select
-this mode.
 
 ::
 
@@ -116,8 +111,7 @@ In datasheet "4-wire" mode, the controller CS line is connected to the ADC SDI
 pin and a GPIO is connected to the ADC CNV pin. This connection mode may better
 suit scenarios where multiple ADCs can share one CNV trigger.
 
-Set ``adi,sdi-pin`` to ``"cs"`` and ``adi,cnv-pin`` to ``"gpio"`` to select this
-mode.
+Set ``adi,sdi-pin`` to ``"cs"`` to select this mode.
 
 
 ::
