@@ -669,6 +669,8 @@ static int ad4000_probe(struct spi_device *spi)
 			return ret;
 
 		break;
+	default:
+		return dev_err_probe(dev, -EINVAL, "Unrecognized connection mode\n");
 	}
 
 	indio_dev->name = chip->dev_name;
