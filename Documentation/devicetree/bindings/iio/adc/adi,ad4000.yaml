@@ -74,15 +74,6 @@ properties:
       hard-wired low (GND). "cs" indicates that the ADC SDI pin is connected to
       the host CS line.
 
-  adi,cnv-pin:
-    $ref: /schemas/types.yaml#/definitions/string
-    enum: [ gpio, pulse-gen ]
-    description:
-      Describes how the ADC CNV pin is wired. When this property is omitted,
-      ADC CNV is connected to host CS. "gpio" indicates that the ADC CNV pin is
-      connected to a GPIO. "pulse-gen" indicates that it is connected to pulse
-      generator which may be a clock generator, a PWM, or something else.
-
   '#daisy-chained-devices': true
 
   vdd-supply:
