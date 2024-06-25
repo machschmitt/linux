@@ -117,6 +117,7 @@ struct ad4000_chip_info {
 	const char *dev_name;
 	struct iio_chan_spec chan_spec;
 	struct iio_chan_spec reg_access_chan_spec;
+	bool has_hardware_gain;
 };
 
 static const struct ad4000_chip_info ad4000_chip_info = {
@@ -207,12 +208,14 @@ static const struct ad4000_chip_info adaq4001_chip_info = {
 	.dev_name = "adaq4001",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0),
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1),
+	.has_hardware_gain = true,
 };
 
 static const struct ad4000_chip_info adaq4003_chip_info = {
 	.dev_name = "adaq4003",
 	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1),
+	.has_hardware_gain = true,
 };
 
 struct ad4000_state {
@@ -678,14 +681,15 @@ static int ad4000_probe(struct spi_device *spi)
 
 	devm_mutex_init(dev, &st->lock);
 
-	/* Hardware gain only applies to ADAQ devices */
 	st->gain_milli = 1000;
-	if (device_property_present(dev, "adi,gain-milli")) {
-		ret = device_property_read_u16(dev, "adi,gain-milli",
-					       &st->gain_milli);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Failed to read gain property\n");
+	if (chip->has_hardware_gain) {
+		if (device_property_present(dev, "adi,gain-milli")) {
+			ret = device_property_read_u16(dev, "adi,gain-milli",
+						       &st->gain_milli);
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "Failed to read gain property\n");
+		}
 	}
 
 	ad4000_fill_scale_tbl(st, indio_dev->channels);
