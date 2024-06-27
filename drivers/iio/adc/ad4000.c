@@ -90,9 +90,7 @@ static const char * const ad4000_power_supplies[] = {
 };
 
 enum ad4000_sdi {
-	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
 	AD4000_SDI_MOSI,
-	/* datasheet calls this "3-wire mode" (not related to SPI_3WIRE!) */
 	AD4000_SDI_VIO,
 	AD4000_SDI_CS,
 };
