@@ -218,7 +218,6 @@ struct ad4000_state {
 	int vref_mv;
 	enum ad4000_sdi sdi_pin;
 	bool span_comp;
-	bool turbo_mode;
 	u16 gain_milli;
 	int scale_tbl[AD4000_SCALE_OPTIONS][2];
 
@@ -500,8 +499,7 @@ static const struct iio_info ad4000_info = {
 static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 					     const struct iio_chan_spec *chan)
 {
-	unsigned int cnv_pulse_time = st->turbo_mode ? AD4000_TQUIET1_NS
-						     : AD4000_TCONV_NS;
+	unsigned int cnv_pulse_time = AD4000_TCONV_NS;
 	struct spi_transfer *xfers = st->xfers;
 
 	xfers[0].cs_change = 1;
@@ -528,8 +526,7 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
 					     const struct iio_chan_spec *chan)
 {
-	unsigned int cnv_to_sdi_time = st->turbo_mode ? AD4000_TQUIET1_NS
-						      : AD4000_TCONV_NS;
+	unsigned int cnv_to_sdi_time = AD4000_TCONV_NS;
 	struct spi_transfer *xfers = st->xfers;
 
 	/*
