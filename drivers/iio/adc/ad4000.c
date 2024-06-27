@@ -29,10 +29,8 @@
 #define AD4000_CONFIG_REG_DEFAULT	0xE1
 
 /* AD4000 Configuration Register programmable bits */
-#define AD4000_CFG_STATUS		BIT(4) /* Status bits output */
 #define AD4000_CFG_SPAN_COMP		BIT(3) /* Input span compression  */
 #define AD4000_CFG_HIGHZ		BIT(2) /* High impedance mode  */
-#define AD4000_CFG_TURBO		BIT(1) /* Turbo mode */
 
 #define AD4000_SCALE_OPTIONS		2
 
