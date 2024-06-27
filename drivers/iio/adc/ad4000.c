@@ -640,7 +640,7 @@ static int ad4000_probe(struct spi_device *spi)
 
 		ret = ad4000_config(st);
 		if (ret < 0)
-			dev_warn(dev, "Failed to config device\n");
+			return dev_err_probe(dev, ret, "Failed to config device\n");
 
 		break;
 	case AD4000_SDI_VIO:
