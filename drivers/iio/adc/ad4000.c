@@ -481,11 +481,6 @@ static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
 };
 
-static void ad4000_unoptimize_msg(void *msg)
-{
-	spi_unoptimize_message(msg);
-}
-
 /*
  * This executes a data sample transfer for when the device connections are
  * in "3-wire" mode, selected when the adi,sdi-pin device tree property is
@@ -508,7 +503,6 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 	unsigned int cnv_pulse_time = st->turbo_mode ? AD4000_TQUIET1_NS
 						     : AD4000_TCONV_NS;
 	struct spi_transfer *xfers = st->xfers;
-	int ret;
 
 	xfers[0].cs_change = 1;
 	xfers[0].cs_change_delay.value = cnv_pulse_time;
@@ -521,12 +515,7 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 
 	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
 
-	ret = spi_optimize_message(st->spi, &st->msg);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(&st->spi->dev, ad4000_unoptimize_msg,
-					&st->msg);
+	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->msg);
 }
 
 /*
@@ -542,7 +531,6 @@ static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
 	unsigned int cnv_to_sdi_time = st->turbo_mode ? AD4000_TQUIET1_NS
 						      : AD4000_TCONV_NS;
 	struct spi_transfer *xfers = st->xfers;
-	int ret;
 
 	/*
 	 * Dummy transfer to cause enough delay between CNV going high and SDI
@@ -557,12 +545,7 @@ static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
 
 	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
 
-	ret = spi_optimize_message(st->spi, &st->msg);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(&st->spi->dev, ad4000_unoptimize_msg,
-					&st->msg);
+	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->msg);
 }
 
 static int ad4000_config(struct ad4000_state *st)
