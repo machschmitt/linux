@@ -31,30 +31,36 @@ properties:
               - adi,ad4004
               - adi,ad4008
           - const: adi,ad4000
+
       - const: adi,ad4001
       - items:
           - enum:
               - adi,ad4005
           - const: adi,ad4001
+
       - const: adi,ad4002
       - items:
           - enum:
               - adi,ad4006
               - adi,ad4010
           - const: adi,ad4002
+
       - const: adi,ad4003
       - items:
           - enum:
               - adi,ad4007
               - adi,ad4011
           - const: adi,ad4003
+
       - const: adi,ad4020
       - items:
           - enum:
               - adi,ad4021
               - adi,ad4022
           - const: adi,ad4020
+
       - const: adi,adaq4001
+
       - const: adi,adaq4003
 
   reg:
