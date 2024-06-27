@@ -93,6 +93,7 @@ enum ad4000_sdi {
 	AD4000_SDI_MOSI,
 	AD4000_SDI_VIO,
 	AD4000_SDI_CS,
+	AD4000_SDI_GND,
 };
 
 /* maps adi,sdi-pin property value to enum */
@@ -100,6 +101,7 @@ static const char * const ad4000_sdi_pin[] = {
 	[AD4000_SDI_MOSI] = "sdi",
 	[AD4000_SDI_VIO] = "high",
 	[AD4000_SDI_CS] = "cs",
+	[AD4000_SDI_GND] = "low",
 };
 
 struct ad4000_chip_info {
@@ -640,6 +642,10 @@ static int ad4000_probe(struct spi_device *spi)
 			return ret;
 
 		break;
+	case AD4000_SDI_GND:
+		return dev_err_probe(dev, -EPROTONOSUPPORT,
+				     "Unsupported connection mode\n");
+
 	default:
 		return dev_err_probe(dev, -EINVAL, "Unrecognized connection mode\n");
 	}
