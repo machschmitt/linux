@@ -85,6 +85,10 @@
 	__AD4000_PSEUDO_DIFF_CHANNEL((_sign), (_real_bits),			\
 				     ((_real_bits) > 16 ? 32 : 16), (_reg_access))
 
+static const char * const ad4000_power_supplies[] = {
+	"vdd", "vio"
+};
+
 enum ad4000_sdi {
 	/* datasheet calls this "4-wire mode" (controller CS goes to ADC SDI!) */
 	AD4000_SDI_MOSI,
@@ -590,13 +594,10 @@ static int ad4000_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	st->spi = spi;
 
-	ret = devm_regulator_get_enable(dev, "vdd");
+	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(ad4000_power_supplies),
+					     ad4000_power_supplies);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable VDD supply\n");
-
-	ret = devm_regulator_get_enable(dev, "vio");
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable VIO supply\n");
+		return dev_err_probe(dev, ret, "Failed to enable power supplies\n");
 
 	ret = devm_regulator_get_enable_read_voltage(dev, "ref");
 	if (ret < 0)
