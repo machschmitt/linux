@@ -298,90 +298,6 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	return ret;
 }
 
-static void ad4000_unoptimize_msg(void *msg)
-{
-	spi_unoptimize_message(msg);
-}
-
-/*
- * This executes a data sample transfer for when the device connections are
- * in "3-wire" mode, selected when the adi,sdi-pin device tree property is
- * absent or set to "high". In this connection mode, the ADC SDI pin is
- * connected to MOSI or to VIO and ADC CNV pin is connected either to a SPI
- * controller CS or to a GPIO.
- * AD4000 series of devices initiate conversions on the rising edge of CNV pin.
- *
- * If the CNV pin is connected to an SPI controller CS line (which is by default
- * active low), the ADC readings would have a latency (delay) of one read.
- * Moreover, since we also do ADC sampling for filling the buffer on triggered
- * buffer mode, the timestamps of buffer readings would be disarranged.
- * To prevent the read latency and reduce the time discrepancy between the
- * sample read request and the time of actual sampling by the ADC, do a
- * preparatory transfer to pulse the CS/CNV line.
- */
-static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
-					     const struct iio_chan_spec *chan)
-{
-	unsigned int cnv_pulse_time = st->turbo_mode ? AD4000_TQUIET1_NS
-						     : AD4000_TCONV_NS;
-	struct spi_transfer *xfers = st->xfers;
-	int ret;
-
-	xfers[0].cs_change = 1;
-	xfers[0].cs_change_delay.value = cnv_pulse_time;
-	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	xfers[1].rx_buf = &st->scan.data;
-	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
-	xfers[1].delay.value = AD4000_TQUIET2_NS;
-	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
-
-	ret = spi_optimize_message(st->spi, &st->msg);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(&st->spi->dev, ad4000_unoptimize_msg,
-					&st->msg);
-}
-
-/*
- * This executes a data sample transfer for when the device connections are
- * in "4-wire" mode, selected when the adi,sdi-pin device tree property is
- * set to "cs". In this connection mode, the controller CS pin is connected to
- * ADC SDI pin and a GPIO is connected to ADC CNV pin.
- * The GPIO connected to ADC CNV pin is set outside of the SPI transfer.
- */
-static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
-					     const struct iio_chan_spec *chan)
-{
-	unsigned int cnv_to_sdi_time = st->turbo_mode ? AD4000_TQUIET1_NS
-						      : AD4000_TCONV_NS;
-	struct spi_transfer *xfers = st->xfers;
-	int ret;
-
-	/*
-	 * Dummy transfer to cause enough delay between CNV going high and SDI
-	 * going low.
-	 */
-	xfers[0].cs_off = 1;
-	xfers[0].delay.value = cnv_to_sdi_time;
-	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	xfers[1].rx_buf = &st->scan.data;
-	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
-
-	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
-
-	ret = spi_optimize_message(st->spi, &st->msg);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(&st->spi->dev, ad4000_unoptimize_msg,
-					&st->msg);
-}
-
 static int ad4000_convert_and_acquire(struct ad4000_state *st)
 {
 	int ret;
@@ -560,6 +476,90 @@ static const struct iio_info ad4000_reg_access_info = {
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
 };
+
+static void ad4000_unoptimize_msg(void *msg)
+{
+	spi_unoptimize_message(msg);
+}
+
+/*
+ * This executes a data sample transfer for when the device connections are
+ * in "3-wire" mode, selected when the adi,sdi-pin device tree property is
+ * absent or set to "high". In this connection mode, the ADC SDI pin is
+ * connected to MOSI or to VIO and ADC CNV pin is connected either to a SPI
+ * controller CS or to a GPIO.
+ * AD4000 series of devices initiate conversions on the rising edge of CNV pin.
+ *
+ * If the CNV pin is connected to an SPI controller CS line (which is by default
+ * active low), the ADC readings would have a latency (delay) of one read.
+ * Moreover, since we also do ADC sampling for filling the buffer on triggered
+ * buffer mode, the timestamps of buffer readings would be disarranged.
+ * To prevent the read latency and reduce the time discrepancy between the
+ * sample read request and the time of actual sampling by the ADC, do a
+ * preparatory transfer to pulse the CS/CNV line.
+ */
+static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
+					     const struct iio_chan_spec *chan)
+{
+	unsigned int cnv_pulse_time = st->turbo_mode ? AD4000_TQUIET1_NS
+						     : AD4000_TCONV_NS;
+	struct spi_transfer *xfers = st->xfers;
+	int ret;
+
+	xfers[0].cs_change = 1;
+	xfers[0].cs_change_delay.value = cnv_pulse_time;
+	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	xfers[1].rx_buf = &st->scan.data;
+	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
+	xfers[1].delay.value = AD4000_TQUIET2_NS;
+	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
+
+	ret = spi_optimize_message(st->spi, &st->msg);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(&st->spi->dev, ad4000_unoptimize_msg,
+					&st->msg);
+}
+
+/*
+ * This executes a data sample transfer for when the device connections are
+ * in "4-wire" mode, selected when the adi,sdi-pin device tree property is
+ * set to "cs". In this connection mode, the controller CS pin is connected to
+ * ADC SDI pin and a GPIO is connected to ADC CNV pin.
+ * The GPIO connected to ADC CNV pin is set outside of the SPI transfer.
+ */
+static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
+					     const struct iio_chan_spec *chan)
+{
+	unsigned int cnv_to_sdi_time = st->turbo_mode ? AD4000_TQUIET1_NS
+						      : AD4000_TCONV_NS;
+	struct spi_transfer *xfers = st->xfers;
+	int ret;
+
+	/*
+	 * Dummy transfer to cause enough delay between CNV going high and SDI
+	 * going low.
+	 */
+	xfers[0].cs_off = 1;
+	xfers[0].delay.value = cnv_to_sdi_time;
+	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	xfers[1].rx_buf = &st->scan.data;
+	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
+
+	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
+
+	ret = spi_optimize_message(st->spi, &st->msg);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(&st->spi->dev, ad4000_unoptimize_msg,
+					&st->msg);
+}
 
 static int ad4000_config(struct ad4000_state *st)
 {
