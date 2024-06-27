@@ -669,14 +669,13 @@ static int ad4000_probe(struct spi_device *spi)
 	devm_mutex_init(dev, &st->lock);
 
 	st->gain_milli = 1000;
-	if (chip->has_hardware_gain) {
-		if (device_property_present(dev, "adi,gain-milli")) {
-			ret = device_property_read_u16(dev, "adi,gain-milli",
-						       &st->gain_milli);
-			if (ret)
-				return dev_err_probe(dev, ret,
-						     "Failed to read gain property\n");
-		}
+	if (chip->has_hardware_gain &&
+	    device_property_present(dev, "adi,gain-milli")) {
+		ret = device_property_read_u16(dev, "adi,gain-milli",
+					       &st->gain_milli);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to read gain property\n");
 	}
 
 	ad4000_fill_scale_tbl(st, indio_dev->channels);
