@@ -99,7 +99,7 @@ enum ad4000_sdi {
 
 /* maps adi,sdi-pin property value to enum */
 static const char * const ad4000_sdi_pin[] = {
-	[AD4000_SDI_MOSI] = "",
+	[AD4000_SDI_MOSI] = "sdi",
 	[AD4000_SDI_VIO] = "high",
 	[AD4000_SDI_CS] = "cs",
 };
