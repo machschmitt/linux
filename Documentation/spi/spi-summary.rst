@@ -647,9 +647,9 @@ Legend::
   X marks when line states are not specified.
 
 In some few cases, chips extend the SPI protocol by specifying line behaviors
-that other SPI protocols don't (e.g. data line state for when CS is inactive).
-Those distinct SPI protocols, modes, and configurations are supported by
-different SPI mode flags.
+that other SPI protocols don't (e.g. data line state for when CS is not
+asserted). Those distinct SPI protocols, modes, and configurations are supported
+by different SPI mode flags.
 
 MOSI idle state configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
