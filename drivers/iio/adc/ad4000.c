@@ -7,6 +7,7 @@
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/byteorder/generic.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/math.h>
@@ -404,28 +405,25 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret < 0)
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+			guard(mutex)(&st->lock);
+
+			ret = ad4000_read_reg(st, &reg_val);
+			if (ret < 0)
+				return ret;
+
+			span_comp_en = val2 == st->scale_tbl[1][1];
+			reg_val &= ~AD4000_CFG_SPAN_COMP;
+			reg_val |= FIELD_PREP(AD4000_CFG_SPAN_COMP, span_comp_en);
+
+			ret = ad4000_write_reg(st, reg_val);
+			if (ret < 0)
+				return ret;
+
+			st->span_comp = span_comp_en;
 			return ret;
-
-		mutex_lock(&st->lock);
-		ret = ad4000_read_reg(st, &reg_val);
-		if (ret < 0)
-			goto err_unlock;
-
-		span_comp_en = val2 == st->scale_tbl[1][1];
-		reg_val &= ~AD4000_CFG_SPAN_COMP;
-		reg_val |= FIELD_PREP(AD4000_CFG_SPAN_COMP, span_comp_en);
-
-		ret = ad4000_write_reg(st, reg_val);
-		if (ret < 0)
-			goto err_unlock;
-
-		st->span_comp = span_comp_en;
-err_unlock:
-		iio_device_release_direct_mode(indio_dev);
-		mutex_unlock(&st->lock);
-		return ret;
+		}
+		unreachable();
 	default:
 		return -EINVAL;
 	}
