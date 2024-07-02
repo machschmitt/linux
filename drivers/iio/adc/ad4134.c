@@ -41,6 +41,15 @@
 #define AD4134_DIF_IF_CFG_FORMAT_MASK		GENMASK(1, 0)
 #define AD4134_DATA_FORMAT_QUAD_CH_PARALLEL	0b10
 
+#define AD4134_CHAN_DIG_FILTER_SEL_REG			0x1E
+#define AD4134_CHAN_DIG_FILTER_SEL_MASK			GENMASK(7, 0)
+#define AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH0	GENMASK(1, 0)
+#define AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH1	GENMASK(3, 2)
+#define AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH2	GENMASK(5, 4)
+#define AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH3	GENMASK(7, 6)
+
+#define AD4134_SINC6_FILTER			0b01010101
+
 #define AD4134_ODR_MIN				10
 #define AD4134_ODR_MAX				1496000
 #define AD4134_ODR_DEFAULT			300000
@@ -63,6 +72,20 @@ static const char * const ad4134_frame_config[] = {
 	[AD4134_DATA_PACKET_24BIT_CRC6_FRAME] = "24-bit+CRC",
 };
 
+enum ad4134_flt_type {
+	WIDEBAND,
+	SINC6,
+	SINC3,
+	SINC3_REJECTION
+};
+
+static const char * const ad4134_filter_enum[] = {
+	[WIDEBAND] = "WIDEBAND",
+	[SINC6] = "SINC6",
+	[SINC3] = "SINC3",
+	[SINC3_REJECTION] = "SINC3_REJECTION",
+};
+
 #define AD4134_CHANNEL(_index, _realbits, _storebits) {				\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
@@ -78,6 +101,25 @@ static const char * const ad4134_frame_config[] = {
 		.shift = ((_storebits) - (_realbits))				\
 	},									\
 }
+
+static int ad4134_set_dig_fil(struct iio_dev *dev,
+			      const struct iio_chan_spec *chan,
+			      unsigned int filter);
+static int ad4134_get_dig_fil(struct iio_dev *dev,
+			      const struct iio_chan_spec *chan);
+
+static const struct iio_enum ad4134_flt_type_iio_enum = {
+	.items = ad4134_filter_enum,
+	.num_items = ARRAY_SIZE(ad4134_filter_enum),
+	.set = ad4134_set_dig_fil,
+	.get = ad4134_get_dig_fil,
+};
+
+static struct iio_chan_spec_ext_info ad4134_ext_info[] = {
+	IIO_ENUM("filter_type", IIO_SHARED_BY_ALL, &ad4134_flt_type_iio_enum),
+	IIO_ENUM_AVAILABLE("filter_type", IIO_SHARED_BY_ALL, &ad4134_flt_type_iio_enum),
+	{ },
+};
 
 #define AD4134_CHAN_SET(_realbits, _storebits) {				\
 	AD4134_CHANNEL(0, _realbits, _storebits),				\
@@ -114,10 +156,49 @@ struct ad4134_state {
 	struct spi_transfer		buf_read_xfer;
 
 	unsigned int			odr;
+	unsigned int			filter_type;
 	unsigned long			sys_clk_rate;
 	int				refin_mv;
 	int				output_frame;
 };
+
+static int ad4134_set_dig_fil(struct iio_dev *dev,
+			      const struct iio_chan_spec *chan,
+			      unsigned int filter)
+{
+	struct ad4134_state *st = iio_priv(dev);
+	int ret;
+
+	st->filter_type = filter;
+	gpiod_set_value_cansleep(st->cs_gpio, 1);
+
+	ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
+				 AD4134_CHAN_DIG_FILTER_SEL_MASK,
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH0, filter) |
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH1, filter) |
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH2, filter) |
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH3, filter));
+
+	gpiod_set_value_cansleep(st->cs_gpio, 0);
+
+	if (ret)
+		return ret;
+	return 0;
+}
+
+static int ad4134_get_dig_fil(struct iio_dev *dev,
+			      const struct iio_chan_spec *chan)
+{
+	struct ad4134_state *st = iio_priv(dev);
+	int ret;
+	unsigned int readval;
+
+	ret = regmap_read(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG, &readval);
+	if (ret)
+		return ret;
+
+	return FIELD_GET(AD4134_CHAN_DIG_FILTER_SEL_FRAME_MASK_CH0, readval);
+}
 
 static int ad4134_samp_freq_avail[] = { AD4134_ODR_MIN, 1, AD4134_ODR_MAX };
 
@@ -380,10 +461,22 @@ static int ad4134_setup(struct ad4134_state *st)
 	if (ret)
 		return ret;
 
-	return regmap_update_bits(st->regmap, AD4134_DEVICE_CONFIG_REG,
+	 ret = regmap_update_bits(st->regmap, AD4134_DEVICE_CONFIG_REG,
 				  AD4134_DEVICE_CONFIG_POWER_MODE_MASK,
 				  FIELD_PREP(AD4134_DEVICE_CONFIG_POWER_MODE_MASK,
 					     AD4134_POWER_MODE_HIGH_PERF));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
+				 AD4134_CHAN_DIG_FILTER_SEL_MASK,
+				 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_MASK,
+					    AD4134_SINC6_FILTER));
+
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static const struct regmap_config ad4134_regmap_config = {
