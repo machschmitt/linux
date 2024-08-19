@@ -60,10 +60,10 @@
 		#size-cells = <0>;
 		#address-cells = <1>;
 
-		max31827: max31827@5f {
+		max31827: max31827@42 {
 			compatible = "adi,max31827";
 			label = "adaq4224-temp";
-			reg = <0x5f>;
+			reg = <0x42>;
 			vref-supply = <&vio>;
 			adi,comp-int;
 			adi,alarm-pol = <0>;
