@@ -564,6 +564,8 @@ static const struct iio_info ad4000_reg_access_info = {
 
 static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
+	.write_raw = &ad4000_write_raw,
+	.write_raw_get_fmt = &ad4000_write_raw_get_fmt,
 };
 
 static int ad4000_buffer_postenable(struct iio_dev *indio_dev)
