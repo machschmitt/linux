@@ -42,7 +42,10 @@
 
 #define AD4000_TQUIET1_NS		190
 #define AD4000_TQUIET2_NS		60
+#define AD7691_TQUIET2_NS		400
 #define AD4000_TCONV_NS			320
+#define AD7687_TCONV_NS			3200
+#define AD7691_TCONV_NS			3700
 
 #define __AD4000_DIFF_CHANNEL(_sign, _real_bits, _storage_bits, _reg_access)	\
 {										\
@@ -663,17 +666,25 @@ static int ad4000_pwm_setup(struct spi_device *spi, struct ad4000_state *st)
 static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 					     const struct iio_chan_spec *chan)
 {
-	unsigned int cnv_pulse_time = AD4000_TCONV_NS;
+	//unsigned int cnv_pulse_time = AD4000_TCONV_NS;
+	unsigned int cnv_pulse_time = AD7691_TCONV_NS;
 	struct spi_transfer *xfers = st->xfers;
 
 	xfers[0].cs_change = 1;
 	xfers[0].cs_change_delay.value = cnv_pulse_time;
 	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
 
+	///*
+	// * Receive buffer needs to be non-zero for the SPI engine controller
+	// * to mark the transfer as a read.
+	// */
+	//xfers[0].rx_buf = (void *)-1;
+
 	xfers[1].rx_buf = &st->scan.data;
 	xfers[1].bits_per_word = chan->scan_type.storagebits;
 	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
-	xfers[1].delay.value = AD4000_TQUIET2_NS;
+	//xfers[1].delay.value = AD4000_TQUIET2_NS;
+	xfers[1].delay.value = AD7691_TQUIET2_NS;
 	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
