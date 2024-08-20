@@ -60,7 +60,7 @@
 		.realbits = _real_bits,						\
 		.storagebits = _storage_bits,					\
 		.shift = _storage_bits - _real_bits,				\
-		.endianness = IIO_BE,						\
+		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
 
@@ -84,7 +84,7 @@
 		.realbits = _real_bits,						\
 		.storagebits = _storage_bits,					\
 		.shift = _storage_bits - _real_bits,				\
-		.endianness = IIO_BE,						\
+		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
 
