@@ -424,7 +424,7 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		guard(mutex)(&st->lock);
+		mutex_lock(&st->lock);
 
 		ret = ad4000_read_reg(st, &reg_val);
 		if (ret < 0)
@@ -440,6 +440,7 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 
 		st->span_comp = span_comp_en;
 err_out:
+		mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
 		return ret;
 	default:
