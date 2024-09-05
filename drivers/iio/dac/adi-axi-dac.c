@@ -783,6 +783,7 @@ static int axi_dac_probe(struct platform_device *pdev)
 {
 	struct axi_dac_state *st;
 	const struct axi_dac_info *info;
+	struct platform_device *child_pdev;
 	void __iomem *base;
 	unsigned int ver;
 	struct clk *clk;
@@ -861,6 +862,20 @@ static int axi_dac_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret,
 				     "failed to register iio backend\n");
+
+	device_for_each_child_node_scoped(&pdev->dev, child) {
+		struct platform_device_info pi;
+
+		memset(&pi, 0, sizeof(pi));
+
+		pi.name = fwnode_get_name(child);
+		pi.id = PLATFORM_DEVID_AUTO;
+		pi.fwnode = child;
+
+		child_pdev = platform_device_register_full(&pi);
+		if (IS_ERR(child_pdev))
+			return PTR_ERR(child_pdev);
+	}
 
 	dev_info(&pdev->dev, "AXI DAC IP core (%d.%.2d.%c) probed\n",
 		 ADI_AXI_PCORE_VER_MAJOR(ver),
