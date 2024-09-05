@@ -24,6 +24,7 @@ properties:
   compatible:
     enum:
       - adi,axi-dac-9.1.b
+      - adi,axi-dac-ad3552r
 
   reg:
     maxItems: 1
