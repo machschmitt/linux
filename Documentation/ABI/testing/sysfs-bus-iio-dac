@@ -59,3 +59,19 @@ Description:
 		multiple predefined symbols. Each symbol corresponds to a different
 		output, denoted as out_voltageY_rawN, where N is the integer value
 		of the symbol. Writing an integer value N will select out_voltageY_rawN.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltage_synchronous_mode
+KernelVersion:	6.13
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Arm or disarm a wait-for-synchronization flag. Arming this flag
+		means the DAC will wait for a synchronizatiopn signal on a
+		specific internal or external wired connection. I.e., there are
+		cases where multiple DACs IP are built in the same chip or fpga
+		design, and they need to start the data stream synchronized.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltage_synchronous_mode_available
+KernelVersion:	6.13
+Contact:	linux-iio@vger.kernel.org
+Description:
+		List of available values for synchronous_mode.
