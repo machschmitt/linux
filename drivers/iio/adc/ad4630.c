@@ -209,8 +209,6 @@ struct ad4630_state {
 	unsigned int out_data;
 	unsigned int max_rate;
 	enum ad4630_scan_type current_scan_type;
-	//unsigned int adc_scan_type;
-	//const struct iio_scan_type *adc_scan_type;
 
 	/* offload sampling spi message */
 	struct spi_transfer offload_xfer;
