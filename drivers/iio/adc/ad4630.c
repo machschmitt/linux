@@ -208,8 +208,9 @@ struct ad4630_state {
 	int scale_tbl[ARRAY_SIZE(ad4630_gains)][2];
 	unsigned int out_data;
 	unsigned int max_rate;
-	//enum ad4630_scan_type scan_type;
-	unsigned int adc_scan_type;
+	enum ad4630_scan_type current_scan_type;
+	//unsigned int adc_scan_type;
+	//const struct iio_scan_type *adc_scan_type;
 
 	/* offload sampling spi message */
 	struct spi_transfer offload_xfer;
@@ -775,7 +776,7 @@ out_error:
 
 static int ad4630_set_scan_type(struct iio_dev *dev,
 				const struct iio_chan_spec *chan,
-				unsigned int sc_type)
+				unsigned int scan_type)
 {
 	struct ad4630_state *st = iio_priv(dev);
 	int ret;
@@ -784,7 +785,8 @@ static int ad4630_set_scan_type(struct iio_dev *dev,
 	//if (ret)
 	//	return ret;
 
-	st->adc_scan_type = sc_type;
+	if (chan->has_ext_scan_type)
+		st->current_scan_type = scan_type;
 	//iio_device_release_direct_mode(dev);
 	return 0;
 }
@@ -794,7 +796,7 @@ static int ad4630_get_scan_type(struct iio_dev *dev,
 {
 	const struct ad4630_state *st = iio_priv(dev);
 
-	return st->adc_scan_type;
+	return st->current_scan_type;
 }
 
 static const char *const ad4630_average_modes[] = {
@@ -1492,7 +1494,7 @@ static int ad4630_config(struct ad4630_state *st)
 		return ret;
 
 	st->max_rate = AD4630_MAX_RATE;
-	st->adc_scan_type = AD4630_SCAN_TYPE_NORMAL;
+	st->current_scan_type = AD4630_SCAN_TYPE_NORMAL;
 
 	ad4630_prepare_spi_sampling_msg(st, clock_mode, lane_mode, data_rate);
 
@@ -1504,7 +1506,7 @@ static int ad4630_get_current_scan_type(const struct iio_dev *indio_dev,
 {
 	struct ad4630_state *st = iio_priv(indio_dev);
 
-	return st->adc_scan_type;
+	return st->current_scan_type;
 }
 
 static const struct iio_buffer_setup_ops ad4630_buffer_setup_ops = {
