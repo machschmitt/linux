@@ -899,8 +899,8 @@ static const struct iio_scan_type ad4630_scan_type_16_dual[] = {
 	},
 	[AD4630_SCAN_TYPE_NORMAL_AND_COMMON_MODE] = {
 		.sign = 's',
-		.storagebits = 32,
-		.realbits = 24,
+		.storagebits = 64,
+		.realbits = 32,
 		.shift = 0,
 	},
 };
