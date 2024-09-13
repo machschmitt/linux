@@ -586,14 +586,16 @@ static int ad4630_write_raw(struct iio_dev *indio_dev,
 			    int val2, long info)
 {
 	struct ad4630_state *st = iio_priv(indio_dev);
+	const struct iio_scan_type *scan_type;
 	int gain_idx;
 
 	switch (info) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return ad4630_set_sampling_freq(indio_dev, val);
 	case IIO_CHAN_INFO_SCALE:
+		scan_type = iio_get_current_scan_type(indio_dev, chan);
 		gain_idx = ad4630_calc_pga_gain(val, val2, st->vref,
-						chan->scan_type.realbits);
+						scan_type->realbits);
 		return ad4630_set_pga_gain(indio_dev, gain_idx);
 	case IIO_CHAN_INFO_CALIBSCALE:
 		return ad4630_set_chan_gain(indio_dev, chan->channel, val,
