@@ -1701,11 +1701,6 @@ static int ad4630_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, ret,
 				     "Config failed: %d\n", ret);
 
-	if (st->pga_gpios) {
-		ad4630_fill_scale_tbl(indio_dev, st);
-		ad4630_set_pga_gain(indio_dev, 0);
-	}
-
 	/*
 	 * Due to a hardware bug in some chips when using average mode zero
 	 * (no averaging), set default averaging mode to 2 samples.
@@ -1726,6 +1721,11 @@ static int ad4630_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_BUFFER_HARDWARE;
 	indio_dev->available_scan_masks = st->chip->available_masks;
 	indio_dev->setup_ops = &ad4630_buffer_setup_ops;
+
+	if (st->pga_gpios) {
+		ad4630_fill_scale_tbl(indio_dev, st);
+		ad4630_set_pga_gain(indio_dev, 0);
+	}
 
 	ret = devm_iio_dmaengine_buffer_setup(dev, indio_dev, "rx",
 					      IIO_BUFFER_DIRECTION_IN);
