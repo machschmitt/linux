@@ -585,15 +585,20 @@ static int ad4630_write_raw(struct iio_dev *indio_dev,
 {
 	struct ad4630_state *st = iio_priv(indio_dev);
 	const struct iio_scan_type *scan_type;
+	enum ad4630_scan_type cur_scan_type;
 	int gain_idx;
 
 	switch (info) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return ad4630_set_sampling_freq(indio_dev, val);
 	case IIO_CHAN_INFO_SCALE:
+		// Use normal scan_type realbits to calcalte scale related parameters.
+		cur_scan_type = st->current_scan_type;
+		st->current_scan_type = AD4630_SCAN_TYPE_NORMAL;
 		scan_type = iio_get_current_scan_type(indio_dev, chan);
 		gain_idx = ad4630_calc_pga_gain(val, val2, st->vref,
 						scan_type->realbits);
+		st->current_scan_type = cur_scan_type;
 		return ad4630_set_pga_gain(indio_dev, gain_idx);
 	case IIO_CHAN_INFO_CALIBSCALE:
 		return ad4630_set_chan_gain(indio_dev, chan->channel, val,
