@@ -820,7 +820,7 @@ static const struct iio_chan_spec_ext_info ad4630_ext_info[] = {
 };
 
 static const char *const ad4630_scan_types[] = {
-	"Conversion data", "Common mode data", "Conversion + common mode data"
+	"conversion_data", "common_mode_data", "conversion_plus_common_mode_data"
 };
 
 static const struct iio_enum ad4630_scan_type_enum = {
@@ -833,8 +833,8 @@ static const struct iio_enum ad4630_scan_type_enum = {
 static const struct iio_chan_spec_ext_info ad4630_com_ext_info[] = {
 	IIO_ENUM("scan_type", IIO_SHARED_BY_TYPE,
 		 &ad4630_scan_type_enum),
-	//IIO_ENUM_AVAILABLE("scan_type", IIO_SHARED_BY_TYPE,
-	//		   &ad4630_scan_type_enum),
+	IIO_ENUM_AVAILABLE("scan_type", IIO_SHARED_BY_TYPE,
+			   &ad4630_scan_type_enum),
 	{}
 };
 
