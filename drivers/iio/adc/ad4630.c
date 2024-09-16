@@ -898,7 +898,7 @@ static const struct iio_scan_type ad4630_scan_type_16_dual[] = {
 		.shift = 0,
 	},
 	[AD4630_SCAN_TYPE_NORMAL_AND_COMMON_MODE] = {
-		.sign = 's',
+		.sign = 'u',
 		.storagebits = 64,
 		.realbits = 32,
 		.shift = 0,
@@ -919,7 +919,7 @@ static const struct iio_scan_type ad4630_scan_type_24_dual[] = {
 		.shift = 0,
 	},
 	[AD4630_SCAN_TYPE_NORMAL_AND_COMMON_MODE] = {
-		.sign = 's',
+		.sign = 'u',
 		.storagebits = 64,
 		.realbits = 32,
 		.shift = 0,
@@ -940,7 +940,7 @@ static const struct iio_scan_type ad4630_scan_type_16_single[] = {
 		.shift = 0,
 	},
 	[AD4630_SCAN_TYPE_NORMAL_AND_COMMON_MODE] = {
-		.sign = 's',
+		.sign = 'u',
 		.storagebits = 32,
 		.realbits = 24,
 		.shift = 0,
@@ -961,7 +961,7 @@ static const struct iio_scan_type ad4630_scan_type_24_single[] = {
 		.shift = 0,
 	},
 	[AD4630_SCAN_TYPE_NORMAL_AND_COMMON_MODE] = {
-		.sign = 's',
+		.sign = 'u',
 		.storagebits = 32,
 		.realbits = 32,
 		.shift = 0,
