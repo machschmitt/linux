@@ -792,13 +792,14 @@ static int ad4630_set_scan_type(struct iio_dev *dev,
 	struct ad4630_state *st = iio_priv(dev);
 	int ret;
 
-	//ret = iio_device_claim_direct_mode(dev);
-	//if (ret)
-	//	return ret;
+	ret = iio_device_claim_direct_mode(dev);
+	if (ret)
+		return ret;
 
 	if (chan->has_ext_scan_type)
 		st->current_scan_type = scan_type;
-	//iio_device_release_direct_mode(dev);
+
+	iio_device_release_direct_mode(dev);
 	return 0;
 }
 
