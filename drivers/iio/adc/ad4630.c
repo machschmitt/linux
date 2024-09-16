@@ -468,7 +468,6 @@ static int ad4630_set_chan_offset(struct iio_dev *indio_dev, int ch, int offset)
 static void ad4630_fill_scale_tbl(struct iio_dev *indio_dev,
 				  struct ad4630_state *st)
 {
-	//struct iio_dev *indio_dev = dev_to_iio_dev(&st->spi->dev);
 	const struct iio_scan_type *scan_type;
 	int val, val2, tmp0, tmp1, i;
 	u64 tmp2;
