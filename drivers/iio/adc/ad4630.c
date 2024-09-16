@@ -592,7 +592,13 @@ static int ad4630_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return ad4630_set_sampling_freq(indio_dev, val);
 	case IIO_CHAN_INFO_SCALE:
-		// Use normal scan_type realbits to calcalte scale related parameters.
+		/*
+		 * Common mode and normal + common mode scan types declare
+		 * different amount of realbits. Though, to get to the scale
+		 * factor for converting ADC output codes to voltage units only
+		 * the ADC precision bits matter. Thus, use normal scan_type
+		 * realbits to calcalte scale related parameters.
+		 */
 		cur_scan_type = st->current_scan_type;
 		st->current_scan_type = AD4630_SCAN_TYPE_NORMAL;
 		scan_type = iio_get_current_scan_type(indio_dev, chan);
