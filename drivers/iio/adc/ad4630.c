@@ -885,6 +885,14 @@ static const struct iio_chan_spec_ext_info ad4630_com_ext_info[] = {
 	.num_ext_scan_type = ARRAY_SIZE(ad4630_scan_type_##_real##_count),\
 }
 
+/*
+ * IIO correctly sign-extend buffer data elements to a twos-complement
+ * signed number if their scan_type is set to signed. However, if common mode
+ * data bits are together with ADC conversion bits, sign extend will also affect
+ * common mode bits. To avoid that, set AD4630_SCAN_TYPE_NORMAL_AND_COMMON_MODE
+ * scan_types to unsigned. This will have the side effect of applications having
+ * to sign-extend ADC conversion data themselves, though.
+ */
 static const struct iio_scan_type ad4630_scan_type_16_dual[] = {
 	[AD4630_SCAN_TYPE_NORMAL] = {
 		.sign = 's',
