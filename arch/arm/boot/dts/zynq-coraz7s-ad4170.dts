@@ -22,13 +22,6 @@
 		regulator-max-microvolt = <4096000>;
 		regulator-always-on;
 	};
-	avss: avss-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "Eval AVSS supply";
-		regulator-min-microvolt = <0>;
-		regulator-max-microvolt = <0>;
-		regulator-boot-on;
-	};
 	avdd: avdd-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "Eval AVDD supply";
@@ -101,7 +94,6 @@
 			spi-max-frequency = <20000000>;
 			spi-cpol;
 			spi-cpha;
-			avss-supply = <&avss>;
 			avdd-supply = <&avdd>;
 			iovdd-supply = <&iovdd>;
 			refin1p-supply = <&refin1p>;
