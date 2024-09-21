@@ -62,6 +62,8 @@
 		ad4170@0 {
 			compatible = "adi,ad4170";
 			reg = <0>;
+			spi-cpol;
+			spi-cpha;
 			avdd-supply = <&avdd>;
 			#address-cells = <1>;
 			#size-cells = <0>;
