@@ -598,7 +598,7 @@ static int ad4170_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 }
 
 static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
-				   int *ain_voltage)
+				   int *ainm_voltage)
 {
 	int ret;
 
@@ -608,14 +608,14 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 		if (ret < 0)
 			return ret;
 
-		*ain_voltage = ret ? ret / 5 : 0;
+		*ainm_voltage = ret ? ret / 5 : 0;
 		return 0;
 	case AD4170_IOVDD_DGND_N:
 		ret = regulator_get_voltage(st->regulators[AD4170_IOVDD_SUPPLY].consumer);
 		if (ret < 0)
 			return ret;
 
-		*ain_voltage = ret ? ret / 5 : 0;
+		*ainm_voltage = ret ? ret / 5 : 0;
 		return 0;
 	case AD4170_AVSS:
 		ret = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
@@ -623,10 +623,10 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 			ret = 0; /* Assume AVSS at 0V if not provided */
 
 		/* AVSS is never above 0V, i.e., it can only be negative. */
-		*ain_voltage = -ret; /* AVSS is a negative voltage */
+		*ainm_voltage = -ret; /* AVSS is a negative voltage */
 		return 0;
 	case AD4170_DGND:
-		*ain_voltage = 0;
+		*ainm_voltage = 0;
 		return 0;
 	case AD4170_REFIN1_P:
 		return regulator_get_voltage(st->regulators[AD4170_REFIN1P_SUPPLY].consumer);
@@ -639,7 +639,7 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 		if (ret < 0)
 			return ret;
 
-		*ain_voltage = -ret;
+		*ainm_voltage = -ret;
 		return 0;
 	case AD4170_REFIN2_P:
 		return regulator_get_voltage(st->regulators[AD4170_REFIN2P_SUPPLY].consumer);
@@ -1362,7 +1362,7 @@ static int ad4170_parse_fw_channel(struct iio_dev *indio_dev,
 	struct ad4170_chan_info *chan_info;
 	struct ad4170_setup *setup;
 	struct iio_chan_spec *chan;
-	int ain_voltage;
+	int i, ainm_voltage;
 	int ret;
 
 	ret = fwnode_property_read_u32(child, "reg", &index);
