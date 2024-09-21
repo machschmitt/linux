@@ -79,7 +79,6 @@
 		compatible = "adi-ex,axi-spi-engine-1.00.a";
 		reg = <0x44a00000 0x10000>;
 		interrupt-parent = <&intc>;
-		//interrupts = <0 56 IRQ_TYPE_LEVEL_HIGH>;
 		interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc 15 &spi_clk>;
 		clock-names = "s_axi_aclk", "spi_clk";
@@ -98,8 +97,6 @@
 			iovdd-supply = <&iovdd>;
 			refin1p-supply = <&refin1p>;
 			refin1n-supply = <&refin1n>;
-			//gpio@e000a000
-			//xlnx,zynq-gpio-1.0
 			interrupt-parent = <&gpio0>;
 			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
 			interrupt-names = "adc_rdy";
@@ -154,11 +151,11 @@
 			// Sample AIN5 with respect to 2.5V throughout AVDD/REFOUT input range
 			// Pseudo-differential unipolar (AD4170 datasheet page 46 example)
 			channel@4 {
-			    reg = <4>;
-			    single-channel = <AD4170_MAP_AIN5>;
-			    common-mode-channel = <AD4170_MAP_REFOUT>;
-			    adi,config-setup-slot = <4>;
-			    adi,reference-select = <2>;
+				reg = <4>;
+				single-channel = <AD4170_MAP_AIN5>;
+				common-mode-channel = <AD4170_MAP_REFOUT>;
+				adi,config-setup-slot = <4>;
+				di,reference-select = <2>;
 			};
 			// Sample AIN6 with respect to REFIN+ throughout AVDD/AVSS input range
 			// Pseudo-differential unipolar
