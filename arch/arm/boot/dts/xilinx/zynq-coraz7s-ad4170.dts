@@ -128,7 +128,7 @@
 				adi,config-setup-slot = <1>;
 				adi,reference-select = <3>;
 			};
-			// Sample AIN3 with respect to 2.5V throughout AVDD/AVSS input range
+			// Sample AIN3 with respect to REFOUT throughout AVDD/AVSS input range
 			// Pseudo-differential bipolar (fig. 2b)
 			channel@2 {
 				reg = <2>;
@@ -148,30 +148,30 @@
 				adi,config-setup-slot = <3>;
 				adi,reference-select = <3>;
 			};
-			// Sample AIN5 with respect to 2.5V throughout AVDD/REFOUT input range
+			// Sample AIN5 with respect to REFOUT throughout AVDD/REFOUT input range
 			// Pseudo-differential unipolar (AD4170 datasheet page 46 example)
 			channel@4 {
 				reg = <4>;
 				single-channel = <AD4170_MAP_AIN5>;
 				common-mode-channel = <AD4170_MAP_REFOUT>;
 				adi,config-setup-slot = <4>;
-				di,reference-select = <2>;
+				adi,reference-select = <3>;
 			};
-			// Sample AIN6 with respect to REFIN+ throughout AVDD/AVSS input range
+			// Sample AIN6 with respect to AVSS throughout AVDD/AVSS input range
 			// Pseudo-differential unipolar
 			channel@5 {
 				reg = <5>;
 				single-channel = <AD4170_MAP_AIN6>;
-				common-mode-channel = <AD4170_MAP_REFIN1_P>;
+				common-mode-channel = <AD4170_MAP_AVSS>;
 				adi,config-setup-slot = <4>;
-				adi,reference-select = <2>;
+				adi,reference-select = <3>;
 			};
-			// Sample AIN7 with respect to DGND throughout REFIN+/REFIN- input range
+			// Sample AIN7 with respect to (AVDD-AVSS)/5 throughout REFIN+/REFIN- input range
 			// Pseudo-differential bipolar
 			channel@6 {
 				reg = <6>;
 				bipolar;
-				diff-channels = <AD4170_MAP_AIN7 AD4170_MAP_DGND>;
+				diff-channels = <AD4170_MAP_AIN7 AD4170_MAP_AVDD_AVSS_P>;
 				adi,config-setup-slot = <5>;
 				adi,reference-select = <0>;
 			};
