@@ -161,7 +161,8 @@
 			channel@4 {
 				reg = <4>;
 				bipolar;
-				diff-channels = <AD4170_MAP_AIN7 AD4170_MAP_DGND>;
+				single-channel = <AD4170_MAP_AIN7>;
+				common-mode-channel = <AD4170_MAP_DGND>;
 				adi,config-setup-slot = <5>;
 				adi,reference-select = <0>;
 			};
