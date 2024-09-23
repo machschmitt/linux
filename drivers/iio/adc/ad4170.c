@@ -775,13 +775,17 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	 * negative input (IN-) over the -VREF to +VREF span. In other words,
 	 * a differential channel measures how many volts IN+ is away from IN-
 	 * (IN+ - IN-). If -VREF
-	 * is lower than system GND these are also called fully differential
+	 * is below system GND, these are also called fully differential
 	 * true bipolar inputs.
 
 	 * For *differential unipolar* channels, the analog voltage at the positive
-	 * input must also stay above the level of the voltage at the negative input.
+	 * input must also stay above the voltage level at the negative input.
 	 * Thus, the actual input range allowed to a differential unipolar channel
 	 * is from IN- to +VREF.
+	 * Because IN+ is allowed to swing with the measured load, and the input
+	 * setup must guarantee IN+ will not go below IN- (nor IN- will raise above IN+),
+	 * most differential unipolar channel setups have IN- fixed
+	 * to a known voltage that does not fall within the load range.
 
 	 * Also for differential unipolar channels, the positive input is always
 	 * offset by the voltage at the negative input when compared to GND.
