@@ -670,18 +670,72 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 	return -EINVAL;
 }
 
-
-static int ad4170_validate_channel_pin(struct ad4170_state *st, int pin)
+static int ad4170_validate_analog_input(struct ad4170_state *st, int pin)
 {
-	if (pin > AD4170_MAX_ANALOG_PINS)
-		return dev_err_probe(&st->spi->dev, -EINVAL,
-				     "Invalid input pin number %d.\n", pin);
+	if (pin <= AD4170_MAX_ANALOG_PINS) {
+		if (st->pins_fn[pin] != AD4170_PIN_UNASIGNED)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Pin %d has been previously assigned.\n",
+					     pin);
 
-	if (st->pins_fn[pin] != AD4170_PIN_UNASIGNED)
+		st->pins_fn[pin] = AD4170_PIN_ANALOG_IN;
+	}
+	return 0;
+}
+
+static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool com)
+{
+
+	/* Check common-mode input pin is mapped to a special input. */
+	if (com && (pin < AD4170_MAP_AVDD_AVSS_P || pin > AD4170_MAP_REFOUT))
 		return dev_err_probe(&st->spi->dev, -EINVAL,
-				     "Pin %d has been previously assigned.\n",
+				     "Invalid common-mode input pin number. %d\n",
 				     pin);
-	st->pins_fn[pin] = AD4170_PIN_ANALOG_IN;
+
+	/* Check differential input pin is mapped to a analog input pin. */
+	if (!com && pin > AD4170_MAX_ANALOG_PINS)
+		return dev_err_probe(&st->spi->dev, -EINVAL,
+				     "Invalid analog input pin number. %d\n",
+				     pin);
+
+	return ad4170_validate_analog_input(st, pin);
+}
+
+static int ad4170_validate_channel(struct ad4170_state *st,
+                                   struct iio_chan_spec const *chan,
+                                   enum ad4170_ref_select ref_sel)
+{
+	int ret;
+
+	/* Check temperature channel input pin mapping. */
+	if (chan->channel == AD4170_MAP_TEMP_SENSOR_P) {
+		if (chan->channel2 != AD4170_MAP_TEMP_SENSOR_N)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Invalid temperature channel pin. %d\n",
+					     chan->channel2);
+
+		if (st->pins_fn[chan->channel] != AD4170_PIN_UNASIGNED)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Pin %d has been previously assigned.\n",
+					     chan->channel);
+
+		st->pins_fn[chan->channel] = AD4170_PIN_ANALOG_IN;
+		if (st->pins_fn[chan->channel2] != AD4170_PIN_UNASIGNED)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Pin %d has been previously assigned.\n",
+					     chan->channel2);
+
+		st->pins_fn[chan->channel2] = AD4170_PIN_ANALOG_IN;
+		return 0;
+	}
+
+	ret = ad4170_validate_channel_input(st, chan->channel, false);
+	if (ret < 0)
+		return ret;
+
+	ret = ad4170_validate_channel_input(st, chan->channel2, !chan->differential);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
