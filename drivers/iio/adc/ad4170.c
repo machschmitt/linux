@@ -67,6 +67,7 @@ struct ad4170_state {
 	u8 reg_read_tx_buf[2];
 	u8 reg_read_rx_buf[4];
 	u8 reg_write_tx_buf[6];
+	enum ad4170_pin_function pins_fn[AD4170_NUM_ANALOG_PINS];
 	u32 vbias_pins[AD4170_MAX_ANALOG_PINS];
 	u32 num_vbias_pins;
 	struct gpio_desc *dig_aux1_gpio;
@@ -663,9 +664,26 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 		*ain_voltage = AD4170_INT_REF_2_5V - ret;
 		return 0;
 	default:
+		dev_info(&st->spi->dev, "%s should never fall here\n", __func__);
 		return -EINVAL;
 	}
 	return -EINVAL;
+}
+
+
+static int ad4170_validate_channel_pin(struct ad4170_state *st, int pin)
+{
+	if (pin > AD4170_MAX_ANALOG_PINS)
+		return dev_err_probe(&st->spi->dev, -EINVAL,
+				     "Invalid input pin number %d.\n", pin);
+
+	if (st->pins_fn[pin] != AD4170_PIN_UNASIGNED)
+		return dev_err_probe(&st->spi->dev, -EINVAL,
+				     "Pin %d has been previously assigned.\n",
+				     pin);
+	st->pins_fn[pin] = AD4170_PIN_ANALOG_IN;
+
+	return 0;
 }
 
 static int ad4170_get_input_range(struct ad4170_state *st,
