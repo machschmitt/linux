@@ -653,7 +653,7 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 		if (ret < 0)
 			return ret;
 
-		*ain_voltage = -ret;
+		*ainm_voltage = -ret;
 		return 0;
 	case AD4170_REFOUT:
 		/* REFOUT is 2.5V relative to AVSS so take that into account */
@@ -661,7 +661,7 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 		if (ret < 0)
 			ret = 0; /* Assume AVSS at 0V if not provided */
 
-		*ain_voltage = AD4170_INT_REF_2_5V - ret;
+		*ainm_voltage = AD4170_INT_REF_2_5V - ret;
 		return 0;
 	default:
 		dev_info(&st->spi->dev, "%s should never fall here\n", __func__);
