@@ -940,13 +940,7 @@ static void ad4170_channel_scale(struct iio_dev *indio_dev,
 static int ad4170_channel_offset(struct ad4170_chan_info *chan_info,
 				     struct ad4170_setup *setup)
 {
-	int pga_gain;
-
-	pga_gain = setup->afe.pga_gain & 0x7;
-	if (setup->afe.pga_gain & 0x8) /* handle cases pga_gain = 8 and 9 */
-		pga_gain--;
-
-	return chan_info->offset_tbl[pga_gain];
+	return chan_info->offset_tbl[setup->afe.pga_gain];
 }
 
 static int ad4170_get_offset(struct iio_dev *indio_dev, int addr, int *val)
@@ -1018,11 +1012,8 @@ static void ad4170_fill_scale_tbl(struct iio_dev *indio_dev, int channel)
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
 	const struct iio_chan_spec *chan = &indio_dev->channels[channel];
 	int ch_resolution = chan->scan_type.realbits - setup->afe.bipolar;
-	unsigned int ref_select_uv;
 	int pga, ainm_voltage, ret;
-	u32 offset;
-
-	ref_select_uv = chan_info->input_range_uv;
+	unsigned long long offset;
 
 	/* The _offset is the output code for the voltage level at AINM. */
 	ainm_voltage = 0; //for offset calculation
@@ -1035,21 +1026,42 @@ static void ad4170_fill_scale_tbl(struct iio_dev *indio_dev, int channel)
 	for (pga = 0; pga < AD4170_PGA_GAIN_MAX; pga++) {
 		u64 nv;
 		unsigned int lshift, rshift;
+		/*
+		 * The scale factor to get ADC output codes to values in mV
+		 * units is given by:
+		 * _scale = (input_range / gain) / 2^precision
+		 * Since AD4170 gain is a power of 2, the above ca be written as
+		 * _scale = input_range / 2^(precision + gain)
+		 */
 
-		/* Keep ref in µV before right shigt to preserve scale precision */
-		nv = (u64)ref_select_uv * NANO;
+		/* Keep the range in µV before right shift to preserve scale precision */
+		nv = (u64)chan_info->input_range_uv * NANO;
 		lshift = (pga >> 3 & 1);  /* handle cases 8 and 9 */
 		rshift = ch_resolution + (pga & 0x7) - lshift;
 		chan_info->scale_tbl[pga][0] = 0;
 		chan_info->scale_tbl[pga][1] = div_u64(nv >> rshift, MILLI);
 		/*
 		 * scale_tbl is in nano units.
-		 * 
-		 * would multiply ainm_voltage by GIGA but ainm_voltage in µV
-		 * so multi by MEGA only.
+		 *
+		 * would multiply ainm_voltage by NANO but ainm_voltage in µV
+		 * so multi by MICRO only.
 		 */
-		offset = DIV_ROUND_CLOSEST(ainm_voltage * GIGA, chan_info->scale_tbl[pga][1]);
-		chan_info->offset_tbl[pga] = offset;
+		/*
+		 * The _offset is the output code that corresponds to the
+		 * voltage level at the channel negative input.
+		 * Use the scale factor the other way arround to go from a known
+		 * voltage to the corresponding ADC output code.
+		 * With that, we are able to get to what would be the output code
+		 * for the voltage at the negative input.
+		 * If the negative input is not fixed, there is no offset.
+		 * (what if unipolar? -> then differential unipolar => fixed IN- to avoid IN+ < IN- => pseudo-diff)
+		 */
+
+		offset = ((unsigned long long)ainm_voltage) * MICRO;
+		offset = DIV_ROUND_CLOSEST_ULL(offset, chan_info->scale_tbl[pga][1]);
+
+		/* After divided by the scale, offset will always fit into u32 */
+		chan_info->offset_tbl[pga] = (u32)offset;
 	}
 }
 
