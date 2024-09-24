@@ -937,6 +937,18 @@ static void ad4170_channel_scale(struct iio_dev *indio_dev,
 	*val2 = ch_resolution + pga_gain;
 }
 
+static int ad4170_channel_offset(struct ad4170_chan_info *chan_info,
+				     struct ad4170_setup *setup)
+{
+	int pga_gain;
+
+	pga_gain = setup->afe.pga_gain & 0x7;
+	if (setup->afe.pga_gain & 0x8) /* handle cases pga_gain = 8 and 9 */
+		pga_gain--;
+
+	return chan_info->offset_tbl[pga_gain];
+}
+
 static int ad4170_get_offset(struct iio_dev *indio_dev, int addr, int *val)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
@@ -961,18 +973,6 @@ static int ad4170_get_gain(struct iio_dev *indio_dev, int addr, int *val)
 	return 0;
 }
 
-static int ad4170_get_channel_offset(struct ad4170_chan_info *chan_info,
-				     struct ad4170_setup *setup)
-{
-	int pga_gain;
-
-	pga_gain = setup->afe.pga_gain & 0x7;
-	if (setup->afe.pga_gain & 0x8) /* handle cases pga_gain = 8 and 9 */
-		pga_gain--;
-
-	return chan_info->offset_tbl[pga_gain];
-}
-
 static int ad4170_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
@@ -991,7 +991,7 @@ static int ad4170_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&st->lock);
 		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = ad4170_get_channel_offset(chan_info, setup);
+		*val = ad4170_channel_offset(chan_info, setup);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		mutex_lock(&st->lock);
