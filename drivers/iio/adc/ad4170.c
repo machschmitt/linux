@@ -926,15 +926,9 @@ static void ad4170_channel_scale(struct iio_dev *indio_dev,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct ad4170_chan_info *chan_info = &st->chan_info[chan->address];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
-	int ch_resolution = chan->scan_type.realbits - setup->afe.bipolar;
-	int pga_gain;
 
-	*val = chan_info->input_range_uv / MILLI;
-	pga_gain = setup->afe.pga_gain & 0x7;
-	if (setup->afe.pga_gain & 0x8) /* handle cases pga_gain = 8 and 9 */
-		pga_gain--;
-
-	*val2 = ch_resolution + pga_gain;
+	*val = chan_info->scale_tbl[setup->afe.pga_gain][0];
+	*val2 = chan_info->scale_tbl[setup->afe.pga_gain][1];
 }
 
 static int ad4170_channel_offset(struct ad4170_chan_info *chan_info,
