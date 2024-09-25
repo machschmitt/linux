@@ -598,25 +598,38 @@ static int ad4170_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 	return ret;
 }
 
-static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
-				   int *ainm_voltage)
+/*
+ * Receives the device state pointer, the number of a multiplexed input (AINP_N
+ * or AIM_N), and stores the voltage (in µV) of the specified input into the
+ * third argument. If the input number is not one of the special multiplexed
+ * inputs ((AVDD-AVSS)/5, ..., REFOUT), stores zero to the voltage argument.
+ * If a voltage regulator required by the special input is unavailable, return
+ * error code.
+ *
+ * @st: pointer to device state struct
+ * @ain_n: number of a multiplexed AD4170 input
+ * @ain_voltage: pointer to a variable where to store ain_n voltage
+ */
+static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ain_n,
+				   int *ain_voltage)
 {
 	int ret;
 
-	switch (ainm_n) {
+	*ain_voltage = 0;
+	switch (ain_n) {
 	case AD4170_AVDD_AVSS_N:
 		ret = regulator_get_voltage(st->regulators[AD4170_AVDD_SUPPLY].consumer);
 		if (ret < 0)
 			return ret;
 
-		*ainm_voltage = ret ? ret / 5 : 0;
+		*ain_voltage = ret ? ret / 5 : 0;
 		return 0;
 	case AD4170_IOVDD_DGND_N:
 		ret = regulator_get_voltage(st->regulators[AD4170_IOVDD_SUPPLY].consumer);
 		if (ret < 0)
 			return ret;
 
-		*ainm_voltage = ret ? ret / 5 : 0;
+		*ain_voltage = ret ? ret / 5 : 0;
 		return 0;
 	case AD4170_AVSS:
 		ret = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
@@ -624,10 +637,10 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 			ret = 0; /* Assume AVSS at 0V if not provided */
 
 		/* AVSS is never above 0V, i.e., it can only be negative. */
-		*ainm_voltage = -ret; /* AVSS is a negative voltage */
+		*ain_voltage = -ret; /* AVSS is a negative voltage */
 		return 0;
 	case AD4170_DGND:
-		*ainm_voltage = 0;
+		*ain_voltage = 0;
 		return 0;
 	case AD4170_REFIN1_P:
 		return regulator_get_voltage(st->regulators[AD4170_REFIN1P_SUPPLY].consumer);
@@ -640,7 +653,7 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 		if (ret < 0)
 			return ret;
 
-		*ainm_voltage = -ret;
+		*ain_voltage = -ret;
 		return 0;
 	case AD4170_REFIN2_P:
 		return regulator_get_voltage(st->regulators[AD4170_REFIN2P_SUPPLY].consumer);
@@ -653,19 +666,16 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ainm_n,
 		if (ret < 0)
 			return ret;
 
-		*ainm_voltage = -ret;
+		*ain_voltage = -ret;
 		return 0;
 	case AD4170_REFOUT:
 		/* REFOUT is 2.5V relative to AVSS so take that into account */
 		ret = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
 		if (ret < 0)
-			ret = 0; /* Assume AVSS at 0V if not provided */
+			ret = 0; /* Assume AVSS at GND (0V) if not provided */
 
-		*ainm_voltage = AD4170_INT_REF_2_5V - ret;
+		*ain_voltage = AD4170_INT_REF_2_5V - ret;
 		return 0;
-	default:
-		dev_info(&st->spi->dev, "%s should never fall here\n", __func__);
-		return -EINVAL;
 	}
 	return -EINVAL;
 }
