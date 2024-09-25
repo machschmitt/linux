@@ -987,7 +987,7 @@ static int ad4170_read_raw(struct iio_dev *indio_dev,
 		mutex_lock(&st->lock);
 		ad4170_channel_scale(indio_dev, chan, val, val2);
 		mutex_unlock(&st->lock);
-		return IIO_VAL_FRACTIONAL_LOG2;
+		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = ad4170_channel_offset(chan_info, setup);
 		return IIO_VAL_INT;
