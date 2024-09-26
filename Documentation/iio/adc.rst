@@ -29,24 +29,66 @@ There are three types of ADC channels.
 1.1 Single-ended channels
 -------------------------
 
-For *single-ended unipolar* channels,
-the analog voltage input can swing from 0V to VREF (where VREF
-is a voltage reference with voltage potential higher than system
-ground (GND)).
-The maximum input voltage is often called VFS (full-scale input voltage),
-with VFS being determined by VREF.
+1.1.1 Single-ended Unipolar Channels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The input voltage to a *single-ended bipolar* channel may fluctuate between
--VREF and +VREF
-(where -VREF is the voltage reference that has the lower voltage
-potential while +VREF is the reference with the higher one).
-When -VREF is lower than the system ground these inputs are also
-called single-ended true bipolar.
+::
+
+  ---------- VREF -------------
+      ´ `           ´ `                  _____________
+    /     \       /     \               /             |
+   /       \     /       \         --- <  IN    ADC   |
+            \   /         \   /         \             |
+             `-´           `-´           \  GND  VREF |
+  -------- GND (0V) -----------           +-----------+
+                                                  ^
+                                                  |
+                                             External VREF
+
+Legend::
+
+  Single-ended Unipolar Channel
+
+For **single-ended unipolar** channels, the analog voltage input can swing from
+0V to VREF (where VREF is a voltage reference with voltage potential higher than
+system ground (GND)). The maximum input voltage is often called VFS (full-scale
+input voltage), with VFS being determined by VREF. The voltage reference may be
+provided from an external supply or derived from the chip power source.
+
+1.1.2 Single-ended Bipolar Channels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+  ---------- +VREF ------------
+      ´ `           ´ `                  _____________________
+    /     \       /     \               /                     |
+   /       \     /       \         --- <  IN          ADC     |
+            \   /         \   /         \                     |
+             `-´           `-´           \  GND  -VREF  +VREF |
+  ---------- -VREF ------------           +-------------------+
+                                                  ^       ^
+                                                  |       +---- External -VREF
+                                           External +VREF
+
+Legend::
+
+  Single-ended Bipolar Channel
+
+The input voltage to a **single-ended bipolar** channel may go from -VREF to
++VREF (where -VREF is the voltage reference that has the lower electrical
+potential while +VREF is the reference with the higher one). The ADC chip may
+derive the lower reference from +VREF or get it from a separate input. Often,
++VREF and -VREF are symmetric but they don't need to be so. When -VREF is lower
+than system ground, these inputs are also called single-ended true bipolar.
 
 1.2 Differential channels
 -------------------------
 
-The analog signals to *differential bipolar* inputs are also allowed to swing
+1.1.2 Differential Bipolar Channels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The analog signals to **differential bipolar** inputs are also allowed to swing
 from -VREF to +VREF. However, a differential voltage measurement
 digitizes the voltage level at the positive input (IN+) relative to the
 negative input (IN-) over the -VREF to +VREF span. In other words,
@@ -55,7 +97,7 @@ a differential channel measures how many volts IN+ is away from IN-
 is below system GND, these are also called fully differential
 true bipolar inputs.
 
-For *differential unipolar* channels, the analog voltage at the positive
+For **differential unipolar** channels, the analog voltage at the positive
 input must also stay above the voltage level at the negative input.
 Thus, the actual input range allowed to a differential unipolar channel
 is from IN- to +VREF.
@@ -75,15 +117,15 @@ the least significant bit (LSB) of ADC output code represent, though.
 1.3 Pseudo-differential channels
 --------------------------------
 
-There is a third input type called Pseudo-differential or
+There is a third input type called pseudo-differential or
 single-ended to differential configuration.
 A pseudo-differential input is made up from a differential pair of
 inputs by fixing the negative input to a known voltage while
 allowing only the positive input to vary.
-A *pseudo-differential unipolar* input has the same limitations of
+A **pseudo-differential unipolar** input has the same limitations of
 a differential unipolar channel meaning the analog voltage to a
 pseudo-differential input must stay between IN- and +VREF.
-A *pseudo-differential bipolar* input is not limited by the level at
+A **pseudo-differential bipolar** input is not limited by the level at
 IN- but it may be limited to GND on the lower end of the input
 range depending on the particular ADC.
 
