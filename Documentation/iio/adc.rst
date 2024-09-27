@@ -65,7 +65,7 @@ provided from an external supply or derived from the chip power source.
     /     \       /     \               /                     |
    /       \     /       \         --- <  IN          ADC     |
             \   /         \   /         \                     |
-             `-´           `-´           \  GND  -VREF  +VREF |
+             `-´           `-´           \  GND  +VREF  -VREF |
   ---------- -VREF ------------           +-------------------+
                                                   ^       ^
                                                   |       +---- External -VREF
@@ -98,7 +98,7 @@ than system ground, these inputs are also called single-ended true bipolar.
                                |            ADC     |
   -------- +VREF ------        |                    |
         ´ `       ´ `     --- <  IN-                |
-  \   /     \   /     \        \       -VREF  +VREF |
+  \   /     \   /     \        \       +VREF  -VREF |
    `-´       `-´                +-------------------+
   -------- -VREF ------                  ^       ^
                                          |       +---- External -VREF
@@ -143,18 +143,18 @@ known voltage while allowing only the positive input to change.
 ::
 
   -------- +VREF ------
-    ´ `       ´ `               +-------------------+
-  /     \   /     \   /        /                    |
-         `-´       `-´    --- <  IN+                |
-  -------- -VREF ------        |                    |
-                               |            ADC     |
-                               |                    |
- Common-mode voltage -->  --- <  IN-                |
-                               \       -VREF  +VREF |
-                                +-------------------+
-                                         ^       ^
-                                         |       +---- External -VREF
-                                  External +VREF
+    ´ `       ´ `                +-------------------+
+  /     \   /     \   /         /                    |
+         `-´       `-´     --- <  IN+                |
+  --------- IN- -------         |                    |
+                                |            ADC     |
+                                |                    |
+  Common-mode voltage -->  --- <  IN-                |
+                                \       +VREF  -VREF |
+                                 +-------------------+
+                                          ^       ^
+                                          |       +---- External -VREF
+                                   External +VREF
 
 Legend::
 
