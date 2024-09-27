@@ -24,10 +24,19 @@ then read by user space applications to obtain the measured value in real-world
 units (millivolts for voltage measurement, milliamps for current measurement,
 etc.).
 
-There are three types of ADC channels.
+There are three types of ADC inputs (single-ended, differential,
+pseudo-differential) and two possible polarities (unipolar, bipolar). The input
+type (single-ended, differential, pseudo-differential) is one channel
+characteristic, and is completely independent of the polarity (unipolar,
+bipolar) aspect. A comprehensive article about ADC input types (on which this
+doc is heavily based on) can be found at
+https://www.analog.com/en/resources/technical-articles/sar-adc-input-types.html.
 
 1.1 Single-ended channels
 -------------------------
+
+Single-ended channels digitize the analog input voltage relative to ground and
+can be either unipolar or bipolar.
 
 1.1.1 Single-ended Unipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
