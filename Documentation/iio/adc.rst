@@ -86,10 +86,11 @@ Legend::
 
 The input voltage to a **single-ended bipolar** channel may go from -VREF to
 +VREF (where -VREF is the voltage reference that has the lower electrical
-potential while +VREF is the reference with the higher one). The ADC chip may
-derive the lower reference from +VREF or get it from a separate input. Often,
-+VREF and -VREF are symmetric but they don't need to be so. When -VREF is lower
-than system ground, these inputs are also called single-ended true bipolar.
+potential while +VREF is the reference with the higher one). Some ADC chips
+derive the lower reference from +VREF, others get it from a separate input.
+Often, +VREF and -VREF are symmetric but they don't need to be so. When -VREF is
+lower than system ground, these inputs are also called single-ended true
+bipolar.
 
 1.2 Differential channels
 -------------------------
@@ -128,7 +129,7 @@ these are also called differential true bipolar inputs.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For **differential unipolar** channels, the analog voltage at the positive input
-must also stay above the voltage level at the negative input. Thus, the actual
+must also be higher than the voltage at the negative input. Thus, the actual
 input range allowed to a differential unipolar channel is IN- to +VREF. Because
 IN+ is allowed to swing with the measured analog signal and the input setup must
 guarantee IN+ will not go below IN- (nor IN- will raise above IN+), most
