@@ -85,46 +85,96 @@ than system ground, these inputs are also called single-ended true bipolar.
 1.2 Differential channels
 -------------------------
 
-1.1.2 Differential Bipolar Channels
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1.2.1 Differential Bipolar Channels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+  -------- +VREF ------
+    ´ `       ´ `               +-------------------+
+  /     \   /     \   /        /                    |
+         `-´       `-´    --- <  IN+                |
+  -------- -VREF ------        |                    |
+                               |            ADC     |
+  -------- +VREF ------        |                    |
+        ´ `       ´ `     --- <  IN-                |
+  \   /     \   /     \        \       -VREF  +VREF |
+   `-´       `-´                +-------------------+
+  -------- -VREF ------                  ^       ^
+                                         |       +---- External -VREF
+                                  External +VREF
+
+Legend::
+
+  Differential Bipolar Channel
 
 The analog signals to **differential bipolar** inputs are also allowed to swing
-from -VREF to +VREF. However, a differential voltage measurement
-digitizes the voltage level at the positive input (IN+) relative to the
-negative input (IN-) over the -VREF to +VREF span. In other words,
-a differential channel measures how many volts IN+ is away from IN-
-(IN+ - IN-). If -VREF
-is below system GND, these are also called fully differential
-true bipolar inputs.
+from -VREF to +VREF. However, a differential voltage measurement digitizes the
+voltage level at the positive input (IN+) relative to the negative input (IN-)
+over the -VREF to +VREF span. In other words, a differential channel measures
+how many volts IN+ is away from IN- (IN+ - IN-). If -VREF is below system GND,
+these are also called differential true bipolar inputs.
 
-For **differential unipolar** channels, the analog voltage at the positive
-input must also stay above the voltage level at the negative input.
-Thus, the actual input range allowed to a differential unipolar channel
-is from IN- to +VREF.
-Because IN+ is allowed to swing with the measured load, and the input
-setup must guarantee IN+ will not go below IN- (nor IN- will raise above IN+),
-most differential unipolar channel setups have IN- fixed
-to a known voltage that does not fall within the load range.
+1.2.2 Differential Unipolar Channels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Also for differential unipolar channels, the positive input is always
-offset by the voltage at the negative input when compared to GND.
-The IIO channel must provide and _offset attribute to tell user space
-about that and allow applications to calculate the real voltage level
-of the positive input with respect to system ground.
-That does not influence how much voltage
-the least significant bit (LSB) of ADC output code represent, though.
+For **differential unipolar** channels, the analog voltage at the positive input
+must also stay above the voltage level at the negative input. Thus, the actual
+input range allowed to a differential unipolar channel is IN- to +VREF. Because
+IN+ is allowed to swing with the measured analog signal and the input setup must
+guarantee IN+ will not go below IN- (nor IN- will raise above IN+), most
+differential unipolar channel setups have IN- fixed to a known voltage that does
+not fall within the voltage range expected for the measured signal. This leads
+to a setup that is equivalent to a pseudo-differential channel. Thus,
+differential unipolar channels are actually pseudo-differential unipolar
+channels.
 
-1.3 Pseudo-differential channels
+1.3 Pseudo-differential Channels
 --------------------------------
 
-There is a third input type called pseudo-differential or
-single-ended to differential configuration.
-A pseudo-differential input is made up from a differential pair of
-inputs by fixing the negative input to a known voltage while
-allowing only the positive input to vary.
-A **pseudo-differential unipolar** input has the same limitations of
-a differential unipolar channel meaning the analog voltage to a
-pseudo-differential input must stay between IN- and +VREF.
+There is a third ADC input type which is called pseudo-differential or
+single-ended to differential configuration. A pseudo-differential input is made
+out from a differential pair of inputs by restricting the negative input to a
+known voltage while allowing only the positive input to change.
+
+1.3.1 Pseudo-differential Unipolar Channels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+  -------- +VREF ------
+    ´ `       ´ `               +-------------------+
+  /     \   /     \   /        /                    |
+         `-´       `-´    --- <  IN+                |
+  -------- -VREF ------        |                    |
+                               |            ADC     |
+                               |                    |
+ Common-mode voltage -->  --- <  IN-                |
+                               \       -VREF  +VREF |
+                                +-------------------+
+                                         ^       ^
+                                         |       +---- External -VREF
+                                  External +VREF
+
+Legend::
+
+  Pseudo-differential Unipolar Channel
+
+A **pseudo-differential unipolar** input has the limitations a differential
+unipolar channel would have, meaning the analog voltage to the positive input
+IN+ must stay within IN- to +VREF. The fixed voltage to IN- is sometimes called
+common-mode voltage and it must be within -VREF to +VREF as would be expected
+from the signal to any differential channel negative input.
+
+In pseudo-differential configuration, the voltage measured from IN+ is not
+relative to GND (as it would be for a single-ended channel) but to IN-, which
+causes the measurement to always be offset by IN- volts. To allow applications
+to calculate IN+ voltage with respect to system ground, the IIO channel may
+provide an _offset attribute to report the channel offset to user space.
+
+1.3.2 Pseudo-differential Bipolar Channels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 A **pseudo-differential bipolar** input is not limited by the level at
 IN- but it may be limited to GND on the lower end of the input
 range depending on the particular ADC.
