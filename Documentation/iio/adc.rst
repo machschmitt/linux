@@ -175,10 +175,31 @@ provide an _offset attribute to report the channel offset to user space.
 1.3.2 Pseudo-differential Bipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A **pseudo-differential bipolar** input is not limited by the level at
-IN- but it may be limited to GND on the lower end of the input
-range depending on the particular ADC.
+::
 
+  -------- +VREF ------
+    ´ `       ´ `                +-------------------+
+  /     \   /     \   /         /                    |
+         `-´       `-´     --- <  IN+                |
+  -------- -VREF ------         |                    |
+                                |            ADC     |
+                                |                    |
+  Common-mode voltage -->  --- <  IN-                |
+                                \       +VREF  -VREF |
+                                 +-------------------+
+                                          ^       ^
+                                          |       +---- External -VREF
+                                   External +VREF
+
+Legend::
+
+  Pseudo-differential Bipolar Channel
+
+A **pseudo-differential bipolar** input is not limited by the level at IN- but
+it will be limited to -VREF or to GND on the lower end of the input range
+depending on the particular ADC. Similar to their unipolar counter parts,
+pseudo-differential bipolar channels may define an _offset attribute to provide
+the read offset relative to GND.
 
 In some setups, the analog signal passes though an amplifier or gain
 circuitry before reaching the ADC inputs. In those cases,
