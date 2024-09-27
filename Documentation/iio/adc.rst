@@ -64,6 +64,21 @@ system ground (GND)). The maximum input voltage is often called VFS (full-scale
 input voltage), with VFS being determined by VREF. The voltage reference may be
 provided from an external supply or derived from the chip power source.
 
+Here's an example device tree description of a single-ended unipolar channel.
+::
+
+    adc@0 {
+        ...
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        channel@0 {
+            reg = <0>;
+        };
+    };
+
+Documentation/devicetree/bindings/iio/adc/adc.yaml
+
 1.1.2 Single-ended Bipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -91,6 +106,20 @@ derive the lower reference from +VREF, others get it from a separate input.
 Often, +VREF and -VREF are symmetric but they don't need to be so. When -VREF is
 lower than system ground, these inputs are also called single-ended true
 bipolar.
+
+A single-ended bipolar channel could be described in device tree like the
+following example::
+
+    adc@0 {
+        ...
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        channel@0 {
+            reg = <0>;
+            bipolar;
+        };
+    };
 
 1.2 Differential channels
 -------------------------
@@ -124,6 +153,20 @@ voltage level at the positive input (IN+) relative to the negative input (IN-)
 over the -VREF to +VREF span. In other words, a differential channel measures
 how many volts IN+ is away from IN- (IN+ - IN-). If -VREF is below system GND,
 these are also called differential true bipolar inputs.
+
+Device tree example of a differential bipolar channel::
+
+    adc@0 {
+        ...
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        channel@0 {
+            reg = <0>;
+            bipolar;
+            diff-channels = <0 1>;
+        };
+    };
 
 1.2.2 Differential Unipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -182,6 +225,20 @@ causes the measurement to always be offset by IN- volts. To allow applications
 to calculate IN+ voltage with respect to system ground, the IIO channel may
 provide an _offset attribute to report the channel offset to user space.
 
+Device tree example for pseudo-differential unipolar channel::
+
+    adc@0 {
+        ...
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        channel@0 {
+            reg = <0>;
+            single-channel = <0>;
+            common-mode-channel = <1>;
+        };
+    };
+
 1.3.2 Pseudo-differential Bipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -210,6 +267,21 @@ it will be limited to -VREF or to GND on the lower end of the input range
 depending on the particular ADC. Similar to their unipolar counter parts,
 pseudo-differential bipolar channels may define an _offset attribute to provide
 the read offset relative to GND.
+
+Device tree example for pseudo-differential bipolar channel::
+
+    adc@0 {
+        ...
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        channel@0 {
+            reg = <0>;
+            bipolar;
+            single-channel = <0>;
+            common-mode-channel = <1>;
+        };
+    };
 
 2. Input Range
 ====================
