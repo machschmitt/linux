@@ -211,13 +211,8 @@ depending on the particular ADC. Similar to their unipolar counter parts,
 pseudo-differential bipolar channels may define an _offset attribute to provide
 the read offset relative to GND.
 
-In some setups, the analog signal passes though an amplifier or gain
-circuitry before reaching the ADC inputs. In those cases,
-the actual input range is smaller (if the signal is amplified (gain > 1))
-or larger (if the signal is attenuated (gain < 1)) than the input
-range for each input type and polarity discussed above. To account
-for that, the input range is divided (or multiplied) by the gain
-factor.
+2. Input Range
+====================
 
 In many cases, the negative reference (-VREF) is 0V (GND), but it may
 be higher than GND (e.g. 2.5V) or even lower (e.g. -2.5V).
@@ -233,3 +228,13 @@ input is single-ended unipolar, then one LSB will represent
 (VREF - 0V)/2^16 = 0.000076293945 V or 76.293945 micro volts.
 If the input is differential bipolar, -VREF = 2.5V, and +VREF = 5V, then
 1 LSB = (+VREF - (-VREF))/2^16 = 2.5/2^16 = 38.146973 micro volts.
+
+3. Signal Amplifiers
+====================
+
+In some chips, the analog signal passes through an amplifier or gain circuitry
+before reaching the ADC inputs. In those cases, the actual input range is
+smaller (if the signal is amplified (gain > 1)) or larger (if the signal is
+attenuated (gain < 1)) than the input range for each input type and polarity
+discussed above. To account for that, the input range is divided (or multiplied)
+by the gain factor.
