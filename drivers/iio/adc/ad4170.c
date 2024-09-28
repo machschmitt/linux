@@ -757,7 +757,7 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	struct ad4170_chan_info *chan_info = &st->chan_info[chan->address];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
 	bool bipolar = setup->afe.bipolar;
-	int pos_ref, neg_ref;
+	int pos_ref, neg_ref, ret;
 	int input_range_mag; /* Magnitude of the allowed input range in µV */
 
 
@@ -774,7 +774,11 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 		break;
 	case AD4170_REFIN_AVDD:
 		pos_ref = regulator_get_voltage(st->regulators[AD4170_AVDD_SUPPLY].consumer);
-		neg_ref = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
+		if (ret < 0)
+			ret = 0; /* Assume AVSS at GND if not provided */
+
+		neg_ref = ret;
 		break;
 	case AD4170_REFIN_REFOUT:
 		neg_ref = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
@@ -792,7 +796,7 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 		return pos_ref;
 
 	if (neg_ref < 0)
-		neg_ref = 0;
+		return neg_ref;
 
 	/*
 	 * Find out the analog input range from the channel type, polarity, and
