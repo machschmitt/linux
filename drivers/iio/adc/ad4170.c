@@ -407,7 +407,6 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 				  unsigned int val)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	unsigned int channel = chan->scan_index;
 	struct ad4170_chan_info *chan_info = &st->chan_info[chan->address];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
 	enum ad4170_filter_type old_filter_type;
@@ -1003,7 +1002,6 @@ static int ad4170_read_avail(struct iio_dev *indio_dev,
 			     long info)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	unsigned int channel = chan->scan_index;
 	struct ad4170_chan_info *chan_info = &st->chan_info[chan->address];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
 	const struct ad4170_filter_config *filter_config;
