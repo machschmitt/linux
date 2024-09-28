@@ -818,15 +818,31 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 		return -EOPNOTSUPP;
 	}
 	/* AD4170 channels are either differential or pseudo-differential. */
+	/*
+	 * Some configurations can lead to invalid setups.
+	 * For example, if AVSS = -2.5V, REF_SELECT set to REFOUT (REFOUT/AVSS),
+	 * and single-ended channel configuration, then
+	 * the input range should go from 0V to +VREF (single-ended - datasheet pg 10),
+	 * but REFOUT/AVSS range would be -2.5V to 0V.
+	 */
 	if (bipolar) {
 		/* Pseudo-differential bipolar channel */
 		/* Input allowd to swing from GND to +VREF */
+		if (pos_ref <= 0)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Invalid setup for channel %lu.\n",
+					     chan->address);
+
 		input_range_mag = pos_ref;
 	} else {
 		/* Pseudo-differential unipolar channel */
 		/* Input allowd to swing from IN- to +VREF */
 		//ADC output codes will range from neg_ret to pos_ref ?
 		//input_range_mag = pos_ref - IN-; ?
+		if (pos_ref <= 0)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Invalid setup for channel %lu.\n",
+					     chan->address);
 		input_range_mag = pos_ref;
 	}
 	return input_range_mag;
