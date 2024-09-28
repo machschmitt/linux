@@ -64,8 +64,8 @@ system ground (GND)). The maximum input voltage is often called VFS (full-scale
 input voltage), with VFS being determined by VREF. The voltage reference may be
 provided from an external supply or derived from the chip power source.
 
-Here's an example device tree description of a single-ended unipolar channel.
-::
+A single-ended unipolar channel could be described in device tree like the
+following example::
 
     adc@0 {
         ...
@@ -107,8 +107,8 @@ Often, +VREF and -VREF are symmetric but they don't need to be so. When -VREF is
 lower than system ground, these inputs are also called single-ended true
 bipolar.
 
-A single-ended bipolar channel could be described in device tree like the
-following example::
+Here's an example device tree description of a single-ended bipolar channel.
+::
 
     adc@0 {
         ...
