@@ -732,18 +732,6 @@ static int ad4170_validate_channel(struct ad4170_state *st,
 					     "Invalid temperature channel pin. %d\n",
 					     chan->channel2);
 
-		if (st->pins_fn[chan->channel] != AD4170_PIN_UNASIGNED)
-			return dev_err_probe(&st->spi->dev, -EINVAL,
-					     "Pin %d has been previously assigned.\n",
-					     chan->channel);
-
-		st->pins_fn[chan->channel] = AD4170_PIN_ANALOG_IN;
-		if (st->pins_fn[chan->channel2] != AD4170_PIN_UNASIGNED)
-			return dev_err_probe(&st->spi->dev, -EINVAL,
-					     "Pin %d has been previously assigned.\n",
-					     chan->channel2);
-
-		st->pins_fn[chan->channel2] = AD4170_PIN_ANALOG_IN;
 		return 0;
 	}
 
