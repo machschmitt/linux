@@ -828,23 +828,6 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	return input_range_mag;
 }
 
-static int ad4170_get_ref_voltage(struct ad4170_state *st,
-				  enum ad4170_ref_select ref_sel)
-{
-	switch (ref_sel) {
-	case AD4170_REFIN_REFIN1:
-		return regulator_get_voltage(st->regulators[2].consumer);
-	case AD4170_REFIN_REFIN2:
-		return regulator_get_voltage(st->regulators[3].consumer);
-	case AD4170_REFIN_AVDD:
-		return regulator_get_voltage(st->regulators[0].consumer);
-	case AD4170_REFIN_REFOUT:
-		return AD4170_INT_REF_2_5V;
-	default:
-		return -EINVAL;
-	}
-}
-
 static void ad4170_channel_scale(struct iio_dev *indio_dev,
 				 struct iio_chan_spec const *chan,
 				 int *val, int *val2)
@@ -1318,10 +1301,6 @@ static int ad4170_parse_fw_setup(struct ad4170_state *st,
 				     "Invalid reference selected %u\n",
 				     setup->afe.ref_select);
 
-	ret = ad4170_get_ref_voltage(st, setup->afe.ref_select);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "Cannot use reference %u\n",
-				     setup->afe.ref_select);
 	return 0;
 }
 
