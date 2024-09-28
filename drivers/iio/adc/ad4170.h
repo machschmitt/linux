@@ -574,13 +574,13 @@ enum ad4170_chop_iexc {
  */
 enum ad4170_chop_adc {
 	/** No Chopping. */
-	AD4170_CHOP_OFF,
+	AD4170_CHOP_OFF = AD4170_MISC_CHOP_ADC_OFF,
 	/** Chops Internal Mux. */
-	AD4170_CHOP_MUX,
+	AD4170_CHOP_MUX = AD4170_MISC_CHOP_ADC_MUX,
 	/** Chops AC Excitation Using 4 GPIO Pins. */
-	AD4170_CHOP_ACX_4PIN,
+	AD4170_CHOP_ACX_4PIN = AD4170_MISC_CHOP_ADC_ACX_4PIN,
 	/** Chops AC Excitation Using 2 GPIO Pins. */
-	AD4170_CHOP_ACX_2PIN
+	AD4170_CHOP_ACX_2PIN = AD4170_MISC_CHOP_ADC_ACX_2PIN
 };
 
 /**
