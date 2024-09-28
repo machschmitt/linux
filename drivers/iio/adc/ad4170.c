@@ -1349,7 +1349,7 @@ static int ad4170_parse_fw_channel(struct iio_dev *indio_dev,
 	struct ad4170_chan_info *chan_info;
 	struct ad4170_setup *setup;
 	struct iio_chan_spec *chan;
-	int i, ainm_voltage;
+	int i;
 	int ret;
 
 	ret = fwnode_property_read_u32(child, "reg", &index);
