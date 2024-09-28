@@ -276,6 +276,7 @@ enum ad4170_dig_aux2_ctrl {
 	AD4170_DIG_AUX2_SYNC,
 };
 
+//TODO? make AD4170_DIG_AUX1_DISABLED .. AD4170_SYNC_DISABLED ... defines
 /**
  * @enum ad4170_sync_ctrl
  * @brief Configures SYNC_IN Pin for ADC Synchronization.
@@ -317,7 +318,7 @@ enum ad4170_sdo_rdby_dly {
  */
 struct ad4170_pin_muxing {
 	/** Enables Current Channel Number Be Output to GPIO Pins. */
-	enum ad4170_chan_to_gpio chan_to_gpio;
+	enum ad4170_chan_to_gpio chan_to_gpio; //TODO unused. remove?
 	/** Configures Functionality of DIG_AUX2 Pin. */
 	u8 dig_aux2_ctrl;
 	/** Configures Functionality of DIG_AUX1 Pin. */
@@ -325,9 +326,9 @@ struct ad4170_pin_muxing {
 	/** Configures SYNC_IN Pin for ADC Synchronization. */
 	u8 sync_ctrl;
 	/** Configures the drive strength of the Digital Outputs. */
-	enum ad4170_dig_out_str dig_out_str;
+	enum ad4170_dig_out_str dig_out_str; //TODO unused. remove?
 	/** Reset Interface on CS or SCLK. */
-	enum ad4170_sdo_rdby_dly sdo_rdby_dly;
+	enum ad4170_sdo_rdby_dly sdo_rdby_dly; //TODO unused. remove?
 };
 
 /**
@@ -544,7 +545,7 @@ struct ad4170_channel_setup {
  * @struct ad4170_channel_map
  * @brief Channel_Map register settings. Selects Analog Inputs for This Sequencer Channel.
  */
-struct ad4170_channel_map {
+struct ad4170_channel_map { //TODO unused. remove?
 	/** Multiplexer Positive Input. */
 	enum ad4170_ain ainp;
 	/** Multiplexer Negative Input. */
@@ -922,7 +923,7 @@ struct ad4170_config {
 	/** Channel_Setup register settings. */
 	struct ad4170_channel_setup ch_setup[AD4170_NUM_CHANNELS];
 	/** Channel_Map register settings. */
-	struct ad4170_channel_map map[AD4170_NUM_CHANNELS];
+	struct ad4170_channel_map map[AD4170_NUM_CHANNELS]; //TODO unused. remove?
 	/** Setups settings. */
 	struct ad4170_setup setups[AD4170_NUM_SETUPS];
 	/** Ref_Control register settings. */
