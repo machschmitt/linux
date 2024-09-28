@@ -1411,6 +1411,13 @@ static int ad4170_parse_fw_channel(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
+	for (i = 0; i < AD4170_NUM_ANALOG_PINS; i++)
+		st->pins_fn[i] = AD4170_PIN_UNASIGNED;
+
+	ret = ad4170_validate_channel(st, chan, setup->afe.ref_select);
+	if (ret < 0)
+		return ret;
+
 	ret = ad4170_get_input_range(st, chan, setup->afe.ref_select);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Cannot use reference %u\n",
