@@ -112,6 +112,11 @@
 			// Sample AIN0 with respect to AIN1 throughout AVDD/AVSS input range
 			// Fully differential. If AVSS < 0V, Fully differential true bipolar
 			channel@0 {
+				// Feature under test: General functionality
+				// Test setup
+				// AVDD = 5V; AVSS = GND (0V)
+				// AIN0 = square, 1 Hz, 100mV p-p centered at 1V.
+				// AIN1 = sine, 10 Hz, 100mV p-p centered at 1V, 180º phase shifted.
 				reg = <0>;
 				bipolar;
 				diff-channels = <AD4170_MAP_AIN0 AD4170_MAP_AIN1>;
@@ -122,6 +127,10 @@
 			// Sample AIN2 with respect to DGND throughout AVDD/DGND input range
 			// Peseudo-differential unipolar (fig. 2a)
 			channel@1 {
+				// Feature under test: Pseudo-diff scale
+				// Test setup
+				// AVDD = 5V; AVSS = GND (0V)
+				// AIN2 = sine, 1 kHz, 100mV p-p centered at 2V.
 				reg = <1>;
 				single-channel = <AD4170_MAP_AIN2>;
 				common-mode-channel = <AD4170_MAP_DGND>;
@@ -131,6 +140,10 @@
 			// Sample AIN3 with respect to REFOUT throughout AVDD/AVSS input range
 			// Pseudo-differential bipolar (fig. 2b)
 			channel@2 {
+				// Feature under test: Channel offset
+				// Test setup
+				// AVDD = 5V; AVSS = GND (0V)
+				// AIN7 = sine 100 mV p-p centered at 2.5V
 				reg = <2>;
 				bipolar;
 				single-channel = <AD4170_MAP_AIN3>;
@@ -151,6 +164,10 @@
 			// Sample AIN5 with respect to REFOUT throughout AVDD/REFOUT input range
 			// Pseudo-differential unipolar (AD4170 datasheet page 46 example)
 			channel@4 {
+				// Feature under test: Channel offset
+				// Test setup
+				// AVDD = 5V; AVSS = GND (0V)
+				// AIN5 = sine 100 mV p-p centered at 3.6V
 				reg = <4>;
 				single-channel = <AD4170_MAP_AIN5>;
 				common-mode-channel = <AD4170_MAP_REFOUT>;
@@ -160,6 +177,10 @@
 			// Sample AIN6 with respect to AVSS throughout AVDD/AVSS input range
 			// Pseudo-differential unipolar
 			channel@5 {
+				// Feature under test: Channel scale
+				// Test setup
+				// AVDD = 5V; AVSS = GND (0V)
+				// AIN5 = sine 100 mV p-p centered at 3.6V
 				reg = <5>;
 				single-channel = <AD4170_MAP_AIN6>;
 				common-mode-channel = <AD4170_MAP_AVSS>;
