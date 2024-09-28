@@ -719,13 +719,23 @@ static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool 
 	// TODO check AVDD - AVSS <= 5V?
 }
 
+/*
+ * Verifies whether the channel configuration is valid by checking the provided
+ * input type, input numbers, polarity, and voltage references result in a sane
+ * input range.
+ * Returns 0 on valid channel configuration.
+ *
+ * @st: pointer to device state struct
+ * @chan: pointer to IIO channel spec struct
+ * @ref_sel: voltage reference selection number
+ */
 static int ad4170_validate_channel(struct ad4170_state *st,
                                    struct iio_chan_spec const *chan,
                                    enum ad4170_ref_select ref_sel)
 {
 	int ret;
 
-	/* Check temperature channel input pin mapping. */
+	/* Check temperature channel mapping. */
 	if (chan->channel == AD4170_MAP_TEMP_SENSOR_P) {
 		if (chan->channel2 != AD4170_MAP_TEMP_SENSOR_N)
 			return dev_err_probe(&st->spi->dev, -EINVAL,
