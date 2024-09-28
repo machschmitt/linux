@@ -139,7 +139,7 @@
 				adi,reference-select = <3>;
 			};
 			// Sample AIN4 with respect to DGND throughout AVDD/AVSS input range
-			// Pseudo-differential ture bipolar if AVSS < 0V (fig. 2c)
+			// Pseudo-differential true bipolar if AVSS < 0V (fig. 2c)
 			channel@3 {
 				reg = <3>;
 				bipolar;
