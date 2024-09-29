@@ -8,9 +8,9 @@ IIO Abstractions for ADCs
 ===========
 
 The IIO subsystem supports many Analog to Digital Converters (ADCs). Some ADCs
-have features and characteristics that have been supported in peculiar ways by
-IIO device drivers. This documentation describes ADC specific features and
-explains how they are (should be?) supported by the IIO subsystem.
+have features and characteristics that are supported in specific ways by IIO
+device drivers. This documentation describes common ADC features and explains
+how they are (should be?) supported by the IIO subsystem.
 
 1. ADC Channel Types
 ====================
@@ -19,8 +19,7 @@ ADCs can have distinct types of inputs, each of them measuring analog voltages
 in a slightly different way. An ADC digitizes the analog input voltage over a
 span given by the provided voltage reference, the input type, and the input
 polarity. The input range allowed to an ADC channel is needed to determine the
-scale factor and offset for the channel. The scale and offset attributes are
-then read by user space applications to obtain the measured value in real-world
+scale factor and offset needed to obtain the measured value in real-world
 units (millivolts for voltage measurement, milliamps for current measurement,
 etc.).
 
@@ -54,11 +53,12 @@ can be either unipolar or bipolar.
                                                   |
                                              External VREF
 
-For **single-ended unipolar** channels, the analog voltage input can swing from
-0V to VREF (where VREF is a voltage reference with voltage potential higher than
-system ground (GND)). The maximum input voltage is often called VFS (full-scale
-input voltage), with VFS being determined by VREF. The voltage reference may be
-provided from an external supply or derived from the chip power source.
+The input voltage to a **single-ended unipolar** channel is allowed to swing
+from GND to VREF (where VREF is a voltage reference with electrical potential
+higher than system ground). The maximum input voltage is also called VFS
+(full-scale input voltage), with VFS being determined by VREF. The voltage
+reference may be provided from an external supply or derived from the chip power
+source.
 
 A single-ended unipolar channel could be described in device tree like the
 following example::
@@ -73,7 +73,8 @@ following example::
         };
     };
 
-Documentation/devicetree/bindings/iio/adc/adc.yaml
+Please see ``Documentation/devicetree/bindings/iio/adc/adc.yaml`` for the
+complete documentation of ADC specific device tree attributes.
 
 1.1.2 Single-ended Bipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -91,13 +92,13 @@ Documentation/devicetree/bindings/iio/adc/adc.yaml
                                                   |       +---- External -VREF
                                            External +VREF
 
-The input voltage to a **single-ended bipolar** channel may go from -VREF to
-+VREF (where -VREF is the voltage reference that has the lower electrical
-potential while +VREF is the reference with the higher one). Some ADC chips
-derive the lower reference from +VREF, others get it from a separate input.
-Often, +VREF and -VREF are symmetric but they don't need to be so. When -VREF is
-lower than system ground, these inputs are also called single-ended true
-bipolar.
+For a **single-ended bipolar** channel, the analog voltage input can go from
+-VREF to +VREF (where -VREF is the voltage reference that has the lower
+electrical potential while +VREF is the reference with the higher one). Some ADC
+chips derive the lower reference from +VREF, others get it from a separate
+input.  Often, +VREF and -VREF are symmetric but they don't need to be so. When
+-VREF is lower than system ground, these inputs are also called single-ended
+true bipolar.
 
 Here's an example device tree description of a single-ended bipolar channel.
 ::
