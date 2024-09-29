@@ -54,10 +54,6 @@ can be either unipolar or bipolar.
                                                   |
                                              External VREF
 
-Legend::
-
-  Single-ended Unipolar Channel
-
 For **single-ended unipolar** channels, the analog voltage input can swing from
 0V to VREF (where VREF is a voltage reference with voltage potential higher than
 system ground (GND)). The maximum input voltage is often called VFS (full-scale
@@ -94,10 +90,6 @@ Documentation/devicetree/bindings/iio/adc/adc.yaml
                                                   ^       ^
                                                   |       +---- External -VREF
                                            External +VREF
-
-Legend::
-
-  Single-ended Bipolar Channel
 
 The input voltage to a **single-ended bipolar** channel may go from -VREF to
 +VREF (where -VREF is the voltage reference that has the lower electrical
@@ -142,10 +134,6 @@ Here's an example device tree description of a single-ended bipolar channel.
   -------- -VREF ------                  ^       ^
                                          |       +---- External -VREF
                                   External +VREF
-
-Legend::
-
-  Differential Bipolar Channel
 
 The analog signals to **differential bipolar** inputs are also allowed to swing
 from -VREF to +VREF. However, a differential voltage measurement digitizes the
@@ -209,10 +197,6 @@ known voltage while allowing only the positive input to change.
                                           |       +---- External -VREF
                                    External +VREF
 
-Legend::
-
-  Pseudo-differential Unipolar Channel
-
 A **pseudo-differential unipolar** input has the limitations a differential
 unipolar channel would have, meaning the analog voltage to the positive input
 IN+ must stay within IN- to +VREF. The fixed voltage to IN- is sometimes called
@@ -257,10 +241,6 @@ Device tree example for pseudo-differential unipolar channel::
                                           ^       ^
                                           |       +---- External -VREF
                                    External +VREF
-
-Legend::
-
-  Pseudo-differential Bipolar Channel
 
 A **pseudo-differential bipolar** input is not limited by the level at IN- but
 it will be limited to -VREF or to GND on the lower end of the input range
