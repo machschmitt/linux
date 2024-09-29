@@ -48,7 +48,7 @@ can be either unipolar or bipolar.
     /     \       /     \               /             |
    /       \     /       \         --- <  IN    ADC   |
             \   /         \   /         \             |
-             `-´           `-´           \  GND  VREF |
+             `-´           `-´           \       VREF |
   -------- GND (0V) -----------           +-----------+
                                                   ^
                                                   |
@@ -85,7 +85,7 @@ Documentation/devicetree/bindings/iio/adc/adc.yaml
     /     \       /     \               /                     |
    /       \     /       \         --- <  IN          ADC     |
             \   /         \   /         \                     |
-             `-´           `-´           \  GND  +VREF  -VREF |
+             `-´           `-´           \       +VREF  -VREF |
   ---------- -VREF ------------           +-------------------+
                                                   ^       ^
                                                   |       +---- External -VREF
