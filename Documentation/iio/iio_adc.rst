@@ -214,7 +214,7 @@ In pseudo-differential configuration, the voltage measured from IN+ is not
 relative to GND (as it would be for a single-ended channel) but to IN-, which
 causes the measurement to always be offset by IN- volts. To allow applications
 to calculate IN+ voltage with respect to system ground, the IIO channel may
-provide an _offset attribute to report the channel offset to user space.
+provide an `_offset` attribute to report the channel offset to user space.
 
 Device tree example for pseudo-differential unipolar channel::
 
@@ -255,8 +255,8 @@ pseudo-differential channels.
 A **pseudo-differential bipolar** input is not limited by the level at IN- but
 it will be limited to -VREF or to GND on the lower end of the input range
 depending on the particular ADC. Similar to their unipolar counter parts,
-pseudo-differential bipolar channels may define an _offset attribute to provide
-the read offset relative to GND.
+pseudo-differential bipolar channels may define an `_offset` attribute to
+provide the read offset relative to GND.
 
 Device tree example for pseudo-differential bipolar channel::
 
