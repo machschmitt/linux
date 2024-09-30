@@ -73,8 +73,9 @@ following example::
         };
     };
 
-Please see ``Documentation/devicetree/bindings/iio/adc/adc.yaml`` for the
-complete documentation of ADC specific device tree attributes.
+See ``Documentation/devicetree/bindings/iio/adc/adc.yaml`` for the complete
+documentation of ADC specific device tree properties.
+
 
 1.1.2 Single-ended Bipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
