@@ -1475,7 +1475,7 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
-	int ret, tmp;
+	int ret;
 
 	st->cfg.current_source[0].i_out_pin = AD4170_I_OUT_AIN0;
 	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-pin-0",
@@ -1557,10 +1557,12 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-current-2-microamp",
 				       &st->cfg.current_source[2].i_out_val);
 	if (!ret) {
-		ret = ad4170_find_table_index(ad4170_iout_current_ua_tbl, tmp);
+		ret = ad4170_find_table_index(ad4170_iout_current_ua_tbl,
+					      st->cfg.current_source[2].i_out_val);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
-					     "Invalid excitation current %uuA\n", tmp);
+					     "Invalid excitation current %uuA\n",
+					     st->cfg.current_source[2].i_out_val);
 	}
 
 	st->cfg.current_source[3].i_out_val = AD4170_I_OUT_0UA;
@@ -1571,7 +1573,8 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 					      st->cfg.current_source[3].i_out_val);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
-					     "Invalid excitation current %uuA\n", tmp);
+					     "Invalid excitation current %uuA\n",
+					     st->cfg.current_source[3].i_out_val);
 	}
 	return 0;
 }
