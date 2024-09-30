@@ -90,8 +90,8 @@ documentation of ADC specific device tree properties.
              `-´           `-´           \       +VREF  -VREF |
   ---------- -VREF ------------           +-------------------+
                                                   ^       ^
-                                                  |       +---- External -VREF
-                                           External +VREF
+                                                  |       |
+                             External +VREF ------+  External -VREF
 
 For a **single-ended bipolar** channel, the analog voltage input can go from
 -VREF to +VREF (where -VREF is the voltage reference that has the lower
