@@ -694,7 +694,6 @@ static int ad4170_validate_analog_input(struct ad4170_state *st, int pin)
 
 static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool com)
 {
-
 	/* Check common-mode input pin is mapped to a special input. */
 	if (com && (pin < AD4170_MAP_AVDD_AVSS_P || pin > AD4170_MAP_REFOUT))
 		return dev_err_probe(&st->spi->dev, -EINVAL,
