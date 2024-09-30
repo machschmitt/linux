@@ -707,8 +707,6 @@ static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool 
 
 	return ad4170_validate_analog_input(st, pin);
 
-	// TODO check if at least one pin is AIN or TEMP?
-
 	// TODO invalid if AVSS = -2.5V, REFOUT selected, and single-ended
 	// channel configuration.
 
