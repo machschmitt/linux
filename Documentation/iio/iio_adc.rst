@@ -161,7 +161,7 @@ Device tree example of a differential bipolar channel::
     };
 
 In the ADC driver, `differential = 1` is set into `struct iio_chan_spec` for the
-channel.
+channel. See ``include/linux/iio/iio.h`` for more information.
 
 1.2.2 Differential Unipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
