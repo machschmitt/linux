@@ -536,17 +536,6 @@ struct ad4170_channel_setup {
 };
 
 /**
- * @struct ad4170_channel_map
- * @brief Channel_Map register settings. Selects Analog Inputs for This Sequencer Channel.
- */
-struct ad4170_channel_map { //TODO unused. remove?
-	/** Multiplexer Positive Input. */
-	enum ad4170_ain ainp;
-	/** Multiplexer Negative Input. */
-	enum ad4170_ain ainm;
-};
-
-/**
  * @enum ad4170_chop_iexc
  * @brief Excitation Current Chopping Control.
  */
@@ -916,8 +905,6 @@ struct ad4170_config {
 	u16 channel_en;
 	/** Channel_Setup register settings. */
 	struct ad4170_channel_setup ch_setup[AD4170_NUM_CHANNELS];
-	/** Channel_Map register settings. */
-	struct ad4170_channel_map map[AD4170_NUM_CHANNELS]; //TODO unused. remove?
 	/** Setups settings. */
 	struct ad4170_setup setups[AD4170_NUM_SETUPS];
 	/** Ref_Control register settings. */
