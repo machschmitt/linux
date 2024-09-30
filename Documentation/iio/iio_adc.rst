@@ -160,6 +160,9 @@ Device tree example of a differential bipolar channel::
         };
     };
 
+In the ADC driver, `differential = 1` is set into `struct iio_chan_spec` for the
+channel.
+
 1.2.2 Differential Unipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -227,6 +230,9 @@ Device tree example for pseudo-differential unipolar channel::
         };
     };
 
+Do not set `differential` in the channel `iio_chan_spec` struct of
+pseudo-differential channels.
+
 1.3.2 Pseudo-differential Bipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -266,6 +272,8 @@ Device tree example for pseudo-differential bipolar channel::
             common-mode-channel = <1>;
         };
     };
+
+Again, `differential` is not set for pseudo-differential channels.
 
 2. Input Range
 ====================
