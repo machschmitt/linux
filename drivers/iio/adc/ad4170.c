@@ -866,7 +866,7 @@ static void ad4170_channel_scale(struct iio_dev *indio_dev,
 }
 
 static int ad4170_channel_offset(struct ad4170_chan_info *chan_info,
-				     struct ad4170_setup *setup)
+				 struct ad4170_setup *setup)
 {
 	return chan_info->offset_tbl[setup->afe.pga_gain];
 }
