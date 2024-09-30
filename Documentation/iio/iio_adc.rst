@@ -276,11 +276,19 @@ Device tree example for pseudo-differential bipolar channel::
 Again, the `differential` field of `struct iio_chan_spec` is not set for
 pseudo-differential channels.
 
-2. Input Range
-====================
+2. Input Range, Scale, and Offset
+=================================
 
-In many cases, the negative reference (-VREF) is 0V (GND), but it may
-be higher than GND (e.g. 2.5V) or even lower (e.g. -2.5V).
+The IIO ABI specifies that ADC output codes (raw bits of data) are translated to
+real-world units (millivolts, milliamps, etc.) according to the
+``(_raw + _offset) * _scale`` formula, where `_raw` contains the bits that
+come out of the sensor after a measurement,
+`_offset` is a value that can be added to adjust the raw data prior to scaling,
+and `_scale` is the multiplier that maps the _raw + _offset value to the
+specified real-world units for the channel.
+
+In many setups, the negative reference (-VREF) is at GND (0V) but different
+setups may have -VREF higher than GND (e.g. 2.5V) or even lower (e.g. -2.5V).
 Regardless of the provided voltage reference(s), the analog inputs
 must stay within 0V to VREF (for single-ended inputs) or within -VREF to
 +VREF (for differential inputs).
