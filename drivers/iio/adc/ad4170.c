@@ -754,6 +754,10 @@ static int ad4170_validate_channel(struct ad4170_state *st,
 	return 0;
 }
 
+/*
+ * Receives the device state, the channel spec, a reference selection, and
+ * returns the magnitude of the allowed input range in µV.
+ */
 static int ad4170_get_input_range(struct ad4170_state *st,
 				  struct iio_chan_spec const *chan,
 				  enum ad4170_ref_select ref_sel)
@@ -761,12 +765,8 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	struct ad4170_chan_info *chan_info = &st->chan_info[chan->address];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
 	bool bipolar = setup->afe.bipolar;
-	int pos_ref, neg_ref, ret;
-	int input_range_mag; /* Magnitude of the allowed input range in µV */
+	int pos_ref, neg_ref, ain_voltage, ret;
 
-
-	/* Differential Input Voltage Range: −VREF/gain to +VREF/gain (datasheet page 6) */
-	/* Single-Ended Input Voltage Range: 0 to VREF/gain (datasheet page 6) */
 	switch (ref_sel) {
 	case AD4170_REFIN_REFIN1:
 		pos_ref = regulator_get_voltage(st->regulators[AD4170_REFIN1P_SUPPLY].consumer);
@@ -805,23 +805,22 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	/*
 	 * Find out the analog input range from the channel type, polarity, and
 	 * voltage reference selection.
+	 * AD4170 channels are either differential or pseudo-differential.
 	 */
+	/* Differential Input Voltage Range: −VREF/gain to +VREF/gain (datasheet page 6) */
+	/* Single-Ended Input Voltage Range: 0 to VREF/gain (datasheet page 6) */
 	if (chan->differential) {
-		if (bipolar) {
-			/* Differential bipolar channel */
-			/* Assuming refin1n-supply not above 0V. */
-			/* Assuming refin2n-supply not above 0V. */
-			/* avss-supply is never above 0V. */
-			return pos_ref + neg_ref;
-		}
-		/* Differential unipolar channel */
-		//ADC output codes will range from neg_ref to pos_ref ?
-		//actual input_range = pos_ref - IN-; ?
-		// IN+ must be above IN- but IN- is allowed to swing too? weird
-		/* Not sure a use case for this actually exists. Skipping support for now */
-		return -EOPNOTSUPP;
+		if (!bipolar)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Invalid channel %lu setup.\n",
+					     chan->address);
+
+		/* Differential bipolar channel */
+		/* avss-supply is never above 0V. */
+		/* Assuming refin1n-supply not above 0V. */
+		/* Assuming refin2n-supply not above 0V. */
+		return pos_ref + neg_ref;
 	}
-	/* AD4170 channels are either differential or pseudo-differential. */
 	/*
 	 * Some configurations can lead to invalid setups.
 	 * For example, if AVSS = -2.5V, REF_SELECT set to REFOUT (REFOUT/AVSS),
@@ -831,25 +830,35 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	 */
 	if (bipolar) {
 		/* Pseudo-differential bipolar channel */
-		/* Input allowd to swing from GND to +VREF */
+		/* Input allowed to swing from GND(?) to +VREF */
+		//or will the ADC spread the output codes over -VREF to +VREF?
 		if (pos_ref <= 0)
 			return dev_err_probe(&st->spi->dev, -EINVAL,
 					     "Invalid setup for channel %lu.\n",
 					     chan->address);
 
-		input_range_mag = pos_ref;
-	} else {
-		/* Pseudo-differential unipolar channel */
-		/* Input allowd to swing from IN- to +VREF */
-		//ADC output codes will range from neg_ret to pos_ref ?
-		//input_range_mag = pos_ref - IN-; ?
-		if (pos_ref <= 0)
-			return dev_err_probe(&st->spi->dev, -EINVAL,
-					     "Invalid setup for channel %lu.\n",
-					     chan->address);
-		input_range_mag = pos_ref;
+		return pos_ref;
 	}
-	return input_range_mag;
+
+	/* Pseudo-differential unipolar channel */
+	/* Input allowed to swing from IN- to +VREF */
+	if (pos_ref <= 0)
+		return dev_err_probe(&st->spi->dev, -EINVAL,
+				     "Invalid setup for channel %lu.\n",
+				     chan->address);
+
+	//input_range_mag = pos_ref - IN-; ?
+	//or will the ADC spread the output codes over -VREF to +VREF?
+	ret = ad4170_get_AINM_voltage(st, chan->channel2, &ain_voltage);
+	if (ret < 0)
+		return ret;
+
+	if (pos_ref - ain_voltage <= 0)
+		return dev_err_probe(&st->spi->dev, -EINVAL,
+				     "Invalid setup for channel %lu.\n",
+				     chan->address);
+
+	return pos_ref - ain_voltage;
 }
 
 static void ad4170_channel_scale(struct iio_dev *indio_dev,
