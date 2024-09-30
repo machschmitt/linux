@@ -227,6 +227,18 @@
 #define AD4170_NUM_ANALOG_PINS				9
 #define AD4170_DEFAULT_ADC_GAIN_COEF			0x555555
 
+#define AD4170_DIG_AUX1_DISABLED	0
+#define AD4170_DIG_AUX1_RDY		1
+#define AD4170_DIG_AUX1_SYNC		2
+
+#define AD4170_DIG_AUX2_DISABLED	0
+#define AD4170_DIG_AUX2_LDAC		1
+#define AD4170_DIG_AUX2_SYNC		2
+
+#define AD4170_SYNC_DISABLED		0
+#define AD4170_SYNC_STANDARD		1
+#define AD4170_SYNC_ALTERNATE		2
+
 enum ad4170_pin_function {
 	AD4170_PIN_UNASIGNED,
 	AD4170_PIN_ANALOG_IN,
@@ -248,46 +260,6 @@ enum ad4170_chan_to_gpio {
 	AD4170_CHANNEL_NOT_TO_GPIO,
 	/** Active Channel is Output to GPIO Pins. */
 	AD4170_CHANNEL_TO_GPIO
-};
-
-/**
- * @enum ad4170_dig_aux1_ctrl
- * @brief Configures Functionality of DIG_AUX1 Pin.
- */
-enum ad4170_dig_aux1_ctrl {
-	/** Dig_Aux1 Pin Disabled. High Impedance */
-	AD4170_DIG_AUX1_DISABLED,
-	/** Dig_Aux1 Pin Configured as ADC Data Ready Output. */
-	AD4170_DIG_AUX1_RDY,
-	/** Dig_Aux1 Pin Configured as SYNC_OUT Output. */
-	AD4170_DIG_AUX1_SYNC,
-};
-
-/**
- * @enum ad4170_dig_aux2_ctrl
- * @brief Configures Functionality of DIG_AUX2 Pin.
- */
-enum ad4170_dig_aux2_ctrl {
-	/** Dig_Aux2 Pin Disabled. High Impedance */
-	AD4170_DIG_AUX2_DISABLED,
-	/** Dig_Aux2 Pin Configured as DAC LDAC Input. */
-	AD4170_DIG_AUX2_LDAC,
-	/** Dig_Aux2 Pin Configured as START Input. */
-	AD4170_DIG_AUX2_SYNC,
-};
-
-//TODO? make AD4170_DIG_AUX1_DISABLED .. AD4170_SYNC_DISABLED ... defines
-/**
- * @enum ad4170_sync_ctrl
- * @brief Configures SYNC_IN Pin for ADC Synchronization.
- */
-enum ad4170_sync_ctrl {
-	/** SYNC_IN Pin Disabled. */
-	AD4170_SYNC_DISABLED,
-	/** SYNC_IN Has Default SYNC Functionality. */
-	AD4170_SYNC_STANDARD,
-	/** SYNC_IN Has Alternative SYNC Functionality. */
-	AD4170_SYNC_ALTERNATE
 };
 
 /**
