@@ -275,39 +275,3 @@ Device tree example for pseudo-differential bipolar channel::
 
 Again, the `differential` field of `struct iio_chan_spec` is not set for
 pseudo-differential channels.
-
-2. Input Range, Scale, and Offset
-=================================
-
-The IIO ABI specifies that ADC output codes (raw bits of data) are translated to
-real-world units (millivolts, milliamps, etc.) according to the
-``(_raw + _offset) * _scale`` formula, where `_raw` contains the bits that
-come out of the sensor after a measurement,
-`_offset` is a value that can be added to adjust the raw data prior to scaling,
-and `_scale` is the multiplier that maps the _raw + _offset value to the
-specified real-world units for the channel.
-
-In many setups, the negative reference (-VREF) is at GND (0V) but different
-setups may have -VREF higher than GND (e.g. 2.5V) or even lower (e.g. -2.5V).
-Regardless of the provided voltage reference(s), the analog inputs
-must stay within 0V to VREF (for single-ended inputs) or within -VREF to
-+VREF (for differential inputs).
-With that, the least significant bit (LSB) of the ADC output code
-depends on the input range and, for simple ADCs that output data
-conversion in straight binary format, the LSB can be calculated as
-input_range / 2^(precision_bits).
-For example, if the device has 16-bit precision, VREF = 5V, and the
-input is single-ended unipolar, then one LSB will represent
-(VREF - 0V)/2^16 = 0.000076293945 V or 76.293945 micro volts.
-If the input is differential bipolar, -VREF = 2.5V, and +VREF = 5V, then
-1 LSB = (+VREF - (-VREF))/2^16 = 2.5/2^16 = 38.146973 micro volts.
-
-3. Signal Amplifiers
-====================
-
-In some chips, the analog signal passes through an amplifier or gain circuitry
-before reaching the ADC inputs. In those cases, the actual input range is
-smaller (if the signal is amplified (gain > 1)) or larger (if the signal is
-attenuated (gain < 1)) than the input range for each input type and polarity
-discussed above. To account for that, the input range is divided (or multiplied)
-by the gain factor.
