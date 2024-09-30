@@ -1471,40 +1471,11 @@ static int ad4170_parse_fw_children(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int ad4170_parse_fw(struct iio_dev *indio_dev)
+static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
 	int ret, tmp;
-
-	st->mclk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT)
-		return dev_err_probe(dev, PTR_ERR(st->mclk),
-				     "Failed to get mclk\n");
-
-	st->cfg.clock_ctrl.clocksel = ad4170_of_clock_select(st);
-	ret = ad4170_parse_digif_fw(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	st->pdsw0 = fwnode_property_read_bool(dev->fwnode, "adi,gpio0-power-down-switch");
-	st->pdsw1 = fwnode_property_read_bool(dev->fwnode, "adi,gpio1-power-down-switch");
-
-	ret = device_property_count_u32(dev, "adi,vbias-pins");
-	if (ret > 0) {
-		if (ret > AD4170_MAX_ANALOG_PINS)
-			return dev_err_probe(dev, -EINVAL,
-					     "Too many vbias pins %u\n", ret);
-
-		st->num_vbias_pins = ret;
-
-		ret = device_property_read_u32_array(dev, "adi,vbias-pins",
-						     st->vbias_pins,
-						     st->num_vbias_pins);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Failed to read vbias pins\n");
-	}
 
 	st->cfg.current_source[0].i_out_pin = AD4170_I_OUT_AIN0;
 	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-pin-0",
@@ -1515,7 +1486,7 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 					      st->cfg.current_source[0].i_out_pin);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
-					     "Invalid value for adi,excitation-pin-0: %u\n",
+					     "Invalid adi,excitation-pin-0: %u\n",
 					     st->cfg.current_source[0].i_out_pin);
 	}
 
@@ -1528,7 +1499,7 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 					      st->cfg.current_source[1].i_out_pin);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
-					     "Invalid value for adi,excitation-pin-1: %u\n",
+					     "Invalid adi,excitation-pin-1: %u\n",
 					     st->cfg.current_source[1].i_out_pin);
 	}
 
@@ -1541,7 +1512,7 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 					      st->cfg.current_source[2].i_out_pin);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
-					     "Invalid value for adi,excitation-pin-2: %u\n",
+					     "Invalid adi,excitation-pin-2: %u\n",
 					     st->cfg.current_source[2].i_out_pin);
 	}
 
@@ -1554,7 +1525,7 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 					      st->cfg.current_source[3].i_out_pin);
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
-					     "Invalid value for adi,excitation-pin-3: %u\n",
+					     "Invalid adi,excitation-pin-3: %u\n",
 					     st->cfg.current_source[3].i_out_pin);
 	}
 
@@ -1602,6 +1573,47 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid excitation current %uuA\n", tmp);
 	}
+	return 0;
+}
+
+static int ad4170_parse_fw(struct iio_dev *indio_dev)
+{
+	struct ad4170_state *st = iio_priv(indio_dev);
+	struct device *dev = &st->spi->dev;
+	int ret, tmp;
+
+	st->mclk = devm_clk_get(dev, "mclk");
+	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT)
+		return dev_err_probe(dev, PTR_ERR(st->mclk),
+				     "Failed to get mclk\n");
+
+	st->cfg.clock_ctrl.clocksel = ad4170_of_clock_select(st);
+	ret = ad4170_parse_digif_fw(indio_dev);
+	if (ret < 0)
+		return ret;
+
+	st->pdsw0 = fwnode_property_read_bool(dev->fwnode, "adi,gpio0-power-down-switch");
+	st->pdsw1 = fwnode_property_read_bool(dev->fwnode, "adi,gpio1-power-down-switch");
+
+	ret = device_property_count_u32(dev, "adi,vbias-pins");
+	if (ret > 0) {
+		if (ret > AD4170_MAX_ANALOG_PINS)
+			return dev_err_probe(dev, -EINVAL,
+					     "Too many vbias pins %u\n", ret);
+
+		st->num_vbias_pins = ret;
+
+		ret = device_property_read_u32_array(dev, "adi,vbias-pins",
+						     st->vbias_pins,
+						     st->num_vbias_pins);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to read vbias pins\n");
+	}
+
+	ret = ad4170_parse_fw_exc_current(indio_dev);
+	if (ret)
+		return ret;
 
 	ret = ad4170_parse_fw_children(indio_dev);
 	if (ret)
