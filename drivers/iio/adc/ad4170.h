@@ -317,18 +317,12 @@ enum ad4170_sdo_rdby_dly {
  * @brief Pin_Muxing register settings.
  */
 struct ad4170_pin_muxing {
-	/** Enables Current Channel Number Be Output to GPIO Pins. */
-	enum ad4170_chan_to_gpio chan_to_gpio; //TODO unused. remove?
 	/** Configures Functionality of DIG_AUX2 Pin. */
 	u8 dig_aux2_ctrl;
 	/** Configures Functionality of DIG_AUX1 Pin. */
 	u8 dig_aux1_ctrl;
 	/** Configures SYNC_IN Pin for ADC Synchronization. */
 	u8 sync_ctrl;
-	/** Configures the drive strength of the Digital Outputs. */
-	enum ad4170_dig_out_str dig_out_str; //TODO unused. remove?
-	/** Reset Interface on CS or SCLK. */
-	enum ad4170_sdo_rdby_dly sdo_rdby_dly; //TODO unused. remove?
 };
 
 /**
