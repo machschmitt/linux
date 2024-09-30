@@ -730,8 +730,8 @@ static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool 
  * @ref_sel: voltage reference selection number
  */
 static int ad4170_validate_channel(struct ad4170_state *st,
-                                   struct iio_chan_spec const *chan,
-                                   enum ad4170_ref_select ref_sel)
+				   struct iio_chan_spec const *chan,
+				   enum ad4170_ref_select ref_sel)
 {
 	int ret;
 
