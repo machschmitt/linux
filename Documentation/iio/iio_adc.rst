@@ -117,6 +117,11 @@ Here's an example device tree description of a single-ended bipolar channel.
 1.2 Differential channels
 -------------------------
 
+A differential voltage measurement digitizes the voltage level at the positive
+input (IN+) relative to the negative input (IN-) over the -VREF to +VREF span.
+In other words, a differential channel measures how many volts IN+ is away from
+IN- (IN+ - IN-).
+
 1.2.1 Differential Bipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -137,11 +142,8 @@ Here's an example device tree description of a single-ended bipolar channel.
                                   External +VREF
 
 The analog signals to **differential bipolar** inputs are also allowed to swing
-from -VREF to +VREF. However, a differential voltage measurement digitizes the
-voltage level at the positive input (IN+) relative to the negative input (IN-)
-over the -VREF to +VREF span. In other words, a differential channel measures
-how many volts IN+ is away from IN- (IN+ - IN-). If -VREF is below system GND,
-these are also called differential true bipolar inputs.
+from -VREF to +VREF. If -VREF is below system GND, these are also called
+differential true bipolar inputs.
 
 Device tree example of a differential bipolar channel::
 
