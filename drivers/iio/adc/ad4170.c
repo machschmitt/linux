@@ -597,12 +597,12 @@ static int ad4170_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 }
 
 /*
- * Receives the device state pointer, the number of a multiplexed input (AINP_N
+ * Receives the device state, the number of a multiplexed input (AINP_N
  * or AIM_N), and stores the voltage (in µV) of the specified input into the
  * third argument. If the input number is not one of the special multiplexed
  * inputs ((AVDD-AVSS)/5, ..., REFOUT), stores zero to the voltage argument.
  * If a voltage regulator required by the special input is unavailable, return
- * error code.
+ * error code. Return 0 on success.
  *
  * @st: pointer to device state struct
  * @ain_n: number of a multiplexed AD4170 input
@@ -643,27 +643,27 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ain_n,
 	case AD4170_REFIN1_P:
 		return regulator_get_voltage(st->regulators[AD4170_REFIN1P_SUPPLY].consumer);
 	case AD4170_REFIN1_N:
-		/*
-		 * Making the assumption negative inputs of voltage references
-		 * are either at GND level or negative with respect to GND.
-		 */
 		ret = regulator_get_voltage(st->regulators[AD4170_REFIN1N_SUPPLY].consumer);
 		if (ret < 0)
 			return ret;
 
+		/*
+		 * Making the assumption negative inputs of voltage references
+		 * are either at GND level or negative with respect to GND.
+		 */
 		*ain_voltage = -ret;
 		return 0;
 	case AD4170_REFIN2_P:
 		return regulator_get_voltage(st->regulators[AD4170_REFIN2P_SUPPLY].consumer);
 	case AD4170_REFIN2_N:
-		/*
-		 * Making the assumption negative inputs of voltage references
-		 * are either at GND level or negative with respect to GND.
-		 */
 		ret = regulator_get_voltage(st->regulators[AD4170_REFIN2N_SUPPLY].consumer);
 		if (ret < 0)
 			return ret;
 
+		/*
+		 * Making the assumption negative inputs of voltage references
+		 * are either at GND level or negative with respect to GND.
+		 */
 		*ain_voltage = -ret;
 		return 0;
 	case AD4170_REFOUT:
