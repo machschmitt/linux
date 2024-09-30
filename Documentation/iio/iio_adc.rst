@@ -273,7 +273,8 @@ Device tree example for pseudo-differential bipolar channel::
         };
     };
 
-Again, `differential` is not set for pseudo-differential channels.
+Again, the `differential` field of `struct iio_chan_spec` is not set for
+pseudo-differential channels.
 
 2. Input Range
 ====================
