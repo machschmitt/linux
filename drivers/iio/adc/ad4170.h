@@ -886,7 +886,7 @@ struct ad4170_config {
 	/** I_Pullup register settings. */
 	u16 i_pullup;
 	/** Current_Source register settings */
-	struct ad4170_current_source current_source[AD4170_NUM_CURRENT_SOURCE];
+	struct ad4170_current_source current_src[AD4170_NUM_CURRENT_SOURCE];
 	/** FIR_Control register settings. */
 	struct ad4170_fir_control fir_control;
 	/** DAC settings (registers HW_LDAC_Mask, HW_Toggle_Mask, Channel_En and DAC_Span). */
