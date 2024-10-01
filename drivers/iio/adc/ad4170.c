@@ -637,7 +637,12 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ain_n,
 		*ain_voltage = 0;
 		return 0;
 	case AD4170_REFIN1_P:
-		return regulator_get_voltage(st->regulators[AD4170_REFIN1P_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->regulators[AD4170_REFIN1P_SUPPLY].consumer);
+		if (ret < 0)
+			return ret;
+
+		*ain_voltage = ret;
+		return 0;
 	case AD4170_REFIN1_N:
 		ret = regulator_get_voltage(st->regulators[AD4170_REFIN1N_SUPPLY].consumer);
 		if (ret < 0)
@@ -650,7 +655,12 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ain_n,
 		*ain_voltage = -ret;
 		return 0;
 	case AD4170_REFIN2_P:
-		return regulator_get_voltage(st->regulators[AD4170_REFIN2P_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->regulators[AD4170_REFIN2P_SUPPLY].consumer);
+		if (ret < 0)
+			return ret;
+
+		*ain_voltage = ret;
+		return 0;
 	case AD4170_REFIN2_N:
 		ret = regulator_get_voltage(st->regulators[AD4170_REFIN2N_SUPPLY].consumer);
 		if (ret < 0)
