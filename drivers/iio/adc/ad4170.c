@@ -1850,7 +1850,7 @@ static int ad4170_hw_buffer_postenable(struct iio_dev *indio_dev)
 	spi_bus_lock(st->spi->master);
 	ret = spi_engine_ex_offload_load_msg(st->spi, &st->msg);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	spi_engine_ex_offload_enable(st->spi, true);
 
