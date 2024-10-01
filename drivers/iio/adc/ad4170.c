@@ -55,7 +55,7 @@ struct ad4170_state {
 	bool spi_is_dma_mapped;
 	struct spi_device *spi;
 	struct clk *mclk;
-	struct regulator_bulk_data regulators[7];
+	struct regulator_bulk_data supplies[7];
 	struct mutex lock; /* Protect filter, PGA, GPIO, chan read, chan config */
 	struct ad4170_chan_info *chan_info;
 	struct ad4170_slot_info slots_info[AD4170_NUM_SETUPS];
@@ -614,21 +614,21 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ain_n,
 	*ain_voltage = 0;
 	switch (ain_n) {
 	case AD4170_AVDD_AVSS_N:
-		ret = regulator_get_voltage(st->regulators[AD4170_AVDD_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_AVDD_SUP].consumer);
 		if (ret < 0)
 			return ret;
 
 		*ain_voltage = ret ? ret / 5 : 0;
 		return 0;
 	case AD4170_IOVDD_DGND_N:
-		ret = regulator_get_voltage(st->regulators[AD4170_IOVDD_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_IOVDD_SUP].consumer);
 		if (ret < 0)
 			return ret;
 
 		*ain_voltage = ret ? ret / 5 : 0;
 		return 0;
 	case AD4170_AVSS:
-		ret = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_AVSS_SUP].consumer);
 		if (ret < 0)
 			ret = 0; /* Assume AVSS at 0V if not provided */
 
@@ -639,14 +639,14 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ain_n,
 		*ain_voltage = 0;
 		return 0;
 	case AD4170_REFIN1_P:
-		ret = regulator_get_voltage(st->regulators[AD4170_REFIN1P_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_REFIN1P_SUP].consumer);
 		if (ret < 0)
 			return ret;
 
 		*ain_voltage = ret;
 		return 0;
 	case AD4170_REFIN1_N:
-		ret = regulator_get_voltage(st->regulators[AD4170_REFIN1N_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_REFIN1N_SUP].consumer);
 		if (ret < 0)
 			return ret;
 
@@ -657,14 +657,14 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ain_n,
 		*ain_voltage = -ret;
 		return 0;
 	case AD4170_REFIN2_P:
-		ret = regulator_get_voltage(st->regulators[AD4170_REFIN2P_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_REFIN2P_SUP].consumer);
 		if (ret < 0)
 			return ret;
 
 		*ain_voltage = ret;
 		return 0;
 	case AD4170_REFIN2_N:
-		ret = regulator_get_voltage(st->regulators[AD4170_REFIN2N_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_REFIN2N_SUP].consumer);
 		if (ret < 0)
 			return ret;
 
@@ -676,7 +676,7 @@ static int ad4170_get_AINM_voltage(struct ad4170_state *st, int ain_n,
 		return 0;
 	case AD4170_REFOUT:
 		/* REFOUT is 2.5V relative to AVSS so take that into account */
-		ret = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_AVSS_SUP].consumer);
 		if (ret < 0)
 			ret = 0; /* Assume AVSS at GND (0V) if not provided */
 
@@ -768,42 +768,42 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	struct ad4170_chan_info *chan_info = &st->chan_info[chan->address];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
 	bool bipolar = setup->afe.bipolar;
-	int pos_ref, neg_ref, ain_voltage, ret;
+	int refp, refn, ain_voltage, ret;
 
 	switch (ref_sel) {
 	case AD4170_REFIN_REFIN1:
-		pos_ref = regulator_get_voltage(st->regulators[AD4170_REFIN1P_SUPPLY].consumer);
-		neg_ref = regulator_get_voltage(st->regulators[AD4170_REFIN1N_SUPPLY].consumer);
+		refp = regulator_get_voltage(st->supplies[AD4170_REFIN1P_SUP].consumer);
+		refn = regulator_get_voltage(st->supplies[AD4170_REFIN1N_SUP].consumer);
 		break;
 	case AD4170_REFIN_REFIN2:
-		pos_ref = regulator_get_voltage(st->regulators[AD4170_REFIN2P_SUPPLY].consumer);
-		neg_ref = regulator_get_voltage(st->regulators[AD4170_REFIN2N_SUPPLY].consumer);
+		refp = regulator_get_voltage(st->supplies[AD4170_REFIN2P_SUP].consumer);
+		refn = regulator_get_voltage(st->supplies[AD4170_REFIN2N_SUP].consumer);
 		break;
 	case AD4170_REFIN_AVDD:
-		pos_ref = regulator_get_voltage(st->regulators[AD4170_AVDD_SUPPLY].consumer);
-		ret = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
+		refp = regulator_get_voltage(st->supplies[AD4170_AVDD_SUP].consumer);
+		ret = regulator_get_voltage(st->supplies[AD4170_AVSS_SUP].consumer);
 		if (ret < 0)
 			ret = 0; /* Assume AVSS at GND if not provided */
 
-		neg_ref = ret;
+		refn = ret;
 		break;
 	case AD4170_REFIN_REFOUT:
-		neg_ref = regulator_get_voltage(st->regulators[AD4170_AVSS_SUPPLY].consumer);
-		if (neg_ref < 0)
-			neg_ref = 0;
+		refn = regulator_get_voltage(st->supplies[AD4170_AVSS_SUP].consumer);
+		if (refn < 0)
+			refn = 0;
 
 		/* REFOUT is 2.5 V relative to AVSS */
 		/* avss-supply is never above 0V. */
-		pos_ref = AD4170_INT_REF_2_5V - neg_ref;
+		refp = AD4170_INT_REF_2_5V - refn;
 		break;
 	default:
 		return -EINVAL;
 	}
-	if (pos_ref < 0)
-		return pos_ref;
+	if (refp < 0)
+		return refp;
 
-	if (neg_ref < 0)
-		return neg_ref;
+	if (refn < 0)
+		return refn;
 
 	/*
 	 * Find out the analog input range from the channel type, polarity, and
@@ -822,7 +822,7 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 		/* avss-supply is never above 0V. */
 		/* Assuming refin1n-supply not above 0V. */
 		/* Assuming refin2n-supply not above 0V. */
-		return pos_ref + neg_ref;
+		return refp + refn;
 	}
 	/*
 	 * Some configurations can lead to invalid setups.
@@ -837,33 +837,33 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 		/* Pseudo-differential bipolar channel */
 		/* Input allowed to swing from GND(?) to +VREF */
 		//or will the ADC spread the output codes over -VREF to +VREF?
-		if (pos_ref <= 0)
+		if (refp <= 0)
 			return dev_err_probe(&st->spi->dev, -EINVAL,
 					     "Invalid setup for channel %lu.\n",
 					     chan->address);
 
-		return pos_ref;
+		return refp;
 	}
 
 	/* Pseudo-differential unipolar channel */
 	/* Input allowed to swing from IN- to +VREF */
-	if (pos_ref <= 0)
+	if (refp <= 0)
 		return dev_err_probe(&st->spi->dev, -EINVAL,
 				     "Invalid setup for channel %lu.\n",
 				     chan->address);
 
-	//input_range_mag = pos_ref - IN-; ?
+	//input_range_mag = refp - IN-; ?
 	//or will the ADC spread the output codes over -VREF to +VREF?
 	ret = ad4170_get_AINM_voltage(st, chan->channel2, &ain_voltage);
 	if (ret < 0)
 		return ret;
 
-	if (pos_ref - ain_voltage <= 0)
+	if (refp - ain_voltage <= 0)
 		return dev_err_probe(&st->spi->dev, -EINVAL,
 				     "Invalid setup for channel %lu.\n",
 				     chan->address);
 
-	return pos_ref - ain_voltage;
+	return refp - ain_voltage;
 }
 
 static void ad4170_channel_scale(struct iio_dev *indio_dev,
@@ -1678,11 +1678,11 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static void ad4170_disable_regulators(void *data)
+static void ad4170_disable_supplies(void *data)
 {
 	struct ad4170_state *st = data;
 
-	regulator_bulk_disable(ARRAY_SIZE(st->regulators), st->regulators);
+	regulator_bulk_disable(ARRAY_SIZE(st->supplies), st->supplies);
 }
 
 static int ad4170_setup(struct iio_dev *indio_dev)
@@ -2130,13 +2130,13 @@ static int ad4170_probe(struct spi_device *spi)
 
 	st->regmap = devm_regmap_init(dev, NULL, st, &ad4170_regmap_config);
 
-	st->regulators[AD4170_AVDD_SUPPLY].supply = "avdd";
-	st->regulators[AD4170_AVSS_SUPPLY].supply = "avss";
-	st->regulators[AD4170_IOVDD_SUPPLY].supply = "iovdd";
-	st->regulators[AD4170_REFIN1P_SUPPLY].supply = "refin1p";
-	st->regulators[AD4170_REFIN1N_SUPPLY].supply = "refin1n";
-	st->regulators[AD4170_REFIN2P_SUPPLY].supply = "refin2p";
-	st->regulators[AD4170_REFIN2N_SUPPLY].supply = "refin2n";
+	st->supplies[AD4170_AVDD_SUP].supply = "avdd";
+	st->supplies[AD4170_AVSS_SUP].supply = "avss";
+	st->supplies[AD4170_IOVDD_SUP].supply = "iovdd";
+	st->supplies[AD4170_REFIN1P_SUP].supply = "refin1p";
+	st->supplies[AD4170_REFIN1N_SUP].supply = "refin1n";
+	st->supplies[AD4170_REFIN2P_SUP].supply = "refin2p";
+	st->supplies[AD4170_REFIN2N_SUP].supply = "refin2n";
 
 	/*
 	 * If a regulator is not available, it will be set to a dummy regulator.
@@ -2144,19 +2144,19 @@ static int ad4170_probe(struct spi_device *spi)
 	 * setting attributes so if any channel uses a dummy supply the driver
 	 * probe will fail.
 	 */
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(st->regulators),
-				      st->regulators);
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(st->supplies),
+				      st->supplies);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get regulators\n");
+		return dev_err_probe(dev, ret, "Failed to get supplies\n");
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(st->regulators), st->regulators);
+	ret = regulator_bulk_enable(ARRAY_SIZE(st->supplies), st->supplies);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable regulators\n");
+		return dev_err_probe(dev, ret, "Failed to enable supplies\n");
 
-	ret = devm_add_action_or_reset(dev, ad4170_disable_regulators, st);
+	ret = devm_add_action_or_reset(dev, ad4170_disable_supplies, st);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "Failed to add regulators disable action\n");
+				     "Failed to add supplies disable action\n");
 
 	ret = ad4170_soft_reset(st);
 	if (ret)
