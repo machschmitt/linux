@@ -707,9 +707,6 @@ static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool 
 
 	return ad4170_validate_analog_input(st, pin);
 
-	// TODO invalid if AVSS = -2.5V, REFOUT selected, and single-ended
-	// channel configuration.
-
 	// TODO check REFIN <= AVDD - 1V;
 
 	// TODO check AVDD - AVSS <= 5V?
@@ -822,9 +819,11 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	/*
 	 * Some configurations can lead to invalid setups.
 	 * For example, if AVSS = -2.5V, REF_SELECT set to REFOUT (REFOUT/AVSS),
-	 * and single-ended channel configuration, then
-	 * the input range should go from 0V to +VREF (single-ended - datasheet pg 10),
-	 * but REFOUT/AVSS range would be -2.5V to 0V.
+	 * and single-ended channel configuration set, then the input range
+	 * should go from 0V to +VREF (single-ended - datasheet pg 10), but
+	 * REFOUT/AVSS range would be -2.5V to 0V.
+	 * Check the positive reference is higher than 0V for speusdo-diff
+	 * channels.
 	 */
 	if (bipolar) {
 		/* Pseudo-differential bipolar channel */
