@@ -40,11 +40,9 @@
 struct ad4170_slot_info {
 	struct ad4170_setup		setup;
 	unsigned int			enabled_channels;
-	unsigned int			channels;
 };
 
 struct ad4170_chan_info {
-	unsigned int nr;
 	int slot;
 	int input_range_uv;
 	u32 scale_tbl[10][2];
@@ -69,9 +67,6 @@ struct ad4170_state {
 	enum ad4170_pin_function pins_fn[AD4170_NUM_ANALOG_PINS];
 	u32 vbias_pins[AD4170_MAX_ANALOG_PINS];
 	u32 num_vbias_pins;
-	struct gpio_desc *dig_aux1_gpio;
-	struct gpio_desc *dig_aux2_gpio;
-	struct gpio_desc *sync_gpio;
 	struct completion completion;
 	struct ad4170_config cfg;
 	struct iio_trigger *trig;
