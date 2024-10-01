@@ -1340,10 +1340,6 @@ static int ad4170_parse_fw_channel_type(struct device *dev,
 	u32 pins[2];
 	int ret;
 
-	/*
-	 * May be one of differential channel, single-ended channel, or current
-	 * channel.
-	 */
 	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
 					     ARRAY_SIZE(pins));
 	if (!ret) {
@@ -1357,7 +1353,8 @@ static int ad4170_parse_fw_channel_type(struct device *dev,
 		chan->differential = false;
 		chan->channel = pins[0];
 
-		ret = fwnode_property_read_u32(child, "common-mode-channel", &pins[1]);
+		ret = fwnode_property_read_u32(child, "common-mode-channel",
+					       &pins[1]);
 		if (ret)
 			return dev_err_probe(dev, ret,
 				"common-mode-channel must be defined for single-ended channels.\n");
