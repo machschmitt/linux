@@ -158,9 +158,9 @@ struct ad4170_filter_config {
 		.samp_freq_avail_type = IIO_AVAIL_RANGE,		\
 		.samp_freq_avail_len = 3,				\
 		.samp_freq_avail = {					\
-			{ AD4170_INT_FREQ_16MHZ, (_odr_div) * (_fs_max) >> _shift},		\
-			{ AD4170_INT_FREQ_16MHZ, (_odr_div) * (_fs_max / 2) >> _shift},		\
-			{ AD4170_INT_FREQ_16MHZ, (_odr_div) * (_fs_min) >> _shift},		\
+			{ AD4170_INT_FREQ_16MHZ, (_odr_div) * (_fs_max) >> _shift},	\
+			{ AD4170_INT_FREQ_16MHZ, (_odr_div) * (_fs_max / 2) >> _shift},	\
+			{ AD4170_INT_FREQ_16MHZ, (_odr_div) * (_fs_min) >> _shift},	\
 		},							\
 }
 
@@ -168,7 +168,6 @@ static const struct ad4170_filter_config ad4170_filter_configs[] = {
 	[AD4170_FILT_SINC5_AVG] = AD4170_ODR_CONFIG(AD4170_FILT_SINC5_AVG, 128, 4,  65532, 2),
 	[AD4170_FILT_SINC5] = AD4170_ODR_CONFIG(AD4170_FILT_SINC5, 32, 1,  256, 0),
 	[AD4170_FILT_SINC3] = AD4170_ODR_CONFIG(AD4170_FILT_SINC3, 32, 4,  65532, 0),
-
 };
 
 static int ad4170_get_reg_size(struct ad4170_state *st, unsigned int reg,
@@ -332,7 +331,6 @@ static int ad4170_write_slot_setup(struct ad4170_state *st,
 		return ret;
 
 	memcpy(&st->slots_info[slot].setup, setup, sizeof(*setup));
-
 	return 0;
 }
 
@@ -1368,7 +1366,8 @@ static int ad4170_parse_fw_channel_type(struct device *dev,
 					       &pins[1]);
 		if (ret)
 			return dev_err_probe(dev, ret,
-				"common-mode-channel must be defined for single-ended channels.\n");
+				"single-ended channels must define common-mode-channel\n");
+
 		chan->channel2 = pins[1];
 		return 0;
 	}
@@ -1938,7 +1937,8 @@ static int ad4170_triggered_buffer_setup(struct iio_dev *indio_dev)
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 
 	st->trig = devm_iio_trigger_alloc(indio_dev->dev.parent, "%s-dev%d",
-					  indio_dev->name, iio_device_id(indio_dev));
+					  indio_dev->name,
+					  iio_device_id(indio_dev));
 	if (!st->trig)
 		return -ENOMEM;
 
