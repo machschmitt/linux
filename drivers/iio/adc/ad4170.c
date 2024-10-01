@@ -1808,14 +1808,8 @@ static int ad4170_buffer_postenable(struct iio_dev *indio_dev)
 	int ret;
 
 	mutex_lock(&st->lock);
-
 	ret = ad4170_set_mode(st, AD4170_MODE_CONT);
-	if (ret)
-		goto out;
-
-out:
 	mutex_unlock(&st->lock);
-
 	return ret;
 }
 
@@ -1827,14 +1821,10 @@ static int ad4170_buffer_predisable(struct iio_dev *indio_dev)
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		ret = ad4170_set_channel_enable(st, i, false);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
-	ret = ad4170_set_mode(st, AD4170_MODE_IDLE);
-	if (ret)
-		return ret;
-out:
-	return ret;
+	return ad4170_set_mode(st, AD4170_MODE_IDLE);
 }
 
 static const struct iio_buffer_setup_ops ad4170_buffer_ops = {
@@ -1882,14 +1872,10 @@ static int ad4170_hw_buffer_predisable(struct iio_dev *indio_dev)
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		ret = ad4170_set_channel_enable(st, i, false);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
-	ret = ad4170_set_mode(st, AD4170_MODE_IDLE);
-	if (ret)
-		return ret;
-out:
-	return ret;
+	return ad4170_set_mode(st, AD4170_MODE_IDLE);
 }
 
 static const struct iio_buffer_setup_ops ad4170_hw_buffer_ops = {
