@@ -1730,8 +1730,7 @@ static int ad4170_setup(struct iio_dev *indio_dev)
 		if (ret)
 			return ret;
 
-		//ad4170_set_channel_freq(st, i, 9615, 0);
-		ad4170_set_channel_freq(st, chan->address, 125000, 0);
+		ad4170_set_channel_freq(st, chan->address, AD4170_MAX_SAMP_RATE, 0);
 		ad4170_fill_scale_tbl(indio_dev, i);
 	}
 
