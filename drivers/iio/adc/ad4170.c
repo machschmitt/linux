@@ -1402,6 +1402,11 @@ static int ad4170_parse_fw_channel(struct iio_dev *indio_dev,
 				     "Failed to read adi,config-setup-slot\n");
 
 	chan_info->slot = setup_slot;
+	if (chan_info->slot >= AD4170_NUM_SETUPS)
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid adi,config-setup-slot: %d\n",
+				     chan_info->slot);
+
 	ret = ad4170_parse_fw_channel_type(dev, child, chan);
 	if (ret < 0)
 		return ret;
