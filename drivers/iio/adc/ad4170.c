@@ -1042,8 +1042,8 @@ static int ad4170_write_raw_get_fmt(struct iio_dev *indio_dev,
 }
 
 static int ad4170_set_channel_pga(struct iio_dev *indio_dev,
-				  struct ad4170_state *st, unsigned int channel_addr,
-				  int val, int val2)
+				  struct ad4170_state *st,
+				  unsigned int channel_addr, int val, int val2)
 {
 	struct ad4170_chan_info *chan_info = &st->chan_info[channel_addr];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
@@ -1173,7 +1173,6 @@ static int ad4170_update_scan_mode(struct iio_dev *indio_dev,
 	}
 out:
 	mutex_unlock(&st->lock);
-
 	return 0;
 }
 
@@ -1314,8 +1313,10 @@ static int ad4170_parse_fw_setup(struct ad4170_state *st,
 				     "Invalid burnout current %unA\n", tmp);
 	setup->misc.burnout = ret;
 
-	setup->afe.ref_buf_p = fwnode_property_read_bool(child, "adi,buffered-positive");
-	setup->afe.ref_buf_m = fwnode_property_read_bool(child, "adi,buffered-negative");
+	setup->afe.ref_buf_p = fwnode_property_read_bool(child,
+							 "adi,buffered-positive");
+	setup->afe.ref_buf_m = fwnode_property_read_bool(child,
+							 "adi,buffered-negative");
 
 	setup->afe.ref_select = AD4170_REFIN_REFOUT;
 	fwnode_property_read_u32(child, "adi,reference-select",
@@ -1528,7 +1529,8 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 	}
 
 	st->cfg.current_src[0].i_out_val = AD4170_I_OUT_0UA;
-	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-current-0-microamp",
+	ret = fwnode_property_read_u32(dev->fwnode,
+				       "adi,excitation-current-0-microamp",
 				       &st->cfg.current_src[0].i_out_val);
 	if (!ret) {
 		ret = ad4170_find_table_index(ad4170_iout_current_ua_tbl,
@@ -1544,7 +1546,8 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 		st->pins_fn[st->cfg.current_src[0].i_out_pin] = AD4170_PIN_CURRENT_OUT;
 
 	st->cfg.current_src[1].i_out_val = AD4170_I_OUT_0UA;
-	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-current-1-microamp",
+	ret = fwnode_property_read_u32(dev->fwnode,
+				       "adi,excitation-current-1-microamp",
 				       &st->cfg.current_src[1].i_out_val);
 	if (!ret) {
 		ret = ad4170_find_table_index(ad4170_iout_current_ua_tbl,
@@ -1560,7 +1563,8 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 		st->pins_fn[st->cfg.current_src[1].i_out_pin] = AD4170_PIN_CURRENT_OUT;
 
 	st->cfg.current_src[2].i_out_val = AD4170_I_OUT_0UA;
-	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-current-2-microamp",
+	ret = fwnode_property_read_u32(dev->fwnode,
+				       "adi,excitation-current-2-microamp",
 				       &st->cfg.current_src[2].i_out_val);
 	if (!ret) {
 		ret = ad4170_find_table_index(ad4170_iout_current_ua_tbl,
@@ -1576,7 +1580,8 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 		st->pins_fn[st->cfg.current_src[2].i_out_pin] = AD4170_PIN_CURRENT_OUT;
 
 	st->cfg.current_src[3].i_out_val = AD4170_I_OUT_0UA;
-	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-current-3-microamp",
+	ret = fwnode_property_read_u32(dev->fwnode,
+				       "adi,excitation-current-3-microamp",
 				       &st->cfg.current_src[3].i_out_val);
 	if (!ret) {
 		ret = ad4170_find_table_index(ad4170_iout_current_ua_tbl,
@@ -1610,8 +1615,10 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	st->pdsw0 = fwnode_property_read_bool(dev->fwnode, "adi,gpio0-power-down-switch");
-	st->pdsw1 = fwnode_property_read_bool(dev->fwnode, "adi,gpio1-power-down-switch");
+	st->pdsw0 = fwnode_property_read_bool(dev->fwnode,
+					      "adi,gpio0-power-down-switch");
+	st->pdsw1 = fwnode_property_read_bool(dev->fwnode,
+					      "adi,gpio1-power-down-switch");
 
 	ret = device_property_count_u32(dev, "adi,vbias-pins");
 	if (ret > 0) {
@@ -1620,7 +1627,6 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 					     "Too many vbias pins %u\n", ret);
 
 		st->num_vbias_pins = ret;
-
 		ret = device_property_read_u32_array(dev, "adi,vbias-pins",
 						     st->vbias_pins,
 						     st->num_vbias_pins);
@@ -1851,7 +1857,6 @@ static int ad4170_hw_buffer_postenable(struct iio_dev *indio_dev)
 
 out:
 	mutex_unlock(&st->lock);
-
 	return ret;
 }
 
@@ -1904,7 +1909,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int ad4170_triggered_buffer_alloc(struct iio_dev *indio_dev)
+static int ad4170_triggered_buffer_setup(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	int ret;
@@ -1941,7 +1946,7 @@ static int ad4170_triggered_buffer_alloc(struct iio_dev *indio_dev)
 					       &ad4170_buffer_ops);
 }
 
-static int ad4170_hardware_buffer_alloc(struct iio_dev *indio_dev)
+static int ad4170_hardware_buffer_setup(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 
@@ -1963,7 +1968,6 @@ static int ad4170_input_gpio(struct gpio_chip *chip, unsigned int offset)
 	ret = regmap_update_bits(st->regmap, AD4170_GPIO_MODE_REG, mask,
 				 (AD4170_GPIO_INPUT << 2 * offset));
 	mutex_unlock(&st->lock);
-
 	return ret;
 }
 
@@ -1992,7 +1996,6 @@ static int ad4170_output_gpio(struct gpio_chip *chip,
 				 (value << offset));
 out:
 	mutex_unlock(&st->lock);
-
 	return ret;
 }
 
@@ -2026,7 +2029,6 @@ static int ad4170_get_gpio(struct gpio_chip *chip, unsigned int offset)
 
 out:
 	mutex_unlock(&st->lock);
-
 	return ret;
 }
 
@@ -2099,7 +2101,6 @@ static int ad4170_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
-	st->spi_is_dma_mapped = spi_engine_ex_offload_supported(spi);
 	st->spi = spi;
 
 	indio_dev->name = AD4170_NAME;
@@ -2152,12 +2153,13 @@ static int ad4170_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	st->spi_is_dma_mapped = spi_engine_ex_offload_supported(spi);
 	if (st->spi_is_dma_mapped)
-		ret = ad4170_hardware_buffer_alloc(indio_dev);
+		ret = ad4170_hardware_buffer_setup(indio_dev);
 	else
-		ret = ad4170_triggered_buffer_alloc(indio_dev);
+		ret = ad4170_triggered_buffer_setup(indio_dev);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to setup read buffer\n");
 
 	return devm_iio_device_register(dev, indio_dev);
 }
