@@ -290,26 +290,26 @@ static int ad4170_write_slot_setup(struct ad4170_state *st,
 	unsigned int val;
 	int ret;
 
-	val = FIELD_PREP(AD4170_ADC_SETUPS_MISC_CHOP_IEXC_MSK, setup->misc.chop_iexc) |
-	      FIELD_PREP(AD4170_ADC_SETUPS_MISC_CHOP_ADC_MSK, setup->misc.chop_adc) |
-	      FIELD_PREP(AD4170_ADC_SETUPS_MISC_BURNOUT_MSK, setup->misc.burnout);
+	val = FIELD_PREP(AD4170_SETUPS_MISC_CHOP_IEXC_MSK, setup->misc.chop_iexc) |
+	      FIELD_PREP(AD4170_SETUPS_MISC_CHOP_ADC_MSK, setup->misc.chop_adc) |
+	      FIELD_PREP(AD4170_SETUPS_MISC_BURNOUT_MSK, setup->misc.burnout);
 
 	ret = regmap_write(st->regmap, AD4170_MISC_REG(slot), val);
 	if (ret)
 		return ret;
 
-	val = FIELD_PREP(AD4170_ADC_SETUPS_AFE_REF_BUF_M_MSK, setup->afe.ref_buf_m) |
-	      FIELD_PREP(AD4170_ADC_SETUPS_AFE_REF_BUF_P_MSK, setup->afe.ref_buf_p) |
-	      FIELD_PREP(AD4170_ADC_SETUPS_AFE_REF_SELECT_MSK, setup->afe.ref_select) |
-	      FIELD_PREP(AD4170_ADC_SETUPS_AFE_BIPOLAR_MSK, setup->afe.bipolar) |
-	      FIELD_PREP(AD4170_ADC_SETUPS_AFE_PGA_GAIN_MSK, setup->afe.pga_gain);
+	val = FIELD_PREP(AD4170_SETUPS_AFE_REF_BUF_M_MSK, setup->afe.ref_buf_m) |
+	      FIELD_PREP(AD4170_SETUPS_AFE_REF_BUF_P_MSK, setup->afe.ref_buf_p) |
+	      FIELD_PREP(AD4170_SETUPS_AFE_REF_SELECT_MSK, setup->afe.ref_select) |
+	      FIELD_PREP(AD4170_SETUPS_AFE_BIPOLAR_MSK, setup->afe.bipolar) |
+	      FIELD_PREP(AD4170_SETUPS_AFE_PGA_GAIN_MSK, setup->afe.pga_gain);
 
 	ret = regmap_write(st->regmap, AD4170_AFE_REG(slot), val);
 	if (ret)
 		return ret;
 
-	val = FIELD_PREP(AD4170_ADC_SETUPS_POST_FILTER_SEL_MSK, setup->filter.post_filter_sel) |
-	      FIELD_PREP(AD4170_ADC_SETUPS_FILTER_TYPE_MSK, setup->filter.filter_type);
+	val = FIELD_PREP(AD4170_SETUPS_POST_FILTER_SEL_MSK, setup->filter.post_filter_sel) |
+	      FIELD_PREP(AD4170_SETUPS_FILTER_TYPE_MSK, setup->filter.filter_type);
 
 	ret = regmap_write(st->regmap, AD4170_FILTER_REG(slot), val);
 	if (ret)
@@ -352,7 +352,8 @@ static int ad4170_write_channel_setup(struct ad4170_state *st,
 	/* Hardcode default setup for channel x and write it */
 	ret = regmap_update_bits(st->regmap, AD4170_CHANNEL_SETUP_REG(slot),
 				 AD4170_CHANNEL_SETUPN_SETUP_N_MSK,
-				 FIELD_PREP(AD4170_CHANNEL_SETUPN_SETUP_N_MSK, slot));
+				 FIELD_PREP(AD4170_CHANNEL_SETUPN_SETUP_N_MSK,
+				 slot));
 	if (ret)
 		return ret;
 
@@ -538,6 +539,7 @@ static int _ad4170_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct ad4170_chan_info *chan_info = &st->chan_info[channel];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
+	int precision_bits = ad4170_channel_template.scan_type.realbits - 1;
 	int ret;
 
 	ret = ad4170_set_channel_enable(st, channel, true);
@@ -557,13 +559,12 @@ static int _ad4170_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 			goto out;
 	}
 
-	//ret = regmap_read(st->regmap, AD4170_DATA_PER_CHANNEL_REG(channel), val);
 	ret = regmap_read(st->regmap, AD4170_DATA_24b_REG, val);
 	if (ret)
 		return ret;
 
 	if (setup->afe.bipolar)
-		*val = sign_extend32(*val, ad4170_channel_template.scan_type.realbits - 1);
+		*val = sign_extend32(*val, precision_bits);
 out:
 	ret = ad4170_set_channel_enable(st, channel, false);
 	if (ret)
