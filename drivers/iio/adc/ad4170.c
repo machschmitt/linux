@@ -78,6 +78,10 @@ struct ad4170_state {
 
 	struct spi_transfer xfer;
 	struct spi_message msg;
+	/*
+	 * DMA (thus cache coherency maintenance) requires the transfer buffers
+	 * to live in their own cache lines.
+	 */
 	unsigned int rx_data[2] __aligned(IIO_DMA_MINALIGN);
 	unsigned int tx_data[2];
 };
