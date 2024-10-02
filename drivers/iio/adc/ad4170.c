@@ -61,9 +61,6 @@ struct ad4170_state {
 	struct ad4170_slot_info slots_info[AD4170_NUM_SETUPS];
 	unsigned int num_channels;
 	u32 fclk;
-	u8 reg_read_tx_buf[2];
-	u8 reg_read_rx_buf[4];
-	u8 reg_write_tx_buf[6];
 	enum ad4170_pin_function pins_fn[AD4170_NUM_ANALOG_PINS];
 	u32 vbias_pins[AD4170_MAX_ANALOG_PINS];
 	u32 num_vbias_pins;
@@ -76,14 +73,19 @@ struct ad4170_state {
 	bool pdsw1;
 	u32 chop_adc;
 
-	struct spi_transfer xfer;
+	struct spi_transfer xfers[2];
 	struct spi_message msg;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
 	 */
-	unsigned int rx_data[2] __aligned(IIO_DMA_MINALIGN);
-	unsigned int tx_data[2];
+	u8 reg_write_tx_buf[6];
+	u8 reg_read_tx_buf[2];
+	u8 reg_read_rx_buf[4] __aligned(IIO_DMA_MINALIGN);;
+	//unsigned int rx_data[2] __aligned(IIO_DMA_MINALIGN);
+	//unsigned int tx_data[2];
+	//u8 rx_data[6] __aligned(IIO_DMA_MINALIGN);
+	//u8 tx_data[2];
 };
 
 static const unsigned int ad4170_iexc_chop_tbl[AD4170_IEXC_CHOP_MAX] = {
@@ -1813,14 +1815,21 @@ static irqreturn_t ad4170_interrupt(int irq, void *dev_id)
 static void ad4170_prepare_message(struct ad4170_state *st)
 {
 	/* Read from AD4170_DATA_24b_REG top address which is 0x1E */
-	st->tx_data[0] = (AD4170_READ_MASK | 0x1E) << 16;
+	//st->reg_read_tx_buf[0] = AD4170_READ_MASK;
+	st->reg_read_tx_buf[0] = BIT(6);
+	st->reg_read_tx_buf[1] = 0x1E;
 
-	st->xfer.len = BITS_TO_BYTES(ad4170_channel_template.scan_type.storagebits);
-	st->xfer.bits_per_word = 32;
-	st->xfer.tx_buf = st->tx_data;
-	st->xfer.rx_buf = st->rx_data;
+	st->xfers[0].len = 2;
+	//st->xfers[0].bits_per_word = 32;
+	st->xfers[0].bits_per_word = 16;
+	st->xfers[0].tx_buf = st->reg_read_tx_buf;
+	//st->xfers[0].cs_change = 0;
 
-	spi_message_init_with_transfers(&st->msg, &st->xfer, 1);
+	st->xfers[1].len = BITS_TO_BYTES(ad4170_channel_template.scan_type.storagebits);
+	st->xfers[1].bits_per_word = 32;
+	st->xfers[1].rx_buf = st->reg_read_rx_buf;
+
+	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
 }
 
 static int ad4170_buffer_postenable(struct iio_dev *indio_dev)
