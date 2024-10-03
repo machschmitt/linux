@@ -485,7 +485,6 @@ static const struct iio_chan_spec ad4170_channel_template = {
 					BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	.ext_info = ad4170_filter_type_ext_info,
 	.scan_type = {
-		.sign = 'u',
 		.realbits = 24,
 		.storagebits = 32,
 		.endianness = IIO_LE,
@@ -1427,6 +1426,8 @@ static int ad4170_parse_fw_channel(struct iio_dev *indio_dev,
 	setup->afe.bipolar = fwnode_property_read_bool(child, "bipolar");
 	if (setup->afe.bipolar)
 		chan->scan_type.sign = 's';
+	else
+		chan->scan_type.sign = 'u';
 
 	ret = ad4170_parse_fw_setup(st, child, setup);
 	if (ret)
