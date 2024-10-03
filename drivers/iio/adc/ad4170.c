@@ -46,7 +46,7 @@ struct ad4170_chan_info {
 	int slot;
 	int input_range_uv;
 	u32 scale_tbl[10][2];
-	u32 offset_tbl[10];
+	int offset_tbl[10];
 	bool enabled;
 };
 
@@ -989,21 +989,22 @@ static void ad4170_fill_scale_tbl(struct iio_dev *indio_dev, int channel)
 		 * so multi by MICRO only.
 		 */
 		/*
-		 * The _offset is the output code that corresponds to the
-		 * voltage level at the channel negative input.
-		 * Use the scale factor the other way arround to go from a known
+		 * If the negative input is not at GND, the conversion result
+		 * (which is relative to IN-) will be offset by the level at IN-.
+		 * Use the scale factor the other way around to go from a known
 		 * voltage to the corresponding ADC output code.
-		 * With that, we are able to get to what would be the output code
-		 * for the voltage at the negative input.
+		 * With that, we are able to get to what would be the output
+		 * code for the voltage at the negative input.
+		 * For _raw + _offset to be relative to GND, the value provided
+		 * as _offset is of opposite signal than the real offset.
 		 * If the negative input is not fixed, there is no offset.
-		 * (what if unipolar? -> then differential unipolar => fixed IN- to avoid IN+ < IN- => pseudo-diff)
 		 */
 
 		offset = ((unsigned long long)ainm_voltage) * MICRO;
 		offset = DIV_ROUND_CLOSEST_ULL(offset, chan_info->scale_tbl[pga][1]);
 
-		/* After divided by the scale, offset will always fit into u32 */
-		chan_info->offset_tbl[pga] = (u32)offset;
+		/* After divided by the scale, offset will always fit into 32-bits */
+		chan_info->offset_tbl[pga] = (int)(-offset);
 	}
 }
 
