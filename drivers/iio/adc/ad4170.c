@@ -542,7 +542,7 @@ static int _ad4170_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct ad4170_chan_info *chan_info = &st->chan_info[channel];
 	struct ad4170_setup *setup = &st->slots_info[chan_info->slot].setup;
-	int precision_bits = ad4170_channel_template.scan_type.realbits - 1;
+	int precision_bits = ad4170_channel_template.scan_type.realbits;
 	int ret;
 
 	ret = ad4170_set_channel_enable(st, channel, true);
@@ -567,7 +567,7 @@ static int _ad4170_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 		return ret;
 
 	if (setup->afe.bipolar)
-		*val = sign_extend32(*val, precision_bits);
+		*val = sign_extend32(*val, precision_bits - 1);
 out:
 	ret = ad4170_set_channel_enable(st, channel, false);
 	if (ret)
