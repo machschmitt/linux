@@ -1869,9 +1869,9 @@ static int ad4170_hw_buffer_postenable(struct iio_dev *indio_dev)
 		goto out;
 
 	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
-				  AD4170_REG_CTRL_CONT_READ_MSK,
-				  FIELD_PREP(AD4170_REG_CTRL_CONT_READ_MSK,
-					     AD4170_CONT_READ_ON));
+				 AD4170_REG_CTRL_CONT_READ_MSK,
+				 FIELD_PREP(AD4170_REG_CTRL_CONT_READ_MSK,
+					    AD4170_CONT_READ_ON));
 	if (ret < 0)
 		goto out;
 
@@ -1907,12 +1907,11 @@ static int ad4170_hw_buffer_predisable(struct iio_dev *indio_dev)
 	}
 
 	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
-				  AD4170_REG_CTRL_CONT_READ_MSK,
-				  FIELD_PREP(AD4170_REG_CTRL_CONT_READ_MSK,
-					     AD4170_CONT_READ_OFF));
+				 AD4170_REG_CTRL_CONT_READ_MSK,
+				 FIELD_PREP(AD4170_REG_CTRL_CONT_READ_MSK,
+					    AD4170_CONT_READ_OFF));
 	if (ret < 0)
 		return ret;
-
 
 	return ad4170_set_mode(st, AD4170_MODE_IDLE);
 }
