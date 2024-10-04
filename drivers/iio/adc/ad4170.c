@@ -715,10 +715,6 @@ static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool 
 				     pin);
 
 	return ad4170_validate_analog_input(st, pin);
-
-	// TODO check REFIN <= AVDD - 1V;
-
-	// TODO check AVDD - AVSS <= 5V?
 }
 
 /*
