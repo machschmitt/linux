@@ -2221,6 +2221,6 @@ static struct spi_driver ad4170_driver = {
 };
 module_spi_driver(ad4170_driver);
 
-MODULE_AUTHOR("Ana-Maria Cusco <ana-maria.cuso@analog.com>");
+MODULE_AUTHOR("Ana-Maria Cusco <ana-maria.cusco@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD4170 SPI driver");
 MODULE_LICENSE("GPL");
