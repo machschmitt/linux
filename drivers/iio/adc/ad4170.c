@@ -357,7 +357,7 @@ static int ad4170_write_channel_setup(struct ad4170_state *st,
 	ret = regmap_update_bits(st->regmap, AD4170_CHANNEL_SETUP_REG(slot),
 				 AD4170_CHANNEL_SETUPN_SETUP_N_MSK,
 				 FIELD_PREP(AD4170_CHANNEL_SETUPN_SETUP_N_MSK,
-				 slot));
+					    slot));
 	if (ret)
 		return ret;
 
