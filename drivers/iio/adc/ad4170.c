@@ -1818,7 +1818,7 @@ static void ad4170_prepare_message(struct ad4170_state *st)
 	/*
 	 * Continuous data register read is enabled on buffer postenable so
 	 * no instruction phase is needed meaning we don't need to send the
-	 * register addres to read data. Transfer only needs the read buffer.
+	 * register address to read data. Transfer only needs the read buffer.
 	 */
 	st->xfer.rx_buf = st->reg_read_rx_buf;
 	st->xfer.bits_per_word = ad4170_channel_template.scan_type.storagebits;
