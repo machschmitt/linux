@@ -722,10 +722,9 @@ static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool 
 }
 
 /*
- * Verifies whether the channel configuration is valid by checking the provided
- * input type, input numbers, polarity, and voltage references result in a sane
- * input range.
- * Returns 0 on valid channel configuration.
+ * Verifies whether the channel input configuration is valid by checking the
+ * provided input type and input numbers.
+ * Returns 0 on valid channel input configuration. -EINVAl otherwise.
  *
  * @st: pointer to device state struct
  * @chan: pointer to IIO channel spec struct
@@ -761,6 +760,9 @@ static int ad4170_validate_channel(struct ad4170_state *st,
 /*
  * Receives the device state, the channel spec, a reference selection, and
  * returns the magnitude of the allowed input range in µV.
+ * Verifies whether the channel configuration is valid by checking the provided
+ * input type, polarity, and voltage references result in a sane input range.
+ * Returns negative error code on failure.
  */
 static int ad4170_get_input_range(struct ad4170_state *st,
 				  struct iio_chan_spec const *chan,
@@ -783,6 +785,10 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	case AD4170_REFIN_AVDD:
 		refp = regulator_get_voltage(st->supplies[AD4170_AVDD_SUP].consumer);
 		ret = regulator_get_voltage(st->supplies[AD4170_AVSS_SUP].consumer);
+		/*
+		 * TODO AVSS is actually optional.
+		 * Should we handle -EPROBE_DEFER here?
+		 */
 		if (ret < 0)
 			ret = 0; /* Assume AVSS at GND if not provided */
 
@@ -831,13 +837,12 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	 * and single-ended channel configuration set, then the input range
 	 * should go from 0V to +VREF (single-ended - datasheet pg 10), but
 	 * REFOUT/AVSS range would be -2.5V to 0V.
-	 * Check the positive reference is higher than 0V for speusdo-diff
+	 * Check the positive reference is higher than 0V for pseudo-diff
 	 * channels.
 	 */
 	if (bipolar) {
 		/* Pseudo-differential bipolar channel */
-		/* Input allowed to swing from GND(?) to +VREF */
-		//or will the ADC spread the output codes over -VREF to +VREF?
+		/* Input allowed to swing from GND to +VREF */
 		if (refp <= 0)
 			return dev_err_probe(&st->spi->dev, -EINVAL,
 					     "Invalid setup for channel %lu.\n",
@@ -853,8 +858,6 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 				     "Invalid setup for channel %lu.\n",
 				     chan->address);
 
-	//input_range_mag = refp - IN-; ?
-	//or will the ADC spread the output codes over -VREF to +VREF?
 	ret = ad4170_get_AINM_voltage(st, chan->channel2, &ain_voltage);
 	if (ret < 0)
 		return ret;
