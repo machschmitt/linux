@@ -354,7 +354,7 @@ static int ad4170_write_channel_setup(struct ad4170_state *st,
 		return ret;
 
 	/* Hardcode default setup for channel x and write it */
-	ret = regmap_update_bits(st->regmap, AD4170_CHANNEL_SETUP_REG(slot),
+	ret = regmap_update_bits(st->regmap, AD4170_CHAN_SETUP_REG(slot),
 				 AD4170_CHANNEL_SETUPN_SETUP_N_MSK,
 				 FIELD_PREP(AD4170_CHANNEL_SETUPN_SETUP_N_MSK,
 					    slot));
@@ -1750,7 +1750,7 @@ static int ad4170_setup(struct iio_dev *indio_dev)
 		val = FIELD_PREP(AD4170_CHANNEL_MAPN_AINP_MSK, chan->channel) |
 		      FIELD_PREP(AD4170_CHANNEL_MAPN_AINM_MSK, chan->channel2);
 
-		ret = regmap_write(st->regmap, AD4170_CHANNEL_MAP_REG(i), val);
+		ret = regmap_write(st->regmap, AD4170_CHAN_MAP_REG(i), val);
 		if (ret)
 			return ret;
 
@@ -1772,7 +1772,7 @@ static int ad4170_setup(struct iio_dev *indio_dev)
 		      FIELD_PREP(AD4170_CURRENT_SOURCE_I_OUT_VAL_MSK,
 				 st->cfg.current_src[i].i_out_val);
 
-		ret = regmap_write(st->regmap, AD4170_CURRENT_SOURCE_REG(i), val);
+		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(i), val);
 		if (ret)
 			return ret;
 	}
