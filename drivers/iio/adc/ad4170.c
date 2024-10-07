@@ -946,7 +946,7 @@ static int ad4170_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static void ad4170_fill_scale_tbl(struct iio_dev *indio_dev, int channel)
+static int ad4170_fill_scale_tbl(struct iio_dev *indio_dev, int channel)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct ad4170_chan_info *chan_info = &st->chan_info[channel];
@@ -956,37 +956,34 @@ static void ad4170_fill_scale_tbl(struct iio_dev *indio_dev, int channel)
 	int pga, ainm_voltage, ret;
 	unsigned long long offset;
 
-	/* The _offset is the output code for the voltage level at AINM. */
-	ainm_voltage = 0; //for offset calculation
+	ainm_voltage = 0;
 	if (chan->channel2 > AD4170_MAP_TEMP_SENSOR_N) {
 		ret = ad4170_get_AINM_voltage(st, chan->channel2, &ainm_voltage);
 		if (ret < 0)
-			dev_info(&st->spi->dev, "ERROR from ad4170_get_AINM_voltage() %d\n", ret);
+			return dev_err_probe(&st->spi->dev, ret,
+					     "Failed to fill scale tbl: %d\n",
+					     ret);
 	}
 
 	for (pga = 0; pga < AD4170_PGA_GAIN_MAX; pga++) {
 		u64 nv;
 		unsigned int lshift, rshift;
+
 		/*
 		 * The scale factor to get ADC output codes to values in mV
 		 * units is given by:
 		 * _scale = (input_range / gain) / 2^precision
-		 * Since AD4170 gain is a power of 2, the above ca be written as
+		 * AD4170 gain is a power of 2 so the above can be written as
 		 * _scale = input_range / 2^(precision + gain)
+		 * Keep the input range in µV before right shift to preserve
+		 * scale precision.
 		 */
-
-		/* Keep the range in µV before right shift to preserve scale precision */
 		nv = (u64)chan_info->input_range_uv * NANO;
 		lshift = (pga >> 3 & 1);  /* handle cases 8 and 9 */
 		rshift = ch_resolution + (pga & 0x7) - lshift;
 		chan_info->scale_tbl[pga][0] = 0;
 		chan_info->scale_tbl[pga][1] = div_u64(nv >> rshift, MILLI);
-		/*
-		 * scale_tbl is in nano units.
-		 *
-		 * would multiply ainm_voltage by NANO but ainm_voltage in µV
-		 * so multi by MICRO only.
-		 */
+
 		/*
 		 * If the negative input is not at GND, the conversion result
 		 * (which is relative to IN-) will be offset by the level at IN-.
@@ -998,13 +995,13 @@ static void ad4170_fill_scale_tbl(struct iio_dev *indio_dev, int channel)
 		 * as _offset is of opposite signal than the real offset.
 		 * If the negative input is not fixed, there is no offset.
 		 */
-
 		offset = ((unsigned long long)ainm_voltage) * MICRO;
 		offset = DIV_ROUND_CLOSEST_ULL(offset, chan_info->scale_tbl[pga][1]);
 
-		/* After divided by the scale, offset will always fit into 32-bits */
+		/* After divided by the scale, offset will always fit into 31 bits */
 		chan_info->offset_tbl[pga] = (int)(-offset);
 	}
+	return 0;
 }
 
 static int ad4170_read_avail(struct iio_dev *indio_dev,
@@ -1756,6 +1753,8 @@ static int ad4170_setup(struct iio_dev *indio_dev)
 
 		ad4170_set_channel_freq(st, chan->address, AD4170_MAX_SAMP_RATE, 0);
 		ad4170_fill_scale_tbl(indio_dev, i);
+		if (ret)
+			return ret;
 	}
 
 	val = 0;
