@@ -181,9 +181,14 @@ channels.
 --------------------------------
 
 There is a third ADC input type which is called pseudo-differential or
-single-ended to differential configuration. A pseudo-differential input is made
-out from a differential pair of inputs by restricting the negative input to a
-known voltage while allowing only the positive input to change.
+single-ended to differential configuration. A pseudo-differential channel is
+similar to a differential channel in that it also measures IN+ relative to IN-.
+However, unlike differential channels, the negative input is limited to a narrow
+voltage range while only IN+ is allowed to swing. A pseudo-differential channel
+can be made out from a differential pair of inputs by restricting the negative
+input to a known voltage while allowing only the positive input to swing. Aside
+from that, some parts have a COM pin that allows single-ended inputs to be
+referenced to a common-mode voltage, making them pseudo-differential channels.
 
 1.3.1 Pseudo-differential Unipolar Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
