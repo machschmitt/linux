@@ -259,6 +259,8 @@ patternProperties:
 
       single-channel: true
 
+      common-mode-channel: true
+
       bipolar: true
 
       adi,config-setup-slot:
