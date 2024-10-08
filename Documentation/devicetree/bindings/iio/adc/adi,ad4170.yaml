@@ -207,6 +207,12 @@ properties:
     enum: [0, 1, 2, 3]
     default: 0
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
 patternProperties:
   "^channel@([0-9]|1[0-5])$":
     $ref: "adc.yaml"
