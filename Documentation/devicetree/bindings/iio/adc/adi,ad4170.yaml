@@ -215,8 +215,9 @@ properties:
 
 patternProperties:
   "^channel@([0-9]|1[0-5])$":
-    $ref: "adc.yaml"
+    $ref: adc.yaml
     type: object
+    unevaluatedProperties: false
     description: |
       Represents the external channels which are connected to the ADC.
 
@@ -335,8 +336,6 @@ patternProperties:
             properties:
               single-channel: false
               common-mode-channel: false
-
-    additionalProperties: false
 
 required:
   - compatible
