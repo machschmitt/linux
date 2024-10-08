@@ -1623,7 +1623,8 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
-	int ret, tmp, i;
+	int ret, i;
+	u8 tmp;
 
 	st->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT)
@@ -1667,7 +1668,7 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 		return ret;
 
 	tmp = 0;
-	fwnode_property_read_u32(dev->fwnode, "adi,chop-iexc", &tmp);
+	device_property_read_u8(dev, "adi,chop-iexc", &tmp);
 	ret = ad4170_find_table_index(ad4170_iexc_chop_tbl, tmp);
 	if (ret < 0)
 		return dev_err_probe(dev, ret,
