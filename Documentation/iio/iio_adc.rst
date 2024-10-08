@@ -195,12 +195,11 @@ referenced to a common-mode voltage, making them pseudo-differential channels.
 
 ::
 
-  -------- +VREF ------
-    ´ `       ´ `                +-------------------+
-  /     \   /     \   /         /                    |
-         `-´       `-´     --- <  IN+                |
-  --------- IN- -------         |                    |
-                                |            ADC     |
+  -------- +VREF ------          +-------------------+
+    ´ `       ´ `               /                    |
+  /     \   /     \   /    --- <  IN+                |
+         `-´       `-´          |                    |
+  --------- IN- -------         |            ADC     |
                                 |                    |
   Common-mode voltage -->  --- <  IN-                |
                                 \       +VREF  -VREF |
@@ -243,12 +242,11 @@ pseudo-differential channels.
 
 ::
 
-  -------- +VREF ------
-    ´ `       ´ `                +-------------------+
-  /     \   /     \   /         /                    |
-         `-´       `-´     --- <  IN+                |
-  -------- -VREF ------         |                    |
-                                |            ADC     |
+  -------- +VREF ------          +-------------------+
+    ´ `       ´ `               /                    |
+  /     \   /     \   /    --- <  IN+                |
+         `-´       `-´          |                    |
+  -------- -VREF ------         |            ADC     |
                                 |                    |
   Common-mode voltage -->  --- <  IN-                |
                                 \       +VREF  -VREF |
