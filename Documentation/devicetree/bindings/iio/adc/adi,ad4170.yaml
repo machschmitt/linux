@@ -203,7 +203,7 @@ properties:
       2: Chop/swap IOUT2 and IOUT3 (pair CD) excitation currents.
       3: Chop/swap both pairs (pair AB and pair CD) of excitation currents.
       If this property is absent, no chopping is performed.
-    $ref: /schemas/types.yaml#/definitions/uint16
+    $ref: /schemas/types.yaml#/definitions/uint8
     enum: [0, 1, 2, 3]
     default: 0
 
@@ -368,7 +368,7 @@ examples:
             adi,excitation-current-0-microamp = <10>;
             adi,excitation-pin-1 = <20>;
             adi,excitation-current-1-microamp = <10>;
-            adi,chop-iexc = <1>;
+            adi,chop-iexc = /bits/ 8 <1>;
             adi,vbias-pins = <5 6>;
 
             // Sample AIN0 with respect to AIN1 throughout AVDD/AVSS input range
