@@ -482,9 +482,6 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (!spi_engine_ex_offload_supported(st->spi))
-			return -ENOTSUPP;
-
 		*val = ad4000_get_sampling_freq(st);
 		return IIO_VAL_INT;
 	default:
@@ -552,9 +549,6 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 		}
 		unreachable();
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (!spi_engine_ex_offload_supported(st->spi))
-			return -ENOTSUPP;
-
 		if (!val || val > st->max_rate_hz)
 			return -EINVAL;
 
