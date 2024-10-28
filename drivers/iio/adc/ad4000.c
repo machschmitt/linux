@@ -593,10 +593,14 @@ static const struct iio_info ad4000_reg_access_info = {
 	.write_raw_get_fmt = &ad4000_write_raw_get_fmt,
 };
 
-static const struct iio_info ad4000_info = {
+static const struct iio_info ad4000_offload_info = {
 	.read_raw = &ad4000_read_raw,
 	.write_raw = &ad4000_write_raw,
 	.write_raw_get_fmt = &ad4000_write_raw_get_fmt,
+};
+
+static const struct iio_info ad4000_info = {
+	.read_raw = &ad4000_read_raw,
 };
 
 static int ad4000_buffer_postenable(struct iio_dev *indio_dev)
@@ -802,11 +806,13 @@ static int ad4000_probe(struct spi_device *spi)
 
 		break;
 	case AD4000_SDI_VIO:
-		indio_dev->info = &ad4000_info;
-		if (spi_engine_ex_offload_supported(spi))
+		if (spi_engine_ex_offload_supported(spi)) {
+			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
-		else
+		} else {
+			indio_dev->info = &ad4000_info;
 			indio_dev->channels = &chip->chan_spec;
+		}
 
 		ret = ad4000_prepare_3wire_mode_message(st, indio_dev->channels);
 		if (ret)
@@ -814,11 +820,13 @@ static int ad4000_probe(struct spi_device *spi)
 
 		break;
 	case AD4000_SDI_CS:
-		indio_dev->info = &ad4000_info;
-		if (spi_engine_ex_offload_supported(spi))
+		if (spi_engine_ex_offload_supported(spi)) {
+			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
-		else
+		} else {
+			indio_dev->info = &ad4000_info;
 			indio_dev->channels = &chip->chan_spec;
+		}
 
 		ret = ad4000_prepare_4wire_mode_message(st, indio_dev->channels);
 		if (ret)
