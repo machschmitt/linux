@@ -133,7 +133,7 @@ static const struct ad4000_chip_info ad4000_chip_info = {
 	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0, 1),
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 1),
-	.max_rate_hz  = 2000000,
+	.max_rate_hz  = 2 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4001_chip_info = {
@@ -142,7 +142,7 @@ static const struct ad4000_chip_info ad4001_chip_info = {
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0, 1),
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 1),
-	.max_rate_hz  = 2000000,
+	.max_rate_hz  = 2 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4002_chip_info = {
@@ -151,7 +151,7 @@ static const struct ad4000_chip_info ad4002_chip_info = {
 	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0, 1),
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 1),
-	.max_rate_hz  = 2000000,
+	.max_rate_hz  = 2 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4003_chip_info = {
@@ -160,7 +160,7 @@ static const struct ad4000_chip_info ad4003_chip_info = {
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0, 1),
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 1),
-	.max_rate_hz  = 2000000,
+	.max_rate_hz  = 2 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4004_chip_info = {
@@ -169,7 +169,7 @@ static const struct ad4000_chip_info ad4004_chip_info = {
 	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0, 1),
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 1),
-	.max_rate_hz  = 1000000,
+	.max_rate_hz  = 1 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4005_chip_info = {
@@ -178,7 +178,7 @@ static const struct ad4000_chip_info ad4005_chip_info = {
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0, 1),
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 1),
-	.max_rate_hz  = 1000000,
+	.max_rate_hz  = 1 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4006_chip_info = {
@@ -187,7 +187,7 @@ static const struct ad4000_chip_info ad4006_chip_info = {
 	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0, 1),
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 1),
-	.max_rate_hz  = 1000000,
+	.max_rate_hz  = 1 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4007_chip_info = {
@@ -196,7 +196,7 @@ static const struct ad4000_chip_info ad4007_chip_info = {
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0, 1),
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 1),
-	.max_rate_hz  = 1000000,
+	.max_rate_hz  = 1 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4008_chip_info = {
@@ -205,7 +205,7 @@ static const struct ad4000_chip_info ad4008_chip_info = {
 	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0, 1),
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 1),
-	.max_rate_hz  =  500000,
+	.max_rate_hz  =  500 * KILO,
 };
 
 static const struct ad4000_chip_info ad4010_chip_info = {
@@ -214,7 +214,7 @@ static const struct ad4000_chip_info ad4010_chip_info = {
 	.reg_access_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0, 1),
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 1),
-	.max_rate_hz  =  500000,
+	.max_rate_hz  =  500 * KILO,
 };
 
 static const struct ad4000_chip_info ad4011_chip_info = {
@@ -223,7 +223,7 @@ static const struct ad4000_chip_info ad4011_chip_info = {
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0, 1),
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 1),
-	.max_rate_hz  =  500000,
+	.max_rate_hz  =  500 * KILO,
 };
 
 static const struct ad4000_chip_info ad4020_chip_info = {
@@ -232,7 +232,7 @@ static const struct ad4000_chip_info ad4020_chip_info = {
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0, 1),
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 1),
-	.max_rate_hz  = 1800000,
+	.max_rate_hz  = 1800 * KILO,
 };
 
 static const struct ad4000_chip_info ad4021_chip_info = {
@@ -241,7 +241,7 @@ static const struct ad4000_chip_info ad4021_chip_info = {
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0, 1),
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 1),
-	.max_rate_hz  = 1000000,
+	.max_rate_hz  = 1 * MEGA,
 };
 
 static const struct ad4000_chip_info ad4022_chip_info = {
@@ -250,7 +250,7 @@ static const struct ad4000_chip_info ad4022_chip_info = {
 	.reg_access_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0, 1),
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 1),
-	.max_rate_hz  =  500000,
+	.max_rate_hz  =  500 * KILO,
 };
 
 static const struct ad4000_chip_info adaq4001_chip_info = {
@@ -260,7 +260,7 @@ static const struct ad4000_chip_info adaq4001_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 1),
 	.has_hardware_gain = true,
-	.max_rate_hz  = 2000000,
+	.max_rate_hz  = 2 * MEGA,
 };
 
 static const struct ad4000_chip_info adaq4003_chip_info = {
@@ -270,7 +270,7 @@ static const struct ad4000_chip_info adaq4003_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 0),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 1),
 	.has_hardware_gain = true,
-	.max_rate_hz  = 2000000,
+	.max_rate_hz  = 2 * MEGA,
 };
 
 struct ad4000_state {
