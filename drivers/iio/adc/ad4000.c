@@ -333,7 +333,7 @@ static const struct ad4000_chip_info ad7685_chip_info = {
 static const struct ad4000_chip_info ad7687_chip_info = {
 	.dev_name = "ad7687",
 	.chan_spec = AD4000_DIFF_CHANNELS('s', 16, 0, 0),
-	.max_rate_hz  = 250000,
+	.max_rate_hz  = 250 * KILO,
 };
 
 static const struct ad4000_chip_info ad7691_chip_info = {
