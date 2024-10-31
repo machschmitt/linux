@@ -676,7 +676,7 @@ static int ad4000_pwm_setup(struct spi_device *spi, struct ad4000_state *st)
  * SPI offload trigger. This has the effect that the first sample data is not
  * valid because it is reading the previous conversion result. We also use
  * bits_per_word to ensure the minimum of SCLK cycles are used. And a delay is
- * added to make sure we meet the minium quite time before releasing the CS
+ * added to make sure we meet the minimum quiet time before releasing the CS
  * line. Plus the CS change delay is set to ensure that we meet the minimum
  * quiet time before asserting CS again.
  *
@@ -715,7 +715,7 @@ static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
  * SPI offload trigger. This has the effect that the first sample data is not
  * valid because it is reading the previous conversion result. We also use
  * bits_per_word to ensure the minimum of SCLK cycles are used. And a delay is
- * added to make sure we meet the minium quite time before releasing the CS
+ * added to make sure we meet the minimum quiet time before releasing the CS
  * line. Plus the CS change delay is set to ensure that we meet the minimum
  * conversion time before asserting CS again.
  *
