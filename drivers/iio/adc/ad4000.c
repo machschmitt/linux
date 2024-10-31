@@ -732,8 +732,6 @@ static int ad4000_prepare_offload_message(struct ad4000_state *st,
 	xfers[0].len = chan->scan_type.realbits > 16 ? 4 : 2;
 	xfers[0].delay.value = AD4000_TQUIET2_NS;
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
-	xfers[0].cs_change_delay.value = AD4000_TCONV_NS;
-	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	spi_message_init_with_transfers(&st->offload_msg, xfers, 1);
 
@@ -904,6 +902,8 @@ static int ad4000_probe(struct spi_device *spi)
 			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
 
+			spi->cs_hold.value = AD4000_TCONV_NS;
+			spi->cs_hold.unit = SPI_DELAY_UNIT_NSECS;
 			ret = ad4000_prepare_offload_message(st, indio_dev->channels);
 			if (ret)
 				return ret;
