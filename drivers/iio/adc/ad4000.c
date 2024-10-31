@@ -37,6 +37,7 @@
 /* AD4000 Configuration Register programmable bits */
 #define AD4000_CFG_SPAN_COMP		BIT(3) /* Input span compression  */
 #define AD4000_CFG_HIGHZ		BIT(2) /* High impedance mode  */
+#define AD4000_CFG_TURBO		BIT(1) /* Turbo mode  */
 
 #define AD4000_SCALE_OPTIONS		2
 
@@ -814,6 +815,9 @@ static int ad4000_config(struct ad4000_state *st)
 
 	if (device_property_present(&st->spi->dev, "adi,high-z-input"))
 		reg_val |= FIELD_PREP(AD4000_CFG_HIGHZ, 1);
+
+	if (st->using_offload)
+		reg_val |= FIELD_PREP(AD4000_CFG_TURBO, 1);
 
 	return ad4000_write_reg(st, reg_val);
 }
