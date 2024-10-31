@@ -59,7 +59,7 @@
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
 		.storagebits = _storage_bits,					\
-		.shift = _storage_bits - _real_bits,				\
+		.shift = _offl ? 0 :_storage_bits - _real_bits,			\
 		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
@@ -83,7 +83,7 @@
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
 		.storagebits = _storage_bits,					\
-		.shift = _storage_bits - _real_bits,				\
+		.shift = _offl ? 0 :_storage_bits - _real_bits,			\
 		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
