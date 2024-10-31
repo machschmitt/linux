@@ -817,13 +817,12 @@ static int ad4000_probe(struct spi_device *spi)
 
 		break;
 	case AD4000_SDI_CS:
-		if (st->using_offload) {
-			indio_dev->info = &ad4000_offload_info;
-			indio_dev->channels = &chip->offload_chan_spec;
-		} else {
-			indio_dev->info = &ad4000_info;
-			indio_dev->channels = &chip->chan_spec;
-		}
+		if (st->using_offload)
+			return dev_err_probe(dev, -EPROTONOSUPPORT,
+					     "Unsupported sdi-pin + offload config\n");
+
+		indio_dev->info = &ad4000_info;
+		indio_dev->channels = &chip->chan_spec;
 
 		ret = ad4000_prepare_4wire_mode_message(st, indio_dev->channels);
 		if (ret)
