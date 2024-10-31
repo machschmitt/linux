@@ -278,6 +278,7 @@ struct ad4000_state {
 	struct gpio_desc *cnv_gpio;
 	struct spi_transfer xfers[2];
 	struct spi_message msg;
+	bool using_offload;
 	unsigned long ref_clk_rate_hz;
 	struct pwm_device *cnv_trigger;
 	int max_rate_hz;
@@ -763,6 +764,8 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
 				     "Failed to get CNV GPIO");
 
+	st->using_offload = spi_engine_ex_offload_supported(spi);
+
 	ret = device_property_match_property_string(dev, "adi,sdi-pin",
 						    ad4000_sdi_pin,
 						    ARRAY_SIZE(ad4000_sdi_pin));
@@ -775,7 +778,7 @@ static int ad4000_probe(struct spi_device *spi)
 	switch (st->sdi_pin) {
 	case AD4000_SDI_MOSI:
 		indio_dev->info = &ad4000_reg_access_info;
-		if (spi_engine_ex_offload_supported(spi))
+		if (st->using_offload)
 			indio_dev->channels = &chip->reg_access_offload_chan_spec;
 		else
 			indio_dev->channels = &chip->reg_access_chan_spec;
@@ -800,7 +803,7 @@ static int ad4000_probe(struct spi_device *spi)
 
 		break;
 	case AD4000_SDI_VIO:
-		if (spi_engine_ex_offload_supported(spi)) {
+		if (st->using_offload) {
 			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
 		} else {
@@ -814,7 +817,7 @@ static int ad4000_probe(struct spi_device *spi)
 
 		break;
 	case AD4000_SDI_CS:
-		if (spi_engine_ex_offload_supported(spi)) {
+		if (st->using_offload) {
 			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
 		} else {
@@ -860,7 +863,7 @@ static int ad4000_probe(struct spi_device *spi)
 
 	ad4000_fill_scale_tbl(st, indio_dev->channels);
 
-	if (spi_engine_ex_offload_supported(spi)) {
+	if (st->using_offload) {
 		ret = ad4000_pwm_setup(spi, st);
 		if (ret)
 			dev_err_probe(dev, ret, "PWM setup failed\n");
