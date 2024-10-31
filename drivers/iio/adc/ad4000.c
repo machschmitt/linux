@@ -59,7 +59,7 @@
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
 		.storagebits = _storage_bits,					\
-		.shift = _offl ? 0 :_storage_bits - _real_bits,			\
+		.shift = _offl ? 0 : _storage_bits - _real_bits,		\
 		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
@@ -83,7 +83,7 @@
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
 		.storagebits = _storage_bits,					\
-		.shift = _offl ? 0 :_storage_bits - _real_bits,			\
+		.shift = _offl ? 0 : _storage_bits - _real_bits,		\
 		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
@@ -278,6 +278,8 @@ struct ad4000_state {
 	struct gpio_desc *cnv_gpio;
 	struct spi_transfer xfers[2];
 	struct spi_message msg;
+	struct spi_transfer offload_xfers[2];
+	struct spi_message offload_msg;
 	bool using_offload;
 	unsigned long ref_clk_rate_hz;
 	struct pwm_device *cnv_trigger;
@@ -295,8 +297,10 @@ struct ad4000_state {
 	 */
 	struct {
 		union {
-			__be16 sample_buf16;
-			__be32 sample_buf32;
+			__be16 sample_buf16_be;
+			__be32 sample_buf32_be;
+			u16 sample_buf16;
+			u32 sample_buf32;
 		} data;
 		s64 timestamp __aligned(8);
 	} scan __aligned(IIO_DMA_MINALIGN);
@@ -399,10 +403,17 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
-	if (chan->scan_type.storagebits > 16)
-		sample = be32_to_cpu(st->scan.data.sample_buf32);
-	else
-		sample = be16_to_cpu(st->scan.data.sample_buf16);
+	if (chan->scan_type.endianness == IIO_BE) {
+		if (chan->scan_type.realbits > 16)
+			sample = be32_to_cpu(st->scan.data.sample_buf32_be);
+		else
+			sample = be16_to_cpu(st->scan.data.sample_buf16_be);
+	} else {
+		if (chan->scan_type.realbits > 16)
+			sample = st->scan.data.sample_buf32;
+		else
+			sample = st->scan.data.sample_buf16;
+	}
 
 	sample >>= chan->scan_type.shift;
 
@@ -654,6 +665,81 @@ static int ad4000_pwm_setup(struct spi_device *spi, struct ad4000_state *st)
 }
 
 /*
+ * This executes a data sample transfer when using SPI offloading for when the
+ * device connections are in "3-wire" mode, selected when the adi,sdi-pin device
+ * tree property is absent or set to "high". In this connection mode, the ADC
+ * SDI pin is connected to MOSI or to VIO and ADC CNV pin is connected to a SPI
+ * controller CS (it can't be connected to a GPIO).
+ *
+ * In order to achieve the maximum sample rate, we only do one transfer per
+ * SPI offload trigger. This has the effect that the first sample data is not
+ * valid because it is reading the previous conversion result. We also use
+ * bits_per_word to ensure the minimum of SCLK cycles are used. And a delay is
+ * added to make sure we meet the minium quite time before releasing the CS
+ * line. Plus the CS change delay is set to ensure that we meet the minimum
+ * quiet time before asserting CS again.
+ *
+ * This timing is only valid if turbo mode is enabled (reading during conversion).
+ */
+static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
+						const struct iio_chan_spec *chan)
+{
+	struct spi_transfer *xfers = st->offload_xfers;
+
+	/* Have to do a short CS toggle to trigger conversion. */
+	xfers[0].cs_change = 1;
+	xfers[0].cs_change_delay.value = AD4000_TQUIET1_NS;
+	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	/* HACK: invalid pointer indicates read data from SPI offload DMA */
+	xfers[1].rx_buf = (void*)(-1);
+	xfers[1].bits_per_word = chan->scan_type.realbits;
+	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
+	xfers[1].delay.value = AD4000_TQUIET2_NS;
+	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	spi_message_init_with_transfers(&st->offload_msg, xfers, 2);
+
+	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->offload_msg);
+}
+
+/*
+ * This executes a data sample transfer when using SPI offloading for when the
+ * device connections are in "3-wire" mode, selected when the adi,sdi-pin device
+ * tree property is absent or set to "high". In this connection mode, the ADC
+ * SDI pin is connected to MOSI or to VIO and ADC CNV pin is connected to a SPI
+ * controller CS (it can't be connected to a GPIO).
+ *
+ * In order to achieve the maximum sample rate, we only do one transfer per
+ * SPI offload trigger. This has the effect that the first sample data is not
+ * valid because it is reading the previous conversion result. We also use
+ * bits_per_word to ensure the minimum of SCLK cycles are used. And a delay is
+ * added to make sure we meet the minium quite time before releasing the CS
+ * line. Plus the CS change delay is set to ensure that we meet the minimum
+ * conversion time before asserting CS again.
+ *
+ * This timing is only valid if turbo mode is disabled (reading during acquisition).
+ */
+static int ad4000_prepare_offload_message(struct ad4000_state *st,
+					  const struct iio_chan_spec *chan)
+{
+	struct spi_transfer *xfers = st->offload_xfers;
+
+	/* HACK: invalid pointer indicates read data from SPI offload DMA */
+	xfers[0].rx_buf = (void*)(-1);
+	xfers[0].bits_per_word = chan->scan_type.realbits;
+	xfers[0].len = chan->scan_type.realbits > 16 ? 4 : 2;
+	xfers[0].delay.value = AD4000_TQUIET2_NS;
+	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+	xfers[0].cs_change_delay.value = AD4000_TCONV_NS;
+	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	spi_message_init_with_transfers(&st->offload_msg, xfers, 1);
+
+	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->offload_msg);
+}
+
+/*
  * This executes a data sample transfer for when the device connections are
  * in "3-wire" mode, selected when the adi,sdi-pin device tree property is
  * absent or set to "high". In this connection mode, the ADC SDI pin is
@@ -680,8 +766,9 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	xfers[1].rx_buf = &st->scan.data;
-	xfers[1].bits_per_word = chan->scan_type.storagebits;
-	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
+	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
+	if (chan->scan_type.endianness != IIO_BE)
+		xfers[1].bits_per_word = chan->scan_type.realbits;
 	xfers[1].delay.value = AD4000_TQUIET2_NS;
 	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
 
@@ -712,7 +799,9 @@ static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	xfers[1].rx_buf = &st->scan.data;
-	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
+	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
+	if (chan->scan_type.endianness != IIO_BE)
+		xfers[1].bits_per_word = chan->scan_type.realbits;
 
 	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
 
@@ -777,12 +866,6 @@ static int ad4000_probe(struct spi_device *spi)
 	st->sdi_pin = ret == -EINVAL ? AD4000_SDI_MOSI : ret;
 	switch (st->sdi_pin) {
 	case AD4000_SDI_MOSI:
-		indio_dev->info = &ad4000_reg_access_info;
-		if (st->using_offload)
-			indio_dev->channels = &chip->reg_access_offload_chan_spec;
-		else
-			indio_dev->channels = &chip->reg_access_chan_spec;
-
 		/*
 		 * In "3-wire mode", the ADC SDI line must be kept high when
 		 * data is not being clocked out of the controller.
@@ -793,7 +876,17 @@ static int ad4000_probe(struct spi_device *spi)
 		if (ret < 0)
 			return ret;
 
-		ret = ad4000_prepare_3wire_mode_message(st, indio_dev->channels);
+		indio_dev->info = &ad4000_reg_access_info;
+
+		if (st->using_offload) {
+			indio_dev->channels = &chip->reg_access_offload_chan_spec;
+			ret = ad4000_prepare_offload_turbo_message(st, indio_dev->channels);
+			if (ret)
+				return ret;
+		} else {
+			indio_dev->channels = &chip->reg_access_chan_spec;
+		}
+		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
 			return ret;
 
@@ -806,12 +899,15 @@ static int ad4000_probe(struct spi_device *spi)
 		if (st->using_offload) {
 			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
+
+			ret = ad4000_prepare_offload_message(st, indio_dev->channels);
+			if (ret)
+				return ret;
 		} else {
 			indio_dev->info = &ad4000_info;
 			indio_dev->channels = &chip->chan_spec;
 		}
-
-		ret = ad4000_prepare_3wire_mode_message(st, indio_dev->channels);
+		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
 			return ret;
 
@@ -823,7 +919,6 @@ static int ad4000_probe(struct spi_device *spi)
 
 		indio_dev->info = &ad4000_info;
 		indio_dev->channels = &chip->chan_spec;
-
 		ret = ad4000_prepare_4wire_mode_message(st, indio_dev->channels);
 		if (ret)
 			return ret;
