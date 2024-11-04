@@ -326,17 +326,17 @@ static const struct ad4000_chip_info adaq4003_chip_info = {
 
 static const struct ad4000_chip_info ad7685_chip_info = {
 	.dev_name = "ad7685",
-	.chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0),
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNELS('u', 16, 0),
 };
 
 static const struct ad4000_chip_info ad7687_chip_info = {
 	.dev_name = "ad7687",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0),
+	.chan_spec = AD4000_DIFF_CHANNELS('s', 16, 0),
 };
 
 static const struct ad4000_chip_info ad7691_chip_info = {
 	.dev_name = "ad7691",
-	.chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0),
+	.chan_spec = AD4000_DIFF_CHANNELS('s', 18, 0),
 };
 
 struct ad4000_state {
