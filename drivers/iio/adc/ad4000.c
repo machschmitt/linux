@@ -658,7 +658,7 @@ static int ad4000_pwm_setup(struct spi_device *spi, struct ad4000_state *st)
 	if (IS_ERR(st->cnv_trigger))
 		return PTR_ERR(st->cnv_trigger);
 
-	ret = ad4000_set_sampling_freq(st, st->max_rate_hz);
+	ret = ad4000_set_sampling_freq(st, mult_frac(st->max_rate_hz, 3, 4));
 	if (ret)
 		return ret;
 
