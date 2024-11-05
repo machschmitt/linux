@@ -53,14 +53,14 @@
 	.channel = 0,								\
 	.channel2 = 1,								\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
-			      BIT(IIO_CHAN_INFO_SCALE),				\
-	.info_mask_separate_available = _reg_access ? BIT(IIO_CHAN_INFO_SCALE) : 0,\
-	.info_mask_shared_by_all = _offl ? BIT(IIO_CHAN_INFO_SAMP_FREQ) : 0,	\
+			      BIT(IIO_CHAN_INFO_SCALE) |			\
+			      (_offl ? BIT(IIO_CHAN_INFO_SAMP_FREQ) : 0),	\
+	.info_mask_separate_available = (_reg_access ? BIT(IIO_CHAN_INFO_SCALE) : 0),\
 	.scan_type = {								\
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
 		.storagebits = _storage_bits,					\
-		.shift = _offl ? 0 : _storage_bits - _real_bits,		\
+		.shift = (_offl ? 0 : _storage_bits - _real_bits),		\
 		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
@@ -70,21 +70,22 @@
 			      (((_offl) || ((_real_bits) > 16)) ? 32 : 16),	\
 			      (_reg_access), (_offl))
 
-#define __AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _storage_bits, _reg_access, _offl)\
+#define __AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _storage_bits,		\
+				     _reg_access, _offl)			\
 {										\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
 	.channel = 0,								\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
 			      BIT(IIO_CHAN_INFO_SCALE) |			\
-			      BIT(IIO_CHAN_INFO_OFFSET),			\
-	.info_mask_separate_available = _reg_access ? BIT(IIO_CHAN_INFO_SCALE) : 0,\
-	.info_mask_shared_by_all = _offl ? BIT(IIO_CHAN_INFO_SAMP_FREQ) : 0,	\
+			      BIT(IIO_CHAN_INFO_OFFSET) |			\
+			      (_offl ? BIT(IIO_CHAN_INFO_SAMP_FREQ) : 0),	\
+	.info_mask_separate_available = (_reg_access ? BIT(IIO_CHAN_INFO_SCALE) : 0),\
 	.scan_type = {								\
 		.sign = _sign,							\
 		.realbits = _real_bits,						\
 		.storagebits = _storage_bits,					\
-		.shift = _offl ? 0 : _storage_bits - _real_bits,		\
+		.shift = (_offl ? 0 : _storage_bits - _real_bits),		\
 		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
