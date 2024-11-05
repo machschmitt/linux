@@ -616,7 +616,10 @@ static int ad4000_buffer_postenable(struct iio_dev *indio_dev)
 	struct ad4000_state *st = iio_priv(indio_dev);
 	int ret;
 
-	ret = spi_engine_ex_offload_load_msg(st->spi, &st->msg);
+	if (st->using_offload)
+		ret = spi_engine_ex_offload_load_msg(st->spi, &st->offload_msg);
+	else
+		ret = spi_engine_ex_offload_load_msg(st->spi, &st->msg);
 	if (ret < 0)
 		return ret;
 
