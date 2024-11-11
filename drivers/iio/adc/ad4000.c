@@ -41,10 +41,6 @@
 
 #define AD4000_SCALE_OPTIONS		2
 
-#define AD4000_TQUIET1_NS		190
-#define AD4000_TQUIET2_NS		60
-#define AD4000_TCONV_NS			320
-
 #define __AD4000_DIFF_CHANNEL(_sign, _real_bits, _storage_bits, _reg_access, _offl)\
 {										\
 	.type = IIO_VOLTAGE,							\
@@ -133,12 +129,35 @@ static const int ad4000_gains[] = {
 	454, 909, 1000, 1900,
 };
 
+struct ad4000_time_spec {
+	int t_conv_ns;
+	int t_quiet1_ns;
+	int t_quiet2_ns;
+};
+
+/*
+ * Same timing specifications for all of AD4000, AD4001, ..., AD4008, AD4010,
+ * ADAQ4001, and ADAQ4003.
+ */
+static const struct ad4000_time_spec ad4000_t_spec = {
+	.t_conv_ns = 320,
+	.t_quiet1_ns = 190,
+	.t_quiet2_ns = 60,
+};
+
+static const struct ad4000_time_spec ad4020_t_spec = {
+	.t_conv_ns = 350,
+	.t_quiet1_ns = 200,
+	.t_quiet2_ns = 60,
+};
+
 struct ad4000_chip_info {
 	const char *dev_name;
 	struct iio_chan_spec chan_spec[2];
 	struct iio_chan_spec reg_access_chan_spec[2];
 	struct iio_chan_spec offload_chan_spec;
 	struct iio_chan_spec reg_access_offload_chan_spec;
+	const struct ad4000_time_spec *time_spec;
 	bool has_hardware_gain;
 	int max_rate_hz;
 };
@@ -150,6 +169,7 @@ static const struct ad4000_chip_info ad4000_chip_info = {
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 1),
 	.max_rate_hz  = 2 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4001_chip_info = {
@@ -159,6 +179,7 @@ static const struct ad4000_chip_info ad4001_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 1),
 	.max_rate_hz  = 2 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4002_chip_info = {
@@ -168,6 +189,7 @@ static const struct ad4000_chip_info ad4002_chip_info = {
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 1),
 	.max_rate_hz  = 2 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4003_chip_info = {
@@ -177,6 +199,7 @@ static const struct ad4000_chip_info ad4003_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 1),
 	.max_rate_hz  = 2 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4004_chip_info = {
@@ -186,6 +209,7 @@ static const struct ad4000_chip_info ad4004_chip_info = {
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 1),
 	.max_rate_hz  = 1 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4005_chip_info = {
@@ -195,6 +219,7 @@ static const struct ad4000_chip_info ad4005_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 1),
 	.max_rate_hz  = 1 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4006_chip_info = {
@@ -204,6 +229,7 @@ static const struct ad4000_chip_info ad4006_chip_info = {
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 1),
 	.max_rate_hz  = 1 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4007_chip_info = {
@@ -213,6 +239,7 @@ static const struct ad4000_chip_info ad4007_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 1),
 	.max_rate_hz  = 1 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4008_chip_info = {
@@ -222,6 +249,7 @@ static const struct ad4000_chip_info ad4008_chip_info = {
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 1, 1),
 	.max_rate_hz  =  500 * KILO,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4010_chip_info = {
@@ -231,6 +259,7 @@ static const struct ad4000_chip_info ad4010_chip_info = {
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 18, 1, 1),
 	.max_rate_hz  =  500 * KILO,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4011_chip_info = {
@@ -240,6 +269,7 @@ static const struct ad4000_chip_info ad4011_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 1),
 	.max_rate_hz  =  500 * KILO,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info ad4020_chip_info = {
@@ -249,6 +279,7 @@ static const struct ad4000_chip_info ad4020_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 1),
 	.max_rate_hz  = 1800 * KILO,
+	.time_spec = &ad4020_t_spec,
 };
 
 static const struct ad4000_chip_info ad4021_chip_info = {
@@ -258,6 +289,7 @@ static const struct ad4000_chip_info ad4021_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 1),
 	.max_rate_hz  = 1 * MEGA,
+	.time_spec = &ad4020_t_spec,
 };
 
 static const struct ad4000_chip_info ad4022_chip_info = {
@@ -267,6 +299,7 @@ static const struct ad4000_chip_info ad4022_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 0, 1),
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 20, 1, 1),
 	.max_rate_hz  =  500 * KILO,
+	.time_spec = &ad4020_t_spec,
 };
 
 static const struct ad4000_chip_info adaq4001_chip_info = {
@@ -277,6 +310,7 @@ static const struct ad4000_chip_info adaq4001_chip_info = {
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 1, 1),
 	.has_hardware_gain = true,
 	.max_rate_hz  = 2 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 static const struct ad4000_chip_info adaq4003_chip_info = {
@@ -287,6 +321,7 @@ static const struct ad4000_chip_info adaq4003_chip_info = {
 	.reg_access_offload_chan_spec = AD4000_DIFF_CHANNEL('s', 18, 1, 1),
 	.has_hardware_gain = true,
 	.max_rate_hz  = 2 * MEGA,
+	.time_spec = &ad4000_t_spec,
 };
 
 struct ad4000_state {
@@ -306,6 +341,7 @@ struct ad4000_state {
 	bool span_comp;
 	u16 gain_milli;
 	int scale_tbl[AD4000_SCALE_OPTIONS][2];
+	const struct ad4000_time_spec *time_spec;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -707,14 +743,14 @@ static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
 
 	/* Have to do a short CS toggle to trigger conversion. */
 	xfers[0].cs_change = 1;
-	xfers[0].cs_change_delay.value = AD4000_TQUIET1_NS;
+	xfers[0].cs_change_delay.value = st->time_spec->t_quiet1_ns;
 	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	/* HACK: invalid pointer indicates read data from SPI offload DMA */
 	xfers[1].rx_buf = (void*)(-1);
 	xfers[1].bits_per_word = chan->scan_type.realbits;
 	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
-	xfers[1].delay.value = AD4000_TQUIET2_NS;
+	xfers[1].delay.value = st->time_spec->t_quiet2_ns;
 	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	spi_message_init_with_transfers(&st->offload_msg, xfers, 2);
@@ -748,7 +784,7 @@ static int ad4000_prepare_offload_message(struct ad4000_state *st,
 	xfers[0].rx_buf = (void*)(-1);
 	xfers[0].bits_per_word = chan->scan_type.realbits;
 	xfers[0].len = chan->scan_type.realbits > 16 ? 4 : 2;
-	xfers[0].delay.value = AD4000_TQUIET2_NS;
+	xfers[0].delay.value = st->time_spec->t_quiet2_ns;
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	spi_message_init_with_transfers(&st->offload_msg, xfers, 1);
@@ -775,7 +811,7 @@ static int ad4000_prepare_offload_message(struct ad4000_state *st,
 static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 					     const struct iio_chan_spec *chan)
 {
-	unsigned int cnv_pulse_time = AD4000_TCONV_NS;
+	unsigned int cnv_pulse_time = st->time_spec->t_conv_ns;
 	struct spi_transfer *xfers = st->xfers;
 
 	xfers[0].cs_change = 1;
@@ -786,7 +822,8 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
 	if (chan->scan_type.endianness != IIO_BE)
 		xfers[1].bits_per_word = chan->scan_type.realbits;
-	xfers[1].delay.value = AD4000_TQUIET2_NS;
+
+	xfers[1].delay.value = st->time_spec->t_quiet2_ns;
 	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
@@ -804,7 +841,6 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
 					     const struct iio_chan_spec *chan)
 {
-	unsigned int cnv_to_sdi_time = AD4000_TCONV_NS;
 	struct spi_transfer *xfers = st->xfers;
 
 	/*
@@ -812,7 +848,7 @@ static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
 	 * going low.
 	 */
 	xfers[0].cs_off = 1;
-	xfers[0].delay.value = cnv_to_sdi_time;
+	xfers[0].delay.value = st->time_spec->t_conv_ns;
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	xfers[1].rx_buf = &st->scan.data;
@@ -874,6 +910,7 @@ static int ad4000_probe(struct spi_device *spi)
 				     "Failed to get CNV GPIO");
 
 	st->using_offload = spi_engine_ex_offload_supported(spi);
+	st->time_spec = chip->time_spec;
 
 	ret = device_property_match_property_string(dev, "adi,sdi-pin",
 						    ad4000_sdi_pin,
@@ -920,7 +957,7 @@ static int ad4000_probe(struct spi_device *spi)
 			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
 
-			spi->cs_hold.value = AD4000_TCONV_NS;
+			spi->cs_hold.value = st->time_spec->t_conv_ns;
 			spi->cs_hold.unit = SPI_DELAY_UNIT_NSECS;
 			ret = ad4000_prepare_offload_message(st, &indio_dev->channels[0]);
 			if (ret)
