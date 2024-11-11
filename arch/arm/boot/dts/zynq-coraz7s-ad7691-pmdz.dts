@@ -7,7 +7,7 @@
  * Link: https://github.com/analogdevicesinc/hdl/tree/main/projects/pulsar_adc
  * board_revision: <A>
  *
- * Copyright (C) 2022 Analog Devices Inc.
+ * Copyright (C) 2024 Analog Devices Inc.
  */
 /dts-v1/;
 #include "zynq-coraz7s.dtsi"
@@ -63,8 +63,6 @@
 		#size-cells = <0x0>;
 
 		adc@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			compatible = "adi,ad7691";
 			reg = <0>;
 			spi-max-frequency = <40000000>;
@@ -78,6 +76,10 @@
 			vio-supply = <&adc_vio>;
 			ref-supply = <&vref>;
 			adi,sdi-pin = "high";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			channel@0 {
 				reg = <0>;
 				diff-channels = <0 1>;
