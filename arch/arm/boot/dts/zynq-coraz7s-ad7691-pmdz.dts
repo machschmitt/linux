@@ -43,7 +43,7 @@
 &fpga_axi {
 
 	adc_trigger: pwm@0x44b00000 {
-		compatible = "adi,axi-pwmgen";
+		compatible = "adi,axi-pwmgen-2.00.a";
 		reg = <0x44b00000 0x1000>;
 		label = "adc_conversion_trigger";
 		#pwm-cells = <2>;
@@ -94,19 +94,6 @@
 		interrupt-parent = <&intc>;
 		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc 16>;
-
-		adi,channels {
-			#size-cells = <0>;
-			#address-cells = <1>;
-
-			dma-channel@0 {
-				reg = <0>;
-				adi,source-bus-width = <32>;
-				adi,source-bus-type = <1>;
-				adi,destination-bus-width = <64>;
-				adi,destination-bus-type = <0>;
-			};
-		};
 	};
 
 	spi_clk: axi-clkgen@0x44a70000 {
