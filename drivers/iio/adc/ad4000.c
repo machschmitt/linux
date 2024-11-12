@@ -151,6 +151,10 @@ static const struct ad4000_time_spec ad4020_t_spec = {
 	.t_quiet2_ns = 60,
 };
 
+static const struct ad4000_time_spec ad7687_t_spec = {
+	.t_conv_ns = 3200,
+};
+
 struct ad4000_chip_info {
 	const char *dev_name;
 	struct iio_chan_spec chan_spec[2];
@@ -334,6 +338,7 @@ static const struct ad4000_chip_info ad7687_chip_info = {
 	.dev_name = "ad7687",
 	.chan_spec = AD4000_DIFF_CHANNELS('s', 16, 0, 0),
 	.max_rate_hz  = 250 * KILO,
+	.time_spec = &ad7687_t_spec,
 };
 
 static const struct ad4000_chip_info ad7691_chip_info = {
