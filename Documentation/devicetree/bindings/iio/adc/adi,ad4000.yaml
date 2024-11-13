@@ -77,6 +77,37 @@ properties:
 
       - const: adi,adaq4003
 
+      - const: adi,ad7946
+      - items:
+          - enum:
+              - adi,ad7942
+          - const: adi,ad7946
+
+      - const: adi,ad7983
+      - items:
+          - enum:
+              - adi,ad7980
+              - adi,ad7988-5
+              - adi,ad7686
+              - adi,ad7685
+              - adi,ad7988-1
+          - const: adi,ad7983
+
+      - const: adi,ad7688
+      - items:
+          - enum:
+              - adi,ad7693
+              - adi,ad7687
+          - const: adi,ad7688
+
+      - const: adi,ad7984
+      - items:
+          - enum:
+              - adi,ad7982
+              - adi,ad7690
+              - adi,ad7691
+          - const: adi,ad7984
+
   reg:
     maxItems: 1
 
