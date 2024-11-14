@@ -171,7 +171,7 @@ static const struct ad4000_time_spec ad7690_t_spec = {
 	.t_conv_ns = 2100,
 };
 
-/* AD7942, AD7685, AD7687 */
+/* AD7942, AD7685, AD7687, AD7694 */
 static const struct ad4000_time_spec ad7687_t_spec = {
 	.t_conv_ns = 3200,
 };
@@ -413,6 +413,14 @@ static const struct ad4000_chip_info ad7693_chip_info = {
 	.offload_chan_spec = AD4000_DIFF_CHANNEL('s', 16, 0, 1),
 	.max_rate_hz  = 500 * KILO,
 	.time_spec = &ad7686_t_spec,
+};
+
+static const struct ad4000_chip_info ad7694_chip_info = {
+	.dev_name = "ad7694",
+	.chan_spec = AD4000_PSEUDO_DIFF_CHANNELS('u', 16, 0, 0),
+	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0, 1),
+	.max_rate_hz  = 250 * KILO,
+	.time_spec = &ad7687_t_spec,
 };
 
 static const struct ad4000_chip_info ad7942_chip_info = {
