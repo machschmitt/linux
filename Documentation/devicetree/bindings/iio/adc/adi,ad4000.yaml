@@ -178,6 +178,32 @@ required:
   - ref-supply
 
 allOf:
+  # Single-channel PulSAR devices have SDI either tied to VIO, GND, or host CS.
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7685
+              - adi,ad7686
+              - adi,ad7687
+              - adi,ad7688
+              - adi,ad7690
+              - adi,ad7691
+              - adi,ad7693
+              - adi,ad7942
+              - adi,ad7946
+              - adi,ad7980
+              - adi,ad7982
+              - adi,ad7983
+              - adi,ad7984
+              - adi,ad7988-1
+              - adi,ad7988-5
+    then:
+      properties:
+        adi,sdi-pin:
+          enum: [ high, low, cs ]
+          default: cs
   # The configuration register can only be accessed if SDI is connected to MOSI
   - if:
       required:
