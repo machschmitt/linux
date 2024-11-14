@@ -91,6 +91,7 @@ properties:
               - adi,ad7988-5
               - adi,ad7686
               - adi,ad7685
+              - adi,ad7694
               - adi,ad7988-1
           - const: adi,ad7983
 
