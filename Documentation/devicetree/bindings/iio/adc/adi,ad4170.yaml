@@ -361,8 +361,6 @@ examples:
             reg = <0>;
             avdd-supply = <&avdd>;
             iovdd-supply = <&iovdd>;
-            dmas = <&axi_dmac_0 0>;
-            dma-names = "rx";
             spi-max-frequency = <20000000>;
             interrupt-parent = <&gpio_in>;
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
