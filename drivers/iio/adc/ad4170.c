@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2024 Analog Devices, Inc.
  * Author: Ana-Maria Cusco <ana-maria.cusco@analog.com>
+ * Author: Marcelo Schmitt <marcelo.schmitt@analog.com>
  */
 
 #include <linux/bitfield.h>
