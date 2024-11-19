@@ -11,7 +11,7 @@
  * Copyright (C) 2020 Analog Devices Inc.
  */
 /dts-v1/;
-#include "socfpga_cyclone5_de10_nano.dtsi"
+#include "socfpga_cyclone5_de10_nano_hps_pio21.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/iio/adc/adi,ad4170.h>
 
