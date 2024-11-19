@@ -21,15 +21,12 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/spi-engine-ex.h>
 #include <linux/units.h>
 
 #include <asm/div64.h>
 #include <asm/unaligned.h>
 
 #include <linux/iio/buffer.h>
-#include <linux/iio/buffer-dma.h>
-#include <linux/iio/buffer-dmaengine.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/sysfs.h>
@@ -53,7 +50,6 @@ struct ad4170_chan_info {
 
 struct ad4170_state {
 	struct regmap *regmap;
-	bool spi_is_dma_mapped;
 	struct spi_device *spi;
 	struct clk *mclk;
 	struct regulator_bulk_data supplies[7];
@@ -550,18 +546,15 @@ static int _ad4170_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 	if (ret)
 		return ret;
 
-	if (!st->spi_is_dma_mapped)
-		reinit_completion(&st->completion);
+	reinit_completion(&st->completion);
 
 	ret = ad4170_set_mode(st, AD4170_MODE_SINGLE);
 	if (ret)
 		return ret;
 
-	if (!st->spi_is_dma_mapped) {
-		ret = wait_for_completion_timeout(&st->completion, HZ);
-		if (!ret)
-			goto out;
-	}
+	ret = wait_for_completion_timeout(&st->completion, HZ);
+	if (!ret)
+		goto out;
 
 	ret = regmap_read(st->regmap, AD4170_DATA_24b_REG, val);
 	if (ret)
@@ -1858,70 +1851,6 @@ static const struct iio_buffer_setup_ops ad4170_buffer_ops = {
 	.predisable = ad4170_buffer_predisable,
 };
 
-static int ad4170_hw_buffer_postenable(struct iio_dev *indio_dev)
-{
-	struct ad4170_state *st = iio_priv(indio_dev);
-	int ret;
-
-	mutex_lock(&st->lock);
-
-	ret = ad4170_set_mode(st, AD4170_MODE_CONT);
-	if (ret)
-		goto out;
-
-	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
-				 AD4170_REG_CTRL_CONT_READ_MSK,
-				 FIELD_PREP(AD4170_REG_CTRL_CONT_READ_MSK,
-					    AD4170_CONT_READ_ON));
-	if (ret < 0)
-		goto out;
-
-	ret = spi_optimize_message(st->spi, &st->msg);
-	if (ret < 0)
-		goto out;
-
-	spi_bus_lock(st->spi->master);
-	ret = spi_engine_ex_offload_load_msg(st->spi, &st->msg);
-	if (ret < 0)
-		goto out;
-
-	spi_engine_ex_offload_enable(st->spi, true);
-
-out:
-	mutex_unlock(&st->lock);
-	return ret;
-}
-
-static int ad4170_hw_buffer_predisable(struct iio_dev *indio_dev)
-{
-	struct ad4170_state *st = iio_priv(indio_dev);
-	int ret, i;
-
-	spi_engine_ex_offload_enable(st->spi, false);
-	spi_bus_unlock(st->spi->master);
-	spi_unoptimize_message(&st->msg);
-
-	for (i = 0; i < indio_dev->num_channels; i++) {
-		ret = ad4170_set_channel_enable(st, i, false);
-		if (ret)
-			return ret;
-	}
-
-	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
-				 AD4170_REG_CTRL_CONT_READ_MSK,
-				 FIELD_PREP(AD4170_REG_CTRL_CONT_READ_MSK,
-					    AD4170_CONT_READ_OFF));
-	if (ret < 0)
-		return ret;
-
-	return ad4170_set_mode(st, AD4170_MODE_IDLE);
-}
-
-static const struct iio_buffer_setup_ops ad4170_hw_buffer_ops = {
-	.postenable = ad4170_hw_buffer_postenable,
-	.predisable = ad4170_hw_buffer_predisable,
-};
-
 static irqreturn_t ad4170_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -1984,17 +1913,6 @@ static int ad4170_triggered_buffer_setup(struct iio_dev *indio_dev)
 					       &iio_pollfunc_store_time,
 					       &ad4170_trigger_handler,
 					       &ad4170_buffer_ops);
-}
-
-static int ad4170_hardware_buffer_setup(struct iio_dev *indio_dev)
-{
-	struct ad4170_state *st = iio_priv(indio_dev);
-
-	ad4170_prepare_message(st);
-	indio_dev->setup_ops = &ad4170_hw_buffer_ops;
-	return devm_iio_dmaengine_buffer_setup(indio_dev->dev.parent,
-					       indio_dev, "rx",
-					       IIO_BUFFER_DIRECTION_IN);
 }
 
 static int ad4170_input_gpio(struct gpio_chip *chip, unsigned int offset)
@@ -2193,11 +2111,7 @@ static int ad4170_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	st->spi_is_dma_mapped = spi_engine_ex_offload_supported(spi);
-	if (st->spi_is_dma_mapped)
-		ret = ad4170_hardware_buffer_setup(indio_dev);
-	else
-		ret = ad4170_triggered_buffer_setup(indio_dev);
+	ret = ad4170_triggered_buffer_setup(indio_dev);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to setup read buffer\n");
 
