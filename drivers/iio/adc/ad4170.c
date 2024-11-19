@@ -1836,8 +1836,12 @@ static int ad4170_buffer_postenable(struct iio_dev *indio_dev)
 				 FIELD_PREP(AD4170_REG_CTRL_CONT_READ_MSK,
 					    AD4170_CONT_READ_ON));
 
+	if (ret < 0)
+		goto out;
+
 out:
 	mutex_unlock(&st->lock);
+	ret = spi_optimize_message(st->spi, &st->msg);
 	return ret;
 }
 
@@ -1845,6 +1849,8 @@ static int ad4170_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	int ret, i;
+
+	spi_unoptimize_message(&st->msg);
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		ret = ad4170_set_channel_enable(st, i, false);
