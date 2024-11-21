@@ -2137,6 +2137,8 @@ static int ad4170_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to setup read buffer\n");
 
+	ad4170_prepare_message(st);
+
 	return devm_iio_device_register(dev, indio_dev);
 }
 
