@@ -238,6 +238,20 @@
 #define AD4170_SYNC_STANDARD		1
 #define AD4170_SYNC_ALTERNATE		2
 
+#define AD4170_I_OUT_0UA		0
+#define AD4170_I_OUT_10UA		10
+#define AD4170_I_OUT_50UA		50
+#define AD4170_I_OUT_100UA		100
+#define AD4170_I_OUT_250UA		250
+#define AD4170_I_OUT_500UA		500
+#define AD4170_I_OUT_1000UA		1000
+#define AD4170_I_OUT_1500UA		1500
+
+#define AD4170_BURNOUT_OFF		0
+#define AD4170_BURNOUT_100NA		100
+#define AD4170_BURNOUT_2000NA		2000
+#define AD4170_BURNOUT_10000NA		10000
+
 enum ad4170_pin_function {
 	AD4170_PIN_UNASIGNED,
 	AD4170_PIN_ANALOG_IN,
@@ -507,23 +521,6 @@ struct ad4170_channel_setup {
 };
 
 /**
- * @enum ad4170_chop_iexc
- * @brief Excitation Current Chopping Control.
- */
-enum ad4170_chop_iexc {
-	/* No Chopping of Excitation Currents. */
-	AD4170_CHOP_IEXC_OFF = AD4170_MISC_CHOP_IEXC_OFF,
-	/* Chopping of Iout_A and Iout_B Excitation Currents. */
-	AD4170_CHOP_IEXC_AB = AD4170_MISC_CHOP_IEXC_AB,
-	/* Chopping of Iout_C and Iout_D Excitation Currents. */
-	AD4170_CHOP_IEXC_CD = AD4170_MISC_CHOP_IEXC_CD,
-	/* Chopping of Both Pairs of Excitation Currents. */
-	AD4170_CHOP_IEXC_ABCD = AD4170_MISC_CHOP_IEXC_ABCD,
-	/* Enum max value */
-	AD4170_IEXC_CHOP_MAX
-};
-
-/**
  * @enum ad4170_chop_adc
  * @brief ADC/Mux Chopping Control.
  */
@@ -539,28 +536,16 @@ enum ad4170_chop_adc {
 };
 
 /**
- * @enum ad4170_burnout
- * @brief Burnout Current Values.
- */
-enum ad4170_burnout {
-	AD4170_BURNOUT_OFF,
-	AD4170_BURNOUT_100NA,
-	AD4170_BURNOUT_2000NA,
-	AD4170_BURNOUT_10000NA,
-	AD4170_BURNOUT_MAX
-};
-
-/**
  * @struct ad4170_misc
  * @brief Misc register settings.
  */
 struct ad4170_misc {
 	/** Excitation Current Chopping Control. */
-	enum ad4170_chop_iexc chop_iexc;
+	u8 chop_iexc;
 	/** ADC/Mux Chopping Control. */
 	enum ad4170_chop_adc chop_adc;
 	/** Burnout Current Values. */
-	enum ad4170_burnout burnout;
+	u8 burnout;
 };
 
 /**
@@ -721,63 +706,12 @@ struct ad4170_ref_control {
 };
 
 /**
- * @enum ad4170_i_out_pin
- * @brief Current Source Destination.
- */
-enum ad4170_i_out_pin {
-	/* I_OUT is Available on AIN0. */
-	AD4170_I_OUT_AIN0,
-	/* I_OUT is Available on AIN1. */
-	AD4170_I_OUT_AIN1,
-	/* I_OUT is Available on AIN2. */
-	AD4170_I_OUT_AIN2,
-	/* I_OUT is Available on AIN3. */
-	AD4170_I_OUT_AIN3,
-	/* I_OUT is Available on AIN4. */
-	AD4170_I_OUT_AIN4,
-	/* I_OUT is Available on AIN5. */
-	AD4170_I_OUT_AIN5,
-	/* I_OUT is Available on AIN6. */
-	AD4170_I_OUT_AIN6,
-	/* I_OUT is Available on AIN7. */
-	AD4170_I_OUT_AIN7,
-	/* I_OUT is Available on AIN8. */
-	AD4170_I_OUT_AIN8,
-	/* I_OUT is Available on GPIO0. */
-	AD4170_I_OUT_GPIO0,
-	/* I_OUT is Available on GPIO1. */
-	AD4170_I_OUT_GPIO1,
-	/* I_OUT is Available on GPIO2. */
-	AD4170_I_OUT_GPIO2,
-	/* I_OUT is Available on GPIO3. */
-	AD4170_I_OUT_GPIO3,
-	/* */
-	AD4170_I_OUT_PIN_MAX
-};
-
-/**
- * @enum ad4170_i_out_val
- * @brief Current Source Value.
- */
-enum ad4170_i_out_val {
-	AD4170_I_OUT_0UA,
-	AD4170_I_OUT_10UA,
-	AD4170_I_OUT_50UA,
-	AD4170_I_OUT_100UA,
-	AD4170_I_OUT_250UA,
-	AD4170_I_OUT_500UA,
-	AD4170_I_OUT_1000UA,
-	AD4170_I_OUT_1500UA,
-	AD4170_I_OUT_MAX
-};
-
-/**
  * @struct ad4170_current_source
  * @brief Current_Source register settings.
  */
 struct ad4170_current_source {
-	enum ad4170_i_out_pin i_out_pin;
-	enum ad4170_i_out_val i_out_val;
+	u32 i_out_pin;
+	u32 i_out_val;
 };
 
 /**
@@ -994,4 +928,44 @@ static const unsigned int ad4170_reg_size[] = {
 	[AD4170_GPIO_MODE_REG]	= 2,
 	[AD4170_OUTPUT_DATA_REG]	= 2,
 	[AD4170_INPUT_DATA_REG]	= 2,
+};
+
+static const unsigned int ad4170_iexc_chop_tbl[] = {
+	AD4170_MISC_CHOP_IEXC_OFF,
+	AD4170_MISC_CHOP_IEXC_AB,
+	AD4170_MISC_CHOP_IEXC_CD,
+	AD4170_MISC_CHOP_IEXC_ABCD,
+};
+
+static const unsigned int ad4170_iout_pin_tbl[] = {
+	AD4170_CURRENT_IOUT_AIN0,
+	AD4170_CURRENT_IOUT_AIN1,
+	AD4170_CURRENT_IOUT_AIN2,
+	AD4170_CURRENT_IOUT_AIN3,
+	AD4170_CURRENT_IOUT_AIN4,
+	AD4170_CURRENT_IOUT_AIN5,
+	AD4170_CURRENT_IOUT_AIN6,
+	AD4170_CURRENT_IOUT_AIN7,
+	AD4170_CURRENT_IOUT_AIN8,
+	AD4170_CURRENT_IOUT_GPIO0,
+	AD4170_CURRENT_IOUT_GPIO1,
+	AD4170_CURRENT_IOUT_GPIO2,
+	AD4170_CURRENT_IOUT_GPIO3,
+};
+static const unsigned int ad4170_iout_current_ua_tbl[] = {
+	AD4170_I_OUT_0UA,
+	AD4170_I_OUT_10UA,
+	AD4170_I_OUT_50UA,
+	AD4170_I_OUT_100UA,
+	AD4170_I_OUT_250UA,
+	AD4170_I_OUT_500UA,
+	AD4170_I_OUT_1000UA,
+	AD4170_I_OUT_1500UA,
+};
+
+static const unsigned int ad4170_burnout_current_na_tbl[] = {
+	AD4170_BURNOUT_OFF,
+	AD4170_BURNOUT_100NA,
+	AD4170_BURNOUT_2000NA,
+	AD4170_BURNOUT_10000NA,
 };
