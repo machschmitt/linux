@@ -1263,11 +1263,18 @@ static int ad4170_parse_fw_setup(struct ad4170_state *st,
 	u32 tmp;
 	int ret;
 
-	tmp = 0;
-	fwnode_property_read_u32(child, "adi,chop-adc", &tmp);
-	setup->misc.chop_adc = tmp;
-
-	st->chop_adc = tmp > st->chop_adc ? tmp : st->chop_adc;
+	setup->misc.chop_adc = AD4170_MISC_CHOP_ADC_OFF;
+	ret = fwnode_property_read_u32(child, "adi,chop-adc",
+				       &setup->misc.chop_adc);
+	if (!ret) {
+		ret = ad4170_find_table_index(ad4170_chop_adc_tbl,
+					      setup->misc.chop_adc);
+		if (ret < 0)
+			return dev_err_probe(dev, ret,
+					     "Invalid ADC chop config: %u\n",
+					     setup->misc.chop_adc);
+		setup->misc.chop_adc = ret;
+	}
 
 	tmp = 0;
 	setup->misc.burnout = AD4170_BURNOUT_OFF;
