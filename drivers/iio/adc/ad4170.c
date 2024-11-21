@@ -1646,12 +1646,15 @@ static int ad4170_parse_fw(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	tmp = 0;
-	device_property_read_u8(dev, "adi,chop-iexc", &tmp);
-	ret = ad4170_find_table_index(ad4170_iexc_chop_tbl, tmp);
-	if (ret < 0)
-		return dev_err_probe(dev, ret,
-				     "Invalid adi,chop-iexc config: %u\n", tmp);
+	tmp = AD4170_MISC_CHOP_IEXC_OFF;
+	ret = device_property_read_u8(dev, "adi,chop-iexc", &tmp);
+	if (!ret) {
+		ret = ad4170_find_table_index(ad4170_iexc_chop_tbl, tmp);
+		if (ret < 0)
+			return dev_err_probe(dev, ret,
+					     "Invalid adi,chop-iexc config: %u\n",
+					      tmp);
+	}
 
 	/* Set excitation current chop config to first channel setup config */
 	st->slots_info[indio_dev->channels[0].address].setup.misc.chop_iexc = tmp;
