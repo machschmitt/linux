@@ -85,47 +85,6 @@ struct ad4170_state {
 	//u8 tx_data[2];
 };
 
-static const unsigned int ad4170_iexc_chop_tbl[AD4170_IEXC_CHOP_MAX] = {
-	[AD4170_CHOP_IEXC_OFF] = AD4170_MISC_CHOP_IEXC_OFF,
-	[AD4170_CHOP_IEXC_AB] = AD4170_MISC_CHOP_IEXC_AB,
-	[AD4170_CHOP_IEXC_CD] = AD4170_MISC_CHOP_IEXC_CD,
-	[AD4170_CHOP_IEXC_ABCD] = AD4170_MISC_CHOP_IEXC_ABCD,
-};
-
-static const unsigned int ad4170_iout_pin_tbl[AD4170_I_OUT_PIN_MAX] = {
-	[AD4170_I_OUT_AIN0] = AD4170_CURRENT_IOUT_AIN0,
-	[AD4170_I_OUT_AIN1] = AD4170_CURRENT_IOUT_AIN1,
-	[AD4170_I_OUT_AIN2] = AD4170_CURRENT_IOUT_AIN2,
-	[AD4170_I_OUT_AIN3] = AD4170_CURRENT_IOUT_AIN3,
-	[AD4170_I_OUT_AIN4] = AD4170_CURRENT_IOUT_AIN4,
-	[AD4170_I_OUT_AIN5] = AD4170_CURRENT_IOUT_AIN5,
-	[AD4170_I_OUT_AIN6] = AD4170_CURRENT_IOUT_AIN6,
-	[AD4170_I_OUT_AIN7] = AD4170_CURRENT_IOUT_AIN7,
-	[AD4170_I_OUT_AIN8] = AD4170_CURRENT_IOUT_AIN8,
-	[AD4170_I_OUT_GPIO0] = AD4170_CURRENT_IOUT_GPIO0,
-	[AD4170_I_OUT_GPIO1] = AD4170_CURRENT_IOUT_GPIO1,
-	[AD4170_I_OUT_GPIO2] = AD4170_CURRENT_IOUT_GPIO2,
-	[AD4170_I_OUT_GPIO3] = AD4170_CURRENT_IOUT_GPIO3,
-};
-
-static const unsigned int ad4170_iout_current_ua_tbl[AD4170_I_OUT_MAX] = {
-	[AD4170_I_OUT_0UA] = 0,
-	[AD4170_I_OUT_10UA] = 10,
-	[AD4170_I_OUT_50UA] = 50,
-	[AD4170_I_OUT_100UA] = 100,
-	[AD4170_I_OUT_250UA] = 250,
-	[AD4170_I_OUT_500UA] = 500,
-	[AD4170_I_OUT_1000UA] = 1000,
-	[AD4170_I_OUT_1500UA] = 1500,
-};
-
-static const unsigned int ad4170_burnout_current_na_tbl[AD4170_BURNOUT_MAX] = {
-	[AD4170_BURNOUT_OFF] = 0,
-	[AD4170_BURNOUT_100NA] = 100,
-	[AD4170_BURNOUT_2000NA] = 2000,
-	[AD4170_BURNOUT_10000NA] = 10000,
-};
-
 static const char * const ad4170_filter_modes_str[] = {
 	[AD4170_FILT_SINC5_AVG] = "sinc5+avg",
 	[AD4170_FILT_SINC5] = "sinc5",
@@ -1311,12 +1270,15 @@ static int ad4170_parse_fw_setup(struct ad4170_state *st,
 	st->chop_adc = tmp > st->chop_adc ? tmp : st->chop_adc;
 
 	tmp = 0;
+	setup->misc.burnout = AD4170_BURNOUT_OFF;
 	fwnode_property_read_u32(child, "adi,burnout-current-nanoamp", &tmp);
-	ret = ad4170_find_table_index(ad4170_burnout_current_na_tbl, tmp);
-	if (ret < 0)
+	if (!ret) {
+		ret = ad4170_find_table_index(ad4170_burnout_current_na_tbl, tmp);
 		return dev_err_probe(dev, ret,
 				     "Invalid burnout current %unA\n", tmp);
-	setup->misc.burnout = ret;
+
+		setup->misc.burnout = ret;
+	}
 
 	setup->afe.ref_buf_p = fwnode_property_read_bool(child,
 							 "adi,buffered-positive");
@@ -1491,7 +1453,7 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 	int ret;
 
 	/* IOUT0 pin */
-	st->cfg.current_src[0].i_out_pin = AD4170_I_OUT_AIN0;
+	st->cfg.current_src[0].i_out_pin = AD4170_CURRENT_IOUT_AIN0;
 	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-pin-0",
 				       &st->cfg.current_src[0].i_out_pin);
 	if (!ret) {
@@ -1501,10 +1463,12 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid adi,excitation-pin-0: %u\n",
 					     st->cfg.current_src[0].i_out_pin);
+
+		st->cfg.current_src[0].i_out_pin = ad4170_iout_pin_tbl[ret];
 	}
 
 	/* IOUT1 pin */
-	st->cfg.current_src[1].i_out_pin = AD4170_I_OUT_AIN0;
+	st->cfg.current_src[1].i_out_pin = AD4170_CURRENT_IOUT_AIN0;
 	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-pin-1",
 				       &st->cfg.current_src[1].i_out_pin);
 	if (!ret) {
@@ -1514,10 +1478,12 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid adi,excitation-pin-1: %u\n",
 					     st->cfg.current_src[1].i_out_pin);
+
+		st->cfg.current_src[1].i_out_pin = ad4170_iout_pin_tbl[ret];
 	}
 
 	/* IOUT2 pin */
-	st->cfg.current_src[2].i_out_pin = AD4170_I_OUT_AIN0;
+	st->cfg.current_src[2].i_out_pin = AD4170_CURRENT_IOUT_AIN0;
 	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-pin-2",
 				       &st->cfg.current_src[2].i_out_pin);
 	if (!ret) {
@@ -1527,10 +1493,12 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid adi,excitation-pin-2: %u\n",
 					     st->cfg.current_src[2].i_out_pin);
+
+		st->cfg.current_src[2].i_out_pin = ad4170_iout_pin_tbl[ret];
 	}
 
 	/* IOUT3 pin */
-	st->cfg.current_src[3].i_out_pin = AD4170_I_OUT_AIN0;
+	st->cfg.current_src[3].i_out_pin = AD4170_CURRENT_IOUT_AIN0;
 	ret = fwnode_property_read_u32(dev->fwnode, "adi,excitation-pin-3",
 				       &st->cfg.current_src[3].i_out_pin);
 	if (!ret) {
@@ -1540,6 +1508,8 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid adi,excitation-pin-3: %u\n",
 					     st->cfg.current_src[3].i_out_pin);
+
+		st->cfg.current_src[3].i_out_pin = ad4170_iout_pin_tbl[ret];
 	}
 
 	/* IOUT0 current */
@@ -1554,9 +1524,11 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid excitation current %uuA\n",
 					     st->cfg.current_src[0].i_out_val);
+
+		st->cfg.current_src[0].i_out_val = ret;
 	}
 	if (ad4170_iout_current_ua_tbl[st->cfg.current_src[0].i_out_val] > 0 &&
-	    st->cfg.current_src[0].i_out_pin <= AD4170_I_OUT_AIN8)
+	    st->cfg.current_src[0].i_out_pin <= AD4170_CURRENT_IOUT_AIN8)
 		st->pins_fn[st->cfg.current_src[0].i_out_pin] = AD4170_PIN_CURRENT_OUT;
 
 	/* IOUT1 current */
@@ -1571,9 +1543,11 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid excitation current %uuA\n",
 					     st->cfg.current_src[1].i_out_val);
+
+		st->cfg.current_src[1].i_out_val = ret;
 	}
 	if (ad4170_iout_current_ua_tbl[st->cfg.current_src[1].i_out_val] > 0 &&
-	    st->cfg.current_src[1].i_out_pin <= AD4170_I_OUT_AIN8)
+	    st->cfg.current_src[1].i_out_pin <= AD4170_CURRENT_IOUT_AIN8)
 		st->pins_fn[st->cfg.current_src[1].i_out_pin] = AD4170_PIN_CURRENT_OUT;
 
 	/* IOUT2 current */
@@ -1588,9 +1562,11 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid excitation current %uuA\n",
 					     st->cfg.current_src[2].i_out_val);
+
+		st->cfg.current_src[2].i_out_val = ret;
 	}
 	if (ad4170_iout_current_ua_tbl[st->cfg.current_src[2].i_out_val] > 0 &&
-	    st->cfg.current_src[2].i_out_pin <= AD4170_I_OUT_AIN8)
+	    st->cfg.current_src[2].i_out_pin <= AD4170_CURRENT_IOUT_AIN8)
 		st->pins_fn[st->cfg.current_src[2].i_out_pin] = AD4170_PIN_CURRENT_OUT;
 
 	/* IOUT3 current */
@@ -1605,9 +1581,11 @@ static int ad4170_parse_fw_exc_current(struct iio_dev *indio_dev)
 			return dev_err_probe(dev, ret,
 					     "Invalid excitation current %uuA\n",
 					     st->cfg.current_src[3].i_out_val);
+
+		st->cfg.current_src[3].i_out_val = ret;
 	}
 	if (ad4170_iout_current_ua_tbl[st->cfg.current_src[3].i_out_val] > 0 &&
-	    st->cfg.current_src[3].i_out_pin <= AD4170_I_OUT_AIN8)
+	    st->cfg.current_src[3].i_out_pin <= AD4170_CURRENT_IOUT_AIN8)
 		st->pins_fn[st->cfg.current_src[3].i_out_pin] = AD4170_PIN_CURRENT_OUT;
 
 	return 0;
