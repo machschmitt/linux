@@ -830,32 +830,6 @@ struct ad4170_fir_control {
 };
 
 /**
- * @enum ad4170_dac_gain
- * @brief DAC Output Span.
- */
-enum ad4170_dac_gain {
-	/** DAC Output Range is 0V to REFOUT. */
-	AD4170_DAC_GAIN_1,
-	/** DAC Output Range is 0V to 2*REFOUT. */
-	AD4170_DAC_GAIN_2
-};
-
-/**
- * @struct ad4170_dac_config
- * @brief DAC Config settings (registers HW_LDAC_Mask, HW_Toggle_Mask, Channel_En and DAC_Span)
- */
-struct ad4170_dac_config {
-	/** Selects DAC0 Enabled/Disabled. */
-	bool enabled;
-	/** Select DAC0 Gain. */
-	enum ad4170_dac_gain gain;
-	/** Select DAC0 HW Toggle. */
-	bool hw_toggle;
-	/** Select DAC0 LDAC Toggle. */
-	bool hw_ldac;
-};
-
-/**
  * @struct ad4170_config
  * @brief AD4170 configuration.
  */
@@ -888,8 +862,6 @@ struct ad4170_config {
 	struct ad4170_current_source current_src[AD4170_NUM_CURRENT_SOURCE];
 	/** FIR_Control register settings. */
 	struct ad4170_fir_control fir_control;
-	/** DAC settings (registers HW_LDAC_Mask, HW_Toggle_Mask, Channel_En and DAC_Span). */
-	struct ad4170_dac_config dac;
 };
 
 /**
