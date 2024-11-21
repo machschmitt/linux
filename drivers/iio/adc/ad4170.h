@@ -521,21 +521,6 @@ struct ad4170_channel_setup {
 };
 
 /**
- * @enum ad4170_chop_adc
- * @brief ADC/Mux Chopping Control.
- */
-enum ad4170_chop_adc {
-	/** No Chopping. */
-	AD4170_CHOP_OFF = AD4170_MISC_CHOP_ADC_OFF,
-	/** Chops Internal Mux. */
-	AD4170_CHOP_MUX = AD4170_MISC_CHOP_ADC_MUX,
-	/** Chops AC Excitation Using 4 GPIO Pins. */
-	AD4170_CHOP_ACX_4PIN = AD4170_MISC_CHOP_ADC_ACX_4PIN,
-	/** Chops AC Excitation Using 2 GPIO Pins. */
-	AD4170_CHOP_ACX_2PIN = AD4170_MISC_CHOP_ADC_ACX_2PIN
-};
-
-/**
  * @struct ad4170_misc
  * @brief Misc register settings.
  */
@@ -543,7 +528,7 @@ struct ad4170_misc {
 	/** Excitation Current Chopping Control. */
 	u8 chop_iexc;
 	/** ADC/Mux Chopping Control. */
-	enum ad4170_chop_adc chop_adc;
+	u8 chop_adc;
 	/** Burnout Current Values. */
 	u8 burnout;
 };
@@ -928,6 +913,13 @@ static const unsigned int ad4170_reg_size[] = {
 	[AD4170_GPIO_MODE_REG]	= 2,
 	[AD4170_OUTPUT_DATA_REG]	= 2,
 	[AD4170_INPUT_DATA_REG]	= 2,
+};
+
+static const unsigned int ad4170_chop_adc_tbl[] = {
+	AD4170_MISC_CHOP_ADC_OFF,
+	AD4170_MISC_CHOP_ADC_MUX,
+	AD4170_MISC_CHOP_ADC_ACX_4PIN,
+	AD4170_MISC_CHOP_ADC_ACX_2PIN
 };
 
 static const unsigned int ad4170_iexc_chop_tbl[] = {
