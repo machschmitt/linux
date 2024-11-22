@@ -203,6 +203,7 @@ properties:
       2: Chop/swap IOUT2 and IOUT3 (pair CD) excitation currents.
       3: Chop/swap both pairs (pair AB and pair CD) of excitation currents.
       If this property is absent, no chopping is performed.
+      There are macros for the above values in dt-bindings/iio/adi,ad4170.h.
     $ref: /schemas/types.yaml#/definitions/uint8
     enum: [0, 1, 2, 3]
     default: 0
