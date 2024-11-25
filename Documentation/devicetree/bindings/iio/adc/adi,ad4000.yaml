@@ -179,21 +179,11 @@ allOf:
         compatible:
           contains:
             enum:
-              - adi,ad7685
-              - adi,ad7686
               - adi,ad7687
-              - adi,ad7688
-              - adi,ad7690
               - adi,ad7691
-              - adi,ad7693
               - adi,ad7942
               - adi,ad7946
-              - adi,ad7980
-              - adi,ad7982
               - adi,ad7983
-              - adi,ad7984
-              - adi,ad7988-1
-              - adi,ad7988-5
     then:
       properties:
         adi,sdi-pin:
