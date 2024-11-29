@@ -77,6 +77,7 @@ properties:
 
       - const: adi,adaq4003
 
+      - const: adi,ad7983
       - items:
           - enum:
               - adi,ad7685
@@ -86,12 +87,14 @@ properties:
               - adi,ad7988-5
           - const: adi,ad7983
 
+      - const: adi,ad7687
       - items:
           - enum:
               - adi,ad7688
               - adi,ad7693
           - const: adi,ad7687
 
+      - const: adi,ad7691
       - items:
           - enum:
               - adi,ad7690
