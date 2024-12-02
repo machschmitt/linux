@@ -66,7 +66,7 @@
 #define AD4000_DIFF_CHANNELS(_sign, _real_bits, _reg_access)			\
 {										\
 	AD4000_DIFF_CHANNEL(_sign, _real_bits, _reg_access),			\
-	IIO_CHAN_SOFT_TIMESTAMP(1)						\
+	IIO_CHAN_SOFT_TIMESTAMP(1),						\
 }
 
 #define __AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _storage_bits, _reg_access)\
@@ -95,7 +95,7 @@
 #define AD4000_PSEUDO_DIFF_CHANNELS(_sign, _real_bits, _reg_access)		\
 {										\
 	AD4000_PSEUDO_DIFF_CHANNEL(_sign, _real_bits, _reg_access),		\
-	IIO_CHAN_SOFT_TIMESTAMP(1)						\
+	IIO_CHAN_SOFT_TIMESTAMP(1),						\
 }
 
 static const char * const ad4000_power_supplies[] = {
