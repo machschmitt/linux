@@ -121,7 +121,7 @@
 				bipolar;
 				diff-channels = <AD4170_MAP_AIN0 AD4170_MAP_AIN1>;
 				adi,config-setup-slot = <0>;
-				adi,reference-select = <3>;
+				adi,reference-select = /bits/ 8 <3>;
 				adi,burnout-current-nanoamp = <100>;
 			};
 			// Sample AIN2 with respect to DGND throughout AVDD/DGND input range
@@ -135,7 +135,7 @@
 				single-channel = <AD4170_MAP_AIN2>;
 				common-mode-channel = <AD4170_MAP_DGND>;
 				adi,config-setup-slot = <1>;
-				adi,reference-select = <3>;
+				adi,reference-select = /bits/ 8 <3>;
 			};
 			// Sample AIN3 with respect to REFOUT throughout AVDD/AVSS input range
 			// Pseudo-differential bipolar (fig. 2b)
@@ -149,7 +149,7 @@
 				single-channel = <AD4170_MAP_AIN3>;
 				common-mode-channel = <AD4170_MAP_REFOUT>;
 				adi,config-setup-slot = <2>;
-				adi,reference-select = <3>;
+				adi,reference-select = /bits/ 8 <3>;
 			};
 			// Sample AIN4 with respect to DGND throughout AVDD/AVSS input range
 			// Pseudo-differential true bipolar if AVSS < 0V (fig. 2c)
@@ -159,7 +159,7 @@
 				single-channel = <AD4170_MAP_AIN4>;
 				common-mode-channel = <AD4170_MAP_DGND>;
 				adi,config-setup-slot = <3>;
-				adi,reference-select = <3>;
+				adi,reference-select = /bits/ 8 <3>;
 			};
 			// Sample AIN5 with respect to REFOUT throughout AVDD/REFOUT input range
 			// Pseudo-differential unipolar (AD4170 datasheet page 46 example)
@@ -172,7 +172,7 @@
 				single-channel = <AD4170_MAP_AIN5>;
 				common-mode-channel = <AD4170_MAP_REFOUT>;
 				adi,config-setup-slot = <4>;
-				adi,reference-select = <3>;
+				adi,reference-select = /bits/ 8 <3>;
 			};
 			// Sample AIN6 with respect to AVSS throughout AVDD/AVSS input range
 			// Pseudo-differential unipolar
@@ -185,7 +185,7 @@
 				single-channel = <AD4170_MAP_AIN6>;
 				common-mode-channel = <AD4170_MAP_AVSS>;
 				adi,config-setup-slot = <4>;
-				adi,reference-select = <3>;
+				adi,reference-select = /bits/ 8 <3>;
 			};
 			// Sample AIN7 with respect to (AVDD-AVSS)/5 throughout REFIN+/REFIN- input range
 			// Pseudo-differential bipolar
@@ -195,7 +195,7 @@
 				single-channel = <AD4170_MAP_AIN7>;
 				common-mode-channel = <AD4170_MAP_AVDD_AVSS_P>;
 				adi,config-setup-slot = <5>;
-				adi,reference-select = <0>;
+				adi,reference-select = /bits/ 8 <0>;
 			};
 			// Temperature sensor
 			channel@7 {
@@ -203,7 +203,7 @@
 				bipolar;
 				diff-channels = <AD4170_MAP_TEMP_SENSOR_P AD4170_MAP_TEMP_SENSOR_N>;
 				adi,config-setup-slot = <6>;
-				adi,reference-select = <0>;
+				adi,reference-select = /bits/ 8 <0>;
 			};
 			// Sample AIN8 with respect to DGND throughout AVDD/AVSS input range
 			// Pseudo-differential channel
@@ -213,7 +213,7 @@
 				single-channel = <AD4170_MAP_AIN8>;
 				common-mode-channel = <AD4170_MAP_DGND>;
 				adi,config-setup-slot = <7>;
-				adi,reference-select = <3>;
+				adi,reference-select = /bits/ 8 <3>;
 			};
 
 		};
