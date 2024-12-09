@@ -79,14 +79,14 @@
 
 			channel@0 {
 				reg = <0>;
-				adi,reference-select = <2>;
+				adi,reference-select = /bits/ 8 <2>;
 				/* AIN8, DGND  */
 				diff-channels = <8 24>;
 			};
 
 			channel@1 {
 				reg = <1>;
-				adi,reference-select = <2>;
+				adi,reference-select = /bits/ 8 <2>;
 				/* TEMP_SENSOR+, TEMP_SENSOR- */
 				diff-channels = <17 17>;
 			};
