@@ -69,6 +69,15 @@ struct axiadc_chip_info {
 	struct iio_chan_spec		channel[3];
 };
 
+//struct admc_debugfs_entry {
+//	struct axiadc_state *st;
+//	const char *propname;
+//	void *out_value;
+//	u32 val;
+//	u8 size;
+//	u8 cmd;
+//};
+
 enum ad_sha3_buffer {
 	AD_SHA3_RAMP,
 	AD_SHA3_DATA,
@@ -162,10 +171,80 @@ static int axiadc_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
+//static int admc_hwfifo_flush_to_buffer(struct iio_dev *indio_dev, unsigned count)
+//{
+//	struct iio_buffer *iio_buf = indio_dev->buffer;
+//	size_t data_available;
+//
+//	dev_info(indio_dev->dev.parent, "%s\n", __func__);
+//
+//	data_available = iio_dma_buffer_usage(iio_buf);
+//	dev_info(indio_dev->dev.parent, "%s data_available %d\n", __func__, data_available);
+//
+////int iio_dma_buffer_read(struct iio_buffer *buffer, size_t n,
+////			char __user *user_buffer)
+//
+//	return 0;
+//}
+
 static const struct iio_info axiadc_info = {
 	.debugfs_reg_access = &axiadc_reg_access,
 	.update_scan_mode = &axiadc_update_scan_mode,
+	//.hwfifo_flush_to_buffer = &admc_hwfifo_flush_to_buffer,
 };
+
+//static ssize_t admc_debugfs_read(struct file *file, char __user *userbuf,
+//			      size_t count, loff_t *ppos)
+//{
+//	struct admc_debugfs_entry *entry = file->private_data;
+//	struct axiadc_state *st = entry->st;
+//	char buf[700];
+//	u32 val = 0;
+//	ssize_t len = 0;
+//	int ret;
+//
+//	//TODO read from DMA at put data into val
+//	//struct iio_dev *indio_dev = dev_to_iio_dev();
+//	//struct iio_buffer *iio_buf = indio_dev->buffer;
+//	len = snprintf(buf, sizeof(buf), "%u\n", val);
+//	//return iio_buf->access->read(buffer, count, userbuf);
+//
+//	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+//
+//	//return iio_buffer_read(file, userbuf, count, ppos);
+//	//return iio_buffer_read_wrapper(file, userbuf, count, ppos);
+//}
+
+//static const struct file_operations admc_debugfs_reg_fops = {
+//	.open = simple_open,
+//	.read = admc_debugfs_read,
+//};
+
+//static void admc_add_debugfs_entry(struct axiadc_state *st,
+//	const char *propname)
+//{
+//	st->debugfs_entry.st = st;
+//	st->debugfs_entry.propname = propname;
+//}
+
+//static int admc_register_debugfs(struct iio_dev *indio_dev)
+//{
+//	struct axiadc_state *st = iio_priv(indio_dev);
+//	struct dentry *d;
+//	int i;
+//
+//	if (!iio_get_debugfs_dentry(indio_dev))
+//		return -ENODEV;
+//
+//	admc_add_debugfs_entry(st, "sha3-read");
+//	d = debugfs_create_file(
+//		"sha3-read", 0644,
+//		iio_get_debugfs_dentry(indio_dev),
+//		&st->debugfs_entry,
+//		&admc_debugfs_reg_fops);
+//
+//	return 0;
+//}
 
 #define AIM_CHAN_NOCALIB(_chan, _si, _bits, _sign)		  \
 	{ .type = IIO_VOLTAGE,					  \
@@ -460,6 +539,7 @@ static int axiadc_probe(struct platform_device *pdev)
 
 	if (strcmp(pdev->dev.of_node->name, "sha3-reader") == 0) {
 		dev_info(&pdev->dev, "sha3-reader");
+		//st->regs = 0x64a00000;
 		chip_info = &axiadc_chip_info_tbl[AD_SHA3_DATA];
 
 		st->ramp_reset_gpio = devm_gpiod_get_optional(&pdev->dev,
@@ -494,6 +574,7 @@ static int axiadc_probe(struct platform_device *pdev)
 		//			"devm_iio_hw_consumer_alloc failed\n");
 	} else {
 		dev_info(&pdev->dev, "ramp-reader");
+		//st->regs = 0x65a00000;
 		chip_info = &axiadc_chip_info_tbl[AD_SHA3_RAMP];
 	}
 
@@ -583,6 +664,7 @@ static struct platform_driver axiadc_driver = {
 
 module_platform_driver(axiadc_driver);
 
+MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_AUTHOR("Dragos Bogdan <dragos.bogdan@analog.com>");
 MODULE_DESCRIPTION("Analog Devices MC-ADC");
 MODULE_LICENSE("GPL v2");
