@@ -114,9 +114,22 @@
 			compatible = "xlnx,axi-ad-mc-adc-1.00.a";
 			//Address from axi-adc IP ZedBoard use cases
 			//reg = <0x64a00000 0x10000>; //TODO axi-ad-mc-adc IP there?
+			//dmas = <&sha3_dma 0>;
+			//dmas = <&sha3_dma 0>, <&ramp_dma 0>;
 			dmas = <&sha3_dma 0>;
 			dma-names = "ad-mc-adc-dma";
+			//dma-names = "ramp-dma", "sha3-dma";
+			//dma-names = "sha3-dma";
 			//spibus-connected = <&adc0_ad9361>;
+			//ramp-reset-gpios = <&gpio 94 0>;
+			//ramp-reset-gpios = <&gpio 140 0>;
+			ramp-reset-gpios = <&gpio 172 GPIO_ACTIVE_LOW>;// 78+94
+			//sha-reset-gpios = <&gpio 95 0>;
+			//sha-reset-gpios = <&gpio 141 0>;
+			sha-reset-gpios = <&gpio 173 GPIO_ACTIVE_LOW>;// 78+95
+			sha-mux-gpios = <&gpio 171 GPIO_ACTIVE_HIGH>;// 78+93
+			io-channels = <&ramp_reader 0>;
+			io-channel-names = "ramp-data";
 		};
 
 		ramp_reader: ramp-reader@65a00000 {
@@ -125,7 +138,15 @@
 			//reg = <0x65a00000 0x10000>; //TODO axi-ad-mc-adc IP there?
 			dmas = <&ramp_dma 0>;
 			dma-names = "ad-mc-adc-dma";
+			//dma-names = "ramp-dma";
 			//spibus-connected = <&adc0_ad9361>;
+			#io-channel-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@0 {
+				reg = <0>;
+			};
 		};
 //--------------------- } Things for testing SHA3 HDL IP -----------------------
 
