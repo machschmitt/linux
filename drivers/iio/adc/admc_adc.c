@@ -133,7 +133,8 @@ static int axiadc_reg_access(struct iio_dev *indio_dev,
 			     unsigned reg, unsigned writeval,
 			     unsigned *readval)
 {
-	struct sha3_chan *ch = iio_priv(indio_dev);
+	struct axiadc_state *st = iio_priv(indio_dev);
+	//struct sha3_chan *ch = iio_priv(indio_dev);
 
         //mutex_lock(&st->lock);
         //if (readval == NULL)
@@ -150,7 +151,8 @@ static int axiadc_reg_access(struct iio_dev *indio_dev,
 static int axiadc_update_scan_mode(struct iio_dev *indio_dev,
 		const unsigned long *scan_mask)
 {
-	struct sha3_chan *ch = iio_priv(indio_dev);
+	struct axiadc_state *st = iio_priv(indio_dev);
+	//struct sha3_chan *ch = iio_priv(indio_dev);
 	//unsigned i, ctrl;
 
 	//for (i = 0; i < indio_dev->masklength; i++) {
@@ -542,31 +544,31 @@ static int axiadc_probe(struct platform_device *pdev)
 		//st->regs = 0x64a00000;
 		chip_info = &axiadc_chip_info_tbl[AD_SHA3_DATA];
 
-		st->ramp_reset_gpio = devm_gpiod_get_optional(&pdev->dev,
-							reset_gpio_names[AD_SHA3_RAMP],
-							GPIOD_OUT_LOW);
-		if (IS_ERR(st->ramp_reset_gpio))
-			//return PTR_ERR(ch->reset_gpio);
-			dev_err_probe(&pdev->dev, PTR_ERR(st->ramp_reset_gpio),
-				      "failed to get %s reset\n",
-				      reset_gpio_names[AD_SHA3_RAMP]);
+		//st->ramp_reset_gpio = devm_gpiod_get_optional(&pdev->dev,
+		//					reset_gpio_names[AD_SHA3_RAMP],
+		//					GPIOD_OUT_LOW);
+		//if (IS_ERR(st->ramp_reset_gpio))
+		//	//return PTR_ERR(ch->reset_gpio);
+		//	dev_err_probe(&pdev->dev, PTR_ERR(st->ramp_reset_gpio),
+		//		      "failed to get %s reset\n",
+		//		      reset_gpio_names[AD_SHA3_RAMP]);
 
-		st->sha3_reset_gpio = devm_gpiod_get_optional(&pdev->dev,
-							reset_gpio_names[AD_SHA3_DATA],
-							GPIOD_OUT_LOW);
-		if (IS_ERR(st->sha3_reset_gpio))
-			//return PTR_ERR(ch->reset_gpio);
-			dev_err_probe(&pdev->dev, PTR_ERR(st->sha3_reset_gpio),
-				      "failed to get %s reset\n",
-				      reset_gpio_names[AD_SHA3_DATA]);
+		//st->sha3_reset_gpio = devm_gpiod_get_optional(&pdev->dev,
+		//					reset_gpio_names[AD_SHA3_DATA],
+		//					GPIOD_OUT_LOW);
+		//if (IS_ERR(st->sha3_reset_gpio))
+		//	//return PTR_ERR(ch->reset_gpio);
+		//	dev_err_probe(&pdev->dev, PTR_ERR(st->sha3_reset_gpio),
+		//		      "failed to get %s reset\n",
+		//		      reset_gpio_names[AD_SHA3_DATA]);
 
 
 
-		st->ramp_channel = devm_iio_channel_get(&pdev->dev, "ramp-data");
-		if (IS_ERR(st->ramp_channel)) {
-			dev_err_probe(&pdev->dev, PTR_ERR(st->ramp_channel),
-					"devm_iio_channel_get failed\n");
-		}
+		//st->ramp_channel = devm_iio_channel_get(&pdev->dev, "ramp-data");
+		//if (IS_ERR(st->ramp_channel)) {
+		//	dev_err_probe(&pdev->dev, PTR_ERR(st->ramp_channel),
+		//			"devm_iio_channel_get failed\n");
+		//}
 
 		//st->ramp_hw_cons = devm_iio_hw_consumer_alloc(&pdev->dev);
 		//if (IS_ERR(st->ramp_hw_cons))
@@ -600,7 +602,7 @@ static int axiadc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	indio_dev->setup_ops = &admc_buffer_setup_ops;
+	//indio_dev->setup_ops = &admc_buffer_setup_ops;
 
 	//ret = ad_sha3_generator(pdev, st, AD_SHA3_RAMP);
 	//if (ret)
