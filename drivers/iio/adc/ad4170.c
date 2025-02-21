@@ -404,6 +404,9 @@ static const struct ad4170_chip_info ad4195_chip_info = {
  * setups. Thus, AD4170 can support up to 16 channels but, since there are only
  * 8 available setups, channels must share settings if more than 8 channels are
  * configured.
+ *
+ * If this struct is modified, ad4170_setup_eq() will probably need to be
+ * updated too.
  */
 struct ad4170_setup {
 	u16 misc;
@@ -693,6 +696,33 @@ static const struct regmap_config ad4170_regmap24_config = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 };
 
+static bool ad4170_setup_eq(struct ad4170_setup *a, struct ad4170_setup *b)
+{
+	/*
+	 * The use of static_assert() here is to make sure that the comparison
+	 * is adapted whenever struct ad4170_setup is changed.
+	 */
+	static_assert(sizeof(*a) ==
+		     sizeof(struct {
+				    u16 misc;
+				    u16 afe;
+				    u16 filter;
+				    u16 filter_fs;
+				    u32 offset;
+				    u32 gain;
+			    }));
+
+	if (a->misc != b->misc ||
+	    a->afe != b->afe ||
+	    a->filter != b->filter ||
+	    a->filter_fs != b->filter_fs ||
+	    a->offset != b->offset ||
+	    a->gain != b->gain)
+		return false;
+
+	return true;
+}
+
 static int ad4170_find_setup(struct ad4170_state *st,
 			     struct ad4170_setup *target_setup,
 			     unsigned int *setup_num, bool *overwrite)
@@ -706,8 +736,7 @@ static int ad4170_find_setup(struct ad4170_state *st,
 		struct ad4170_setup_info *setup_info = &st->setup_infos[i];
 
 		/* Immediately accept a matching setup. */
-		if (!memcmp(target_setup, &setup_info->setup,
-			    sizeof(*target_setup))) {
+		if (ad4170_setup_eq(target_setup, &setup_info->setup)) {
 			*setup_num = i;
 			return 0;
 		}
