@@ -69,33 +69,49 @@
 		ad4170@0 {
 			compatible = "adi,ad4170";
 			reg = <0>;
+			spi-max-frequency = <20000000>;
 			spi-cpol;
 			spi-cpha;
 			avdd-supply = <&avdd>;
+			iovdd-supply = <&iovdd>;
+			interrupt-parent = <&gpio_in>;
+			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+			dmas = <&axi_dmac_0 0>;
+			dma-names = "rx";
+			adi,dig-aux1 = /bits/ 8 <1>;
+			adi,dig-aux2 = /bits/ 8 <0>;
+			adi,sync-option = /bits/ 8 <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			dmas = <&axi_dmac_0 0>;
-			dma-names = "rx";
-
-			spi-max-frequency = <20000000>;
-			interrupt-parent = <&gpio_in>;
-			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
-			interrupt-names = "adc_rdy";
-			adi,dig-aux1-function = "rdy";
-
+			/*
+			 * Sample AIN0 with respect to AIN1 throughout AVDD/AVSS
+			 * input range. Fully differential.
+			 * If AVSS < 0V, Fully differential true bipolar.
+			 */
 			channel@0 {
 				reg = <0>;
-				adi,reference-select = /bits/ 8 <2>;
-				/* AIN8, DGND  */
-				diff-channels = <8 24>;
+				bipolar;
+				diff-channels = <AD4170_MAP_AIN0 AD4170_MAP_AIN1>;
+				adi,reference-select = /bits/ 8 <3>;
 			};
-
+			/*
+			 * Sample AIN8 with respect to DGND throughout
+			 * REFOUT/AVSS input range
+			 * Pseudo-differential unipolar
+			 */
+			channel@8 {
+				reg = <8>;
+				diff-channels = <AD4170_MAP_AIN8 AD4170_MAP_DGND>;
+				adi,reference-select = /bits/ 8 <2>;
+			};
+			/* Temperature sensor */
 			channel@1 {
 				reg = <1>;
+				bipolar;
+				diff-channels = <AD4170_MAP_TEMP_SENSOR_P
+						 AD4170_MAP_TEMP_SENSOR_N>;
 				adi,reference-select = /bits/ 8 <2>;
-				/* TEMP_SENSOR+, TEMP_SENSOR- */
-				diff-channels = <17 17>;
 			};
 		};
 	};
