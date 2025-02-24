@@ -16,11 +16,18 @@
 #include <dt-bindings/iio/adc/adi,ad4170.h>
 
 / {
-	avdd: fixedregulator@0 {
+	avdd: avdd-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "fixed-supply";
+		regulator-name = "Eval AVDD supply";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+	iovdd: iovdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "Eval IOVDD supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 	};
 };
