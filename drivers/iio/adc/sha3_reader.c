@@ -46,7 +46,7 @@
 
 #include <linux/fpga/adi-axi-common.h>
 
-struct axiadc_chip_info {
+struct sha3_chip_info {
 	unsigned			num_channels;
 	unsigned int			max_rate;
 	struct iio_chan_spec		channel[3];
@@ -72,7 +72,7 @@ static const char * const device_names[] = {
 	[AD_SHA3_DATA] = "sha3-reader",
 };
 
-struct axiadc_state {
+struct sha3_state {
 	struct iio_dev *ch_indio_dev[ARRAY_SIZE(device_names)];
 	struct iio_hw_consumer *ramp_hw_cons;
 	struct iio_channel *ramp_channel;
@@ -80,15 +80,15 @@ struct axiadc_state {
 	struct gpio_desc *sha3_reset_gpio;
 };
 
-static int axiadc_reg_access(struct iio_dev *indio_dev, unsigned reg,
+static int sha3_reg_access(struct iio_dev *indio_dev, unsigned reg,
 			     unsigned writeval, unsigned *readval)
 {
 	dev_info(indio_dev->dev.parent, "%s\n", __func__);
 	return 0;
 }
 
-static const struct iio_info axiadc_info = {
-	.debugfs_reg_access = &axiadc_reg_access,
+static const struct iio_info sha3_info = {
+	.debugfs_reg_access = &sha3_reg_access,
 };
 
 
@@ -105,7 +105,7 @@ static const struct iio_info axiadc_info = {
 	  },						\
 	}
 
-static const struct axiadc_chip_info axiadc_chip_info_tbl[] = {
+static const struct sha3_chip_info sha3_chip_info_tbl[] = {
 	[AD_SHA3_RAMP] = {
 		.max_rate = 1000000UL,
 		.num_channels = 1,
@@ -122,14 +122,14 @@ static const struct axiadc_chip_info axiadc_chip_info_tbl[] = {
 	},
 };
 
-static int axiadc_probe(struct platform_device *pdev)
+static int sha3_probe(struct platform_device *pdev)
 {
-	const struct axiadc_chip_info *chip_info;
+	const struct sha3_chip_info *chip_info;
 	struct iio_dev *indio_dev;
-	struct axiadc_state *st;
+	struct sha3_state *st;
 	int ret;
 
-	dev_info(&pdev->dev, "Probing xlnx,axi-ad-mc-adc-1.00.a\n");
+	dev_info(&pdev->dev, "Probing SHA3 driver\n");
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*st));
 	if (indio_dev == NULL)
@@ -140,12 +140,12 @@ static int axiadc_probe(struct platform_device *pdev)
 	if (strcmp(pdev->dev.of_node->name, "sha3-reader") == 0) {
 		dev_info(&pdev->dev, "sha3-reader");
 		//st->regs = 0x64a00000;
-		chip_info = &axiadc_chip_info_tbl[AD_SHA3_DATA];
+		chip_info = &sha3_chip_info_tbl[AD_SHA3_DATA];
 
 	} else {
 		dev_info(&pdev->dev, "ramp-reader");
 		//st->regs = 0x65a00000;
-		chip_info = &axiadc_chip_info_tbl[AD_SHA3_RAMP];
+		chip_info = &sha3_chip_info_tbl[AD_SHA3_RAMP];
 	}
 
 	platform_set_drvdata(pdev, indio_dev);
@@ -157,9 +157,9 @@ static int axiadc_probe(struct platform_device *pdev)
 	indio_dev->channels = chip_info->channel;
 	indio_dev->num_channels = chip_info->num_channels;
 
-	indio_dev->info = &axiadc_info;
+	indio_dev->info = &sha3_info;
 
-	ret = devm_iio_dmaengine_buffer_setup(&pdev->dev, indio_dev, "ad-mc-adc-dma");
+	ret = devm_iio_dmaengine_buffer_setup(&pdev->dev, indio_dev, "sha3-dma");
 	if (ret < 0)
 		return ret;
 
@@ -173,22 +173,22 @@ static int axiadc_probe(struct platform_device *pdev)
 }
 
 /* Match table for of_platform binding */
-static const struct of_device_id axiadc_of_match[] = {
-	{ .compatible = "xlnx,axi-ad-mc-adc-1.00.a", },
+static const struct of_device_id sha3_of_match[] = {
+	{ .compatible = "adi,sha3", },
 	{ /* end of list */ },
 };
-MODULE_DEVICE_TABLE(of, axiadc_of_match);
+MODULE_DEVICE_TABLE(of, sha3_of_match);
 
-static struct platform_driver axiadc_driver = {
+static struct platform_driver sha3_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,
-		.of_match_table = axiadc_of_match,
+		.of_match_table = sha3_of_match,
 	},
-	.probe	  = axiadc_probe,
+	.probe	  = sha3_probe,
 };
 
-module_platform_driver(axiadc_driver);
+module_platform_driver(sha3_driver);
 
 MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("Analog Devices MC-ADC");
