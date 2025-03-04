@@ -111,13 +111,13 @@
 		};
 
 		sha3_reader: sha3-reader@64a00000 {
-			compatible = "xlnx,axi-ad-mc-adc-1.00.a";
+			compatible = "adi,sha3";
 			//Address from axi-adc IP ZedBoard use cases
 			//reg = <0x64a00000 0x10000>; //TODO axi-ad-mc-adc IP there?
 			//dmas = <&sha3_dma 0>;
 			//dmas = <&sha3_dma 0>, <&ramp_dma 0>;
 			dmas = <&sha3_dma 0>;
-			dma-names = "ad-mc-adc-dma";
+			dma-names = "sha3-dma";
 			//dma-names = "ramp-dma", "sha3-dma";
 			//dma-names = "sha3-dma";
 			//spibus-connected = <&adc0_ad9361>;
