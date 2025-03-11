@@ -487,6 +487,11 @@ static const struct ad4000_chip_info ad7988_5_chip_info = {
 	.max_rate_hz  =  500 * KILO,
 };
 
+static const struct spi_offload_config ad4000_offload_config = {
+	.capability_flags = SPI_OFFLOAD_CAP_TRIGGER |
+			    SPI_OFFLOAD_CAP_RX_STREAM_DMA,
+};
+
 struct ad4000_state {
 	struct spi_device *spi;
 	struct gpio_desc *cnv_gpio;
@@ -494,9 +499,12 @@ struct ad4000_state {
 	struct spi_message msg;
 	struct spi_transfer offload_xfers[2];
 	struct spi_message offload_msg;
+	struct spi_offload *offload;
+	struct spi_offload_trigger *offload_trigger;
 	bool using_offload;
 	unsigned long ref_clk_rate_hz;
 	struct pwm_device *cnv_trigger;
+	unsigned long offload_trigger_hz;
 	int max_rate_hz;
 	struct mutex lock; /* Protect read modify write cycle */
 	int vref_mv;
@@ -590,51 +598,23 @@ static int ad4000_read_reg(struct ad4000_state *st, unsigned int *val)
 	return ret;
 }
 
-static int ad4000_get_sampling_freq(struct ad4000_state *st)
-{
-	return DIV_ROUND_CLOSEST_ULL(NSEC_PER_SEC,
-				     pwm_get_period(st->cnv_trigger));
-}
-
 static int ad4000_set_sampling_freq(struct ad4000_state *st, int freq)
 {
-	struct pwm_state cnv_state;
-	u32 rem;
+	struct spi_offload_trigger_config config = {
+		.type = SPI_OFFLOAD_TRIGGER_PERIODIC,
+		.periodic = {
+			.frequency_hz = freq,
+		},
+	};
+	int ret;
 
-	/* Sync up PWM state and prepare for pwm_apply_state(). */
-	pwm_init_state(st->cnv_trigger, &cnv_state);
+	ret = spi_offload_trigger_validate(st->offload_trigger, &config);
+	if (ret)
+		return ret;
 
-	/*
-	 * The goal here is that the PWM is configured with a minimal period not
-	 * less than 1 / freq (with freq measured in Hz). It should not be less
-	 * because freq is usually st->chip->max_rate_hz which is a hard limit.
-	 *
-	 * When a period P (measured in ns) is passed to pwm_apply_state(), the
-	 * actually implemented period is:
-	 *
-	 * 	round_down(P * R / NSEC_PER_SEC) / R
-	 *
-	 * (measured in s) with R = st->ref_clk_rate_hz. So we have:
-	 *
-	 * 	  round_down(P * R / NSEC_PER_SEC) / R ≥ 1 / freq
-	 * 	⟺ round_down(P * R / NSEC_PER_SEC) ≥ R / freq
-	 *
-	 * With the LHS being integer this is equivalent to:
-	 *
-	 * 	  round_down(P * R / NSEC_PER_SEC) ≥ round_up(R / freq)
-	 * 	⟺ P * R / NSEC_PER_SEC ≥ round_up(R / freq)
-	 * 	⟺ P ≥ round_up(R / freq) * NSEC_PER_SEC / R
-	 */
-	/* TODO do this in a better way after PWM changes get backported */
+	st->offload_trigger_hz = config.periodic.frequency_hz;
 
-	cnv_state.period = div_u64_rem((u64)DIV_ROUND_UP(st->ref_clk_rate_hz, freq) * NSEC_PER_SEC,
-				       st->ref_clk_rate_hz, &rem);
-	if (rem)
-		cnv_state.period += 1;
-
-	cnv_state.duty_cycle = DIV_ROUND_UP(NSEC_PER_SEC, st->ref_clk_rate_hz);
-
-	return pwm_apply_state(st->cnv_trigger, &cnv_state);
+	return 0;
 }
 
 static int ad4000_convert_and_acquire(struct ad4000_state *st)
@@ -713,7 +693,7 @@ static int ad4000_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		*val = ad4000_get_sampling_freq(st);
+		*val = st->offload_trigger_hz;
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
@@ -791,7 +771,7 @@ static int ad4000_write_raw(struct iio_dev *indio_dev,
 		iio_device_release_direct(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (!val || val > st->max_rate_hz)
+		if (val < 1 || val > st->max_rate_hz)
 			return -EINVAL;
 
 		if (!iio_device_claim_direct(indio_dev))
@@ -842,25 +822,22 @@ static const struct iio_info ad4000_info = {
 static int ad4000_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
-	int ret;
+	struct spi_offload_trigger_config config = {
+		.type = SPI_OFFLOAD_TRIGGER_PERIODIC,
+		.periodic = {
+			.frequency_hz = st->offload_trigger_hz,
+		},
+	};
 
-	if (st->using_offload)
-		ret = spi_engine_ex_offload_load_msg(st->spi, &st->offload_msg);
-	else
-		ret = spi_engine_ex_offload_load_msg(st->spi, &st->msg);
-	if (ret < 0)
-		return ret;
-
-	spi_engine_ex_offload_enable(st->spi, true);
-	return pwm_enable(st->cnv_trigger);
+	return spi_offload_trigger_enable(st->offload, st->offload_trigger,
+					  &config);
 }
 
 static int ad4000_buffer_postdisable(struct iio_dev *indio_dev)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
 
-	pwm_disable(st->cnv_trigger);
-	spi_engine_ex_offload_enable(st->spi, false);
+	spi_offload_trigger_disable(st->offload, st->offload_trigger);
 	return 0;
 }
 
@@ -869,32 +846,35 @@ static const struct iio_buffer_setup_ops ad4000_buffer_setup_ops = {
 	.postdisable = &ad4000_buffer_postdisable,
 };
 
-static void ad4000_pwm_diasble(void *data)
+static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
+				    struct ad4000_state *st)
 {
-	pwm_disable(data);
-}
-
-static int ad4000_pwm_setup(struct spi_device *spi, struct ad4000_state *st)
-{
-	struct clk *ref_clk;
+	struct spi_device *spi = st->spi;
+	struct device *dev = &spi->dev;
+	struct dma_chan *rx_dma;
 	int ret;
 
-	ref_clk = devm_clk_get_enabled(&spi->dev, "ref_clk");
-	if (IS_ERR(ref_clk))
-		return PTR_ERR(ref_clk);
+	st->offload_trigger = devm_spi_offload_trigger_get(dev, st->offload,
+		SPI_OFFLOAD_TRIGGER_PERIODIC);
+	if (IS_ERR(st->offload_trigger))
+		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
+				     "Failed to get offload trigger\n");
 
-	st->ref_clk_rate_hz = clk_get_rate(ref_clk);
-
-	st->cnv_trigger = devm_pwm_get(&spi->dev, "cnv");
-	if (IS_ERR(st->cnv_trigger))
-		return PTR_ERR(st->cnv_trigger);
-
-	ret = ad4000_set_sampling_freq(st, mult_frac(st->max_rate_hz, 3, 4));
+	ret = ad4000_set_sampling_freq(st, st->max_rate_hz);
 	if (ret)
 		return ret;
 
-	return devm_add_action_or_reset(&spi->dev, ad4000_pwm_diasble,
-					st->cnv_trigger);
+	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev, st->offload);
+	if (IS_ERR(rx_dma))
+		return dev_err_probe(dev, PTR_ERR(rx_dma),
+				     "Failed to get offload RX DMA\n");
+
+	ret = devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev, rx_dma,
+							  IIO_BUFFER_DIRECTION_IN);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to setup DMA buffer\n");
+
+	return 0;
 }
 
 /*
@@ -923,15 +903,18 @@ static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
 	xfers[0].cs_change = 1;
 	xfers[0].cs_change_delay.value = AD4000_TQUIET1_NS;
 	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+	xfers[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 
 	/* HACK: invalid pointer indicates read data from SPI offload DMA */
-	xfers[1].rx_buf = (void*)(-1);
+	//xfers[1].rx_buf = (void*)(-1);
+	xfers[1].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 	xfers[1].bits_per_word = chan->scan_type.realbits;
 	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
 	xfers[1].delay.value = AD4000_TQUIET2_NS;
 	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	spi_message_init_with_transfers(&st->offload_msg, xfers, 2);
+	st->offload_msg.offload = st->offload;
 
 	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->offload_msg);
 }
@@ -959,11 +942,12 @@ static int ad4000_prepare_offload_message(struct ad4000_state *st,
 	struct spi_transfer *xfers = st->offload_xfers;
 
 	/* HACK: invalid pointer indicates read data from SPI offload DMA */
-	xfers[0].rx_buf = (void*)(-1);
+	//xfers[0].rx_buf = (void*)(-1);
 	xfers[0].bits_per_word = chan->scan_type.realbits;
 	xfers[0].len = chan->scan_type.realbits > 16 ? 4 : 2;
 	xfers[0].delay.value = AD4000_TQUIET2_NS;
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+	xfers[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 
 	spi_message_init_with_transfers(&st->offload_msg, xfers, 1);
 
@@ -1086,7 +1070,12 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
 				     "Failed to get CNV GPIO");
 
-	st->using_offload = spi_engine_ex_offload_supported(spi);
+	st->offload = devm_spi_offload_get(dev, spi, &ad4000_offload_config);
+	ret = PTR_ERR_OR_ZERO(st->offload);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "failed to get offload\n");
+
+	st->using_offload = ret != -ENODEV;
 
 	ret = device_property_match_property_string(dev, "adi,sdi-pin",
 						    ad4000_sdi_pin,
@@ -1117,7 +1106,7 @@ static int ad4000_probe(struct spi_device *spi)
 			if (ret)
 				return ret;
 		} else {
-			indio_dev->channels = &chip->reg_access_chan_spec;
+			indio_dev->channels = chip->reg_access_chan_spec;
 		}
 		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
@@ -1140,7 +1129,7 @@ static int ad4000_probe(struct spi_device *spi)
 				return ret;
 		} else {
 			indio_dev->info = &ad4000_info;
-			indio_dev->channels = &chip->chan_spec;
+			indio_dev->channels = chip->chan_spec;
 		}
 		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
@@ -1168,7 +1157,10 @@ static int ad4000_probe(struct spi_device *spi)
 
 	st->max_rate_hz = chip->max_rate_hz;
 	indio_dev->name = chip->dev_name;
-	indio_dev->num_channels = 2;
+	if (st->using_offload)
+		indio_dev->num_channels = 1;
+	else
+		indio_dev->num_channels = 2;
 
 	ret = devm_mutex_init(dev, &st->lock);
 	if (ret)
@@ -1192,17 +1184,11 @@ static int ad4000_probe(struct spi_device *spi)
 	ad4000_fill_scale_tbl(st, &indio_dev->channels[0]);
 
 	if (st->using_offload) {
-		ret = ad4000_pwm_setup(spi, st);
-		if (ret)
-			dev_err_probe(dev, ret, "PWM setup failed\n");
-
-		ret = devm_iio_dmaengine_buffer_setup(indio_dev->dev.parent,
-						      indio_dev, "rx",
-						      IIO_BUFFER_DIRECTION_IN);
+		indio_dev->setup_ops = &ad4000_buffer_setup_ops;
+		ret = ad4000_spi_offload_setup(indio_dev, st);
 		if (ret)
 			return ret;
 
-		indio_dev->setup_ops = &ad4000_buffer_setup_ops;
 	} else {
 		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 						      &iio_pollfunc_store_time,
