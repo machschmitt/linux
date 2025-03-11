@@ -1071,9 +1071,9 @@ static int ad4000_probe(struct spi_device *spi)
 				     "Failed to get CNV GPIO");
 
 	st->offload = devm_spi_offload_get(dev, spi, &ad4000_offload_config);
-	ret = PTR_ERR_OR_ZERO(st->offload);
+	ret = IS_ERR(st->offload);
 	if (ret && ret != -ENODEV)
-		return dev_err_probe(dev, ret, "failed to get offload\n");
+		return dev_err_probe(dev, ret, "Failed to get offload\n");
 
 	st->using_offload = ret != -ENODEV;
 
