@@ -1143,14 +1143,16 @@ static int ad4000_probe(struct spi_device *spi)
 			spi->cs_hold.unit = SPI_DELAY_UNIT_NSECS;
 			ret = ad4000_prepare_offload_message(st, indio_dev->channels);
 			if (ret)
-				return ret;
+				return dev_err_probe(dev, ret,
+						     "Failed to optimize SPI msg\n");
 		} else {
 			indio_dev->info = &ad4000_info;
 			indio_dev->channels = chip->chan_spec;
 		}
 		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Failed to optimize SPI msg\n");
 
 		break;
 	case AD4000_SDI_CS:
@@ -1161,7 +1163,8 @@ static int ad4000_probe(struct spi_device *spi)
 		indio_dev->channels = chip->chan_spec;
 		ret = ad4000_prepare_4wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Failed to optimize SPI msg\n");
 
 		break;
 	case AD4000_SDI_GND:
