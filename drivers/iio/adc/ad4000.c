@@ -950,6 +950,7 @@ static int ad4000_prepare_offload_message(struct ad4000_state *st,
 	xfers[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 
 	spi_message_init_with_transfers(&st->offload_msg, xfers, 1);
+	st->offload_msg.offload = st->offload;
 
 	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->offload_msg);
 }
