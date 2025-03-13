@@ -65,6 +65,7 @@
 		.endianness = _offl ? IIO_CPU : IIO_BE				\
 	},									\
 }
+
 #define AD4000_DIFF_CHANNEL(_sign, _real_bits, _reg_access, _offl)		\
 	__AD4000_DIFF_CHANNEL((_sign), (_real_bits),				\
 			      (((_offl) || ((_real_bits) > 16)) ? 32 : 16),	\
@@ -855,7 +856,7 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
 	int ret;
 
 	st->offload_trigger = devm_spi_offload_trigger_get(dev, st->offload,
-		SPI_OFFLOAD_TRIGGER_PERIODIC);
+							   SPI_OFFLOAD_TRIGGER_PERIODIC);
 	if (IS_ERR(st->offload_trigger))
 		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
 				     "Failed to get offload trigger\n");
