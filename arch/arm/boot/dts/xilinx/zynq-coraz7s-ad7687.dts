@@ -61,7 +61,6 @@
 		interrupts = <0 56 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc 15 &spi_clk>;
 		clock-names = "s_axi_aclk", "spi_clk";
-		num-cs = <1>;
 
 		dmas = <&rx_dma 0>;
 		dma-names = "offload0-rx";
