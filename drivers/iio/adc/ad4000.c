@@ -53,7 +53,7 @@
 	.channel = 0,								\
 	.channel2 = 1,								\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
-			      BIT(IIO_CHAN_INFO_SCALE),				\
+			      BIT(IIO_CHAN_INFO_SCALE) |			\
 			      (_offl ? BIT(IIO_CHAN_INFO_SAMP_FREQ) : 0),	\
 	.info_mask_separate_available = _reg_access ? BIT(IIO_CHAN_INFO_SCALE) : 0,\
 	.scan_index = 0,							\
