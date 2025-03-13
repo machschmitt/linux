@@ -819,7 +819,7 @@ static const struct iio_info ad4000_info = {
 	.read_raw = &ad4000_read_raw,
 };
 
-static int ad4000_buffer_postenable(struct iio_dev *indio_dev)
+static int ad4000_offload_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
 	struct spi_offload_trigger_config config = {
@@ -833,7 +833,7 @@ static int ad4000_buffer_postenable(struct iio_dev *indio_dev)
 					  &config);
 }
 
-static int ad4000_buffer_postdisable(struct iio_dev *indio_dev)
+static int ad4000_offload_buffer_postdisable(struct iio_dev *indio_dev)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
 
@@ -841,9 +841,9 @@ static int ad4000_buffer_postdisable(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static const struct iio_buffer_setup_ops ad4000_buffer_setup_ops = {
-	.postenable = &ad4000_buffer_postenable,
-	.postdisable = &ad4000_buffer_postdisable,
+static const struct iio_buffer_setup_ops ad4000_offload_buffer_setup_ops = {
+	.postenable = &ad4000_offload_buffer_postenable,
+	.postdisable = &ad4000_offload_buffer_postdisable,
 };
 
 static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
@@ -862,7 +862,8 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
 
 	ret = ad4000_set_sampling_freq(st, st->max_rate_hz);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
+				     "Failed to set sampling frequency\n");
 
 	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev, st->offload);
 	if (IS_ERR(rx_dma))
@@ -1054,6 +1055,7 @@ static int ad4000_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	st->spi = spi;
 	st->time_spec = chip->time_spec;
+	st->max_rate_hz = chip->max_rate_hz;
 
 	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(ad4000_power_supplies),
 					     ad4000_power_supplies);
@@ -1072,11 +1074,24 @@ static int ad4000_probe(struct spi_device *spi)
 				     "Failed to get CNV GPIO");
 
 	st->offload = devm_spi_offload_get(dev, spi, &ad4000_offload_config);
-	if (IS_ERR(st->offload) && PTR_ERR(st->offload) != -ENODEV)
-		return dev_err_probe(dev, PTR_ERR(st->offload),
-				     "Failed to get offload\n");
+	ret = PTR_ERR_OR_ZERO(st->offload);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "failed to get offload\n");
 
-	st->using_offload = ret != -ENODEV;
+	st->using_offload = !IS_ERR(st->offload);
+	if (st->using_offload) {
+		indio_dev->setup_ops = &ad4000_offload_buffer_setup_ops;
+		ret = ad4000_spi_offload_setup(indio_dev, st);
+		if (ret)
+			return ret;
+	} else {
+		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+						      &iio_pollfunc_store_time,
+						      &ad4000_trigger_handler,
+						      NULL);
+		if (ret)
+			return ret;
+	}
 
 	ret = device_property_match_property_string(dev, "adi,sdi-pin",
 						    ad4000_sdi_pin,
@@ -1156,7 +1171,6 @@ static int ad4000_probe(struct spi_device *spi)
 		return dev_err_probe(dev, -EINVAL, "Unrecognized connection mode\n");
 	}
 
-	st->max_rate_hz = chip->max_rate_hz;
 	indio_dev->name = chip->dev_name;
 	if (st->using_offload)
 		indio_dev->num_channels = 1;
@@ -1183,21 +1197,6 @@ static int ad4000_probe(struct spi_device *spi)
 	}
 
 	ad4000_fill_scale_tbl(st, &indio_dev->channels[0]);
-
-	if (st->using_offload) {
-		indio_dev->setup_ops = &ad4000_buffer_setup_ops;
-		ret = ad4000_spi_offload_setup(indio_dev, st);
-		if (ret)
-			return ret;
-
-	} else {
-		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
-						      &iio_pollfunc_store_time,
-						      &ad4000_trigger_handler,
-						      NULL);
-		if (ret)
-			return ret;
-	}
 
 	return devm_iio_device_register(dev, indio_dev);
 }
