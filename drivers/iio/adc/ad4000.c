@@ -1120,13 +1120,17 @@ static int ad4000_probe(struct spi_device *spi)
 				return dev_err_probe(dev, ret,
 						     "Failed to optimize SPI msg\n");
 		} else {
-			dev_info(dev, "ad4000_prepare_3wire_mode_message\n");
 			indio_dev->channels = chip->reg_access_chan_spec;
-			ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
-			if (ret)
-				return dev_err_probe(dev, ret,
-						     "Failed to optimize SPI msg\n");
 		}
+
+		/*
+		 * Call ad4000_prepare_3wire_mode_message() so single-shot read
+		 * SPI messages are always initialized.
+		 */
+		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to optimize SPI msg\n");
 
 		ret = ad4000_config(st);
 		if (ret < 0)
