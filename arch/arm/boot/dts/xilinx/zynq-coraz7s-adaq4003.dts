@@ -38,11 +38,16 @@
 		regulator-always-on;
 	};
 
+	trigger_pwm: adc-pwm-trigger {
+		compatible = "pwm-trigger";
+		#trigger-source-cells = <0>;
+		pwms = <&adc_trigger 0 1000000 0>;
+	};
 };
 
 &fpga_axi {
 
-		adc_trigger: pwm@0x44b00000 {
+	adc_trigger: pwm@0x44b00000 {
 		compatible = "adi,axi-pwmgen-2.00.a";
 		reg = <0x44b00000 0x1000>;
 		label = "adc_conversion_trigger";
@@ -57,7 +62,10 @@
 		interrupts = <0 56 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc 15 &spi_clk>;
 		clock-names = "s_axi_aclk", "spi_clk";
-		num-cs = <1>;
+
+		dmas = <&rx_dma 0>;
+		dma-names = "offload0-rx";
+		trigger-sources = <&trigger_pwm>;
 
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
@@ -97,5 +105,8 @@
 		clocks = <&clkc 15>, <&clkc 15>;
 		clock-names = "s_axi_aclk", "clkin1";
 		clock-output-names = "spi_clk";
+
+		assigned-clocks = <&spi_clk>;
+		assigned-clock-rates = <200000000>;
 	};
 };
