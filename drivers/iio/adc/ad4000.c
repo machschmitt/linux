@@ -882,9 +882,9 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
 /*
  * This executes a data sample transfer when using SPI offloading for when the
  * device connections are in "3-wire" mode, selected when the adi,sdi-pin device
- * tree property is absent or set to "high". In this connection mode, the ADC
- * SDI pin is connected to MOSI or to VIO and ADC CNV pin is connected to a SPI
- * controller CS (it can't be connected to a GPIO).
+ * tree property is absent. In this connection mode, the ADC SDI pin is
+ * connected to MOSI or to VIO and ADC CNV pin is connected to a SPI controller
+ * CS (it can't be connected to a GPIO).
  *
  * In order to achieve the maximum sample rate, we only do one transfer per
  * SPI offload trigger. This has the effect that the first sample data is not
@@ -922,9 +922,9 @@ static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
 /*
  * This executes a data sample transfer when using SPI offloading for when the
  * device connections are in "3-wire" mode, selected when the adi,sdi-pin device
- * tree property is absent or set to "high". In this connection mode, the ADC
- * SDI pin is connected to MOSI or to VIO and ADC CNV pin is connected to a SPI
- * controller CS (it can't be connected to a GPIO).
+ * tree property is set to "high". In this connection mode, the ADC SDI pin is
+ * connected to VIO and ADC CNV pin is connected to a SPI controller CS (it
+ * can't be connected to a GPIO).
  *
  * In order to achieve the maximum sample rate, we only do one transfer per
  * SPI offload trigger. This has the effect that the first sample data is not
@@ -1073,7 +1073,7 @@ static int ad4000_probe(struct spi_device *spi)
 	st->offload = devm_spi_offload_get(dev, spi, &ad4000_offload_config);
 	ret = PTR_ERR_OR_ZERO(st->offload);
 	if (ret && ret != -ENODEV)
-		return dev_err_probe(dev, ret, "failed to get offload\n");
+		return dev_err_probe(dev, ret, "Failed to get offload\n");
 
 	st->using_offload = !IS_ERR(st->offload);
 	if (st->using_offload) {
@@ -1117,13 +1117,16 @@ static int ad4000_probe(struct spi_device *spi)
 			indio_dev->channels = &chip->reg_access_offload_chan_spec;
 			ret = ad4000_prepare_offload_turbo_message(st, indio_dev->channels);
 			if (ret)
-				return ret;
+				return dev_err_probe(dev, ret,
+						     "Failed to optimize SPI msg\n");
 		} else {
+			dev_info(dev, "ad4000_prepare_3wire_mode_message\n");
 			indio_dev->channels = chip->reg_access_chan_spec;
+			ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "Failed to optimize SPI msg\n");
 		}
-		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
-		if (ret)
-			return ret;
 
 		ret = ad4000_config(st);
 		if (ret < 0)
