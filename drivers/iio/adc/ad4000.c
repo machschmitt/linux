@@ -884,12 +884,14 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
  * CS (it can't be connected to a GPIO).
  *
  * In order to achieve the maximum sample rate, we only do one transfer per
- * SPI offload trigger. This has the effect that the first sample data is not
- * valid because it is reading the previous conversion result. We also use
- * bits_per_word to ensure the minimum of SCLK cycles are used. And a delay is
- * added to make sure we meet the minimum quiet time before releasing the CS
- * line. Plus the CS change delay is set to ensure that we meet the minimum
- * quiet time before asserting CS again.
+ * SPI offload trigger. Because the ADC output has a one sample latency (delay)
+ * when the device is wired in "3-wire" mode and only one transfer per sample is
+ * being made in turbo mode, the first data sample is not valid because it
+ * contains the output of an earlier conversion result. We also set transfer
+ * `bits_per_word` to achieve higher throughput by using the minimum number of
+ * SCLK cycles. Also, a delay is added to make sure we meet the minimum quiet
+ * time before releasing the CS line. Plus the CS change delay is set to ensure
+ * that we meet the minimum quiet time before asserting CS again.
  *
  * This timing is only valid if turbo mode is enabled (reading during conversion).
  */
@@ -924,12 +926,13 @@ static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
  * can't be connected to a GPIO).
  *
  * In order to achieve the maximum sample rate, we only do one transfer per
- * SPI offload trigger. This has the effect that the first sample data is not
- * valid because it is reading the previous conversion result. We also use
- * bits_per_word to ensure the minimum of SCLK cycles are used. And a delay is
- * added to make sure we meet the minimum quiet time before releasing the CS
- * line. Plus the CS change delay is set to ensure that we meet the minimum
- * conversion time before asserting CS again.
+ * SPI offload trigger. Because the ADC output has a one sample latency (delay)
+ * when the device is wired in "3-wire" mode and only one transfer per sample is
+ * being made in turbo mode, the first data sample is not valid because it
+ * contains the output of an earlier conversion result. We also set transfer
+ * `bits_per_word` to achieve higher throughput by using the minimum number of
+ * SCLK cycles. Also, a delay is added to make sure we meet the minimum quiet
+ * time before releasing the CS line.
  *
  * This timing is only valid if turbo mode is disabled (reading during acquisition).
  */
