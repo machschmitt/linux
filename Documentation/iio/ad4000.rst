@@ -208,3 +208,8 @@ interfaces.
   the sample rate.
 * IIO trigger device is not provided (no ``trigger`` directory).
 * ``timestamp`` channel is not provided.
+
+Also, because the ADC output has a one sample latency (delay) when the device is
+wired in "3-wire" mode and only one transfer per sample is done when using SPI
+offloading, the first data sample in the buffer is not valid because it contains
+the output of an earlier conversion result.
