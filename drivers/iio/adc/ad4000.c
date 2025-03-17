@@ -1115,12 +1115,14 @@ static int ad4000_probe(struct spi_device *spi)
 
 		if (st->using_offload) {
 			indio_dev->channels = &chip->reg_access_offload_chan_spec;
+			indio_dev->num_channels = 1;
 			ret = ad4000_prepare_offload_turbo_message(st, indio_dev->channels);
 			if (ret)
 				return dev_err_probe(dev, ret,
 						     "Failed to optimize SPI msg\n");
 		} else {
 			indio_dev->channels = chip->reg_access_chan_spec;
+			indio_dev->num_channels = ARRAY_SIZE(chip->reg_access_chan_spec);
 		}
 
 		/*
@@ -1141,6 +1143,7 @@ static int ad4000_probe(struct spi_device *spi)
 		if (st->using_offload) {
 			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
+			indio_dev->num_channels = 1;
 
 			spi->cs_hold.value = AD4000_TCONV_NS;
 			spi->cs_hold.unit = SPI_DELAY_UNIT_NSECS;
@@ -1151,6 +1154,7 @@ static int ad4000_probe(struct spi_device *spi)
 		} else {
 			indio_dev->info = &ad4000_info;
 			indio_dev->channels = chip->chan_spec;
+			indio_dev->num_channels = ARRAY_SIZE(chip->chan_spec);
 		}
 		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
@@ -1164,6 +1168,7 @@ static int ad4000_probe(struct spi_device *spi)
 					     "Unsupported sdi-pin + offload config\n");
 		indio_dev->info = &ad4000_info;
 		indio_dev->channels = chip->chan_spec;
+		indio_dev->num_channels = ARRAY_SIZE(chip->chan_spec);
 		ret = ad4000_prepare_4wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
 			return dev_err_probe(dev, ret,
@@ -1179,10 +1184,6 @@ static int ad4000_probe(struct spi_device *spi)
 	}
 
 	indio_dev->name = chip->dev_name;
-	if (st->using_offload)
-		indio_dev->num_channels = 1;
-	else
-		indio_dev->num_channels = 2;
 
 	ret = devm_mutex_init(dev, &st->lock);
 	if (ret)
