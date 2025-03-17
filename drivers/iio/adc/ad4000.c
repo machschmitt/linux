@@ -835,6 +835,7 @@ static int ad4000_offload_buffer_postdisable(struct iio_dev *indio_dev)
 	struct ad4000_state *st = iio_priv(indio_dev);
 
 	spi_offload_trigger_disable(st->offload, st->offload_trigger);
+
 	return 0;
 }
 
