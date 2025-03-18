@@ -860,7 +860,7 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
 
 	ret = ad4000_set_sampling_freq(st, st->max_rate_hz);
 	if (ret)
-		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
+		return dev_err_probe(dev, ret,
 				     "Failed to set sampling frequency\n");
 
 	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev, st->offload);
