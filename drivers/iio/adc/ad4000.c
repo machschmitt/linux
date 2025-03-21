@@ -16,6 +16,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/offload/consumer.h>
 #include <linux/units.h>
 #include <linux/util_macros.h>
 #include <linux/iio/iio.h>
@@ -24,8 +25,6 @@
 #include <linux/iio/buffer-dmaengine.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
-
-#include <linux/spi/offload/consumer.h>
 
 #define AD4000_READ_COMMAND	0x54
 #define AD4000_WRITE_COMMAND	0x14
