@@ -905,6 +905,12 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
  * time before releasing the CS line. Plus the CS change delay is set to ensure
  * that we meet the minimum quiet time before asserting CS again.
  *
+ * Note that, with `bits_per_word` set to the number of ADC precision bits,
+ * transfers use larger word sizes that get stored in 'in-memory wordsizes' that
+ * are always in native CPU byte order. Because of that, IIO buffer elements
+ * ought to be read in CPU endianness which requires setting IIO scan_type
+ * endianness accordingly (i.e. IIO_CPU).
+ *
  * This timing is only valid if turbo mode is enabled (reading during conversion).
  */
 static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
@@ -945,6 +951,12 @@ static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
  * `bits_per_word` to achieve higher throughput by using the minimum number of
  * SCLK cycles. Also, a delay is added to make sure we meet the minimum quiet
  * time before releasing the CS line.
+ *
+ * Note that, with `bits_per_word` set to the number of ADC precision bits,
+ * transfers use larger word sizes that get stored in 'in-memory wordsizes' that
+ * are always in native CPU byte order. Because of that, IIO buffer elements
+ * ought to be read in CPU endianness which requires setting IIO scan_type
+ * endianness accordingly (i.e. IIO_CPU).
  *
  * This timing is only valid if turbo mode is disabled (reading during acquisition).
  */
