@@ -842,7 +842,7 @@ static int ad4000_offload_buffer_postenable(struct iio_dev *indio_dev)
 					  &config);
 }
 
-static int ad4000_offload_buffer_postdisable(struct iio_dev *indio_dev)
+static int ad4000_offload_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct ad4000_state *st = iio_priv(indio_dev);
 
@@ -853,7 +853,7 @@ static int ad4000_offload_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops ad4000_offload_buffer_setup_ops = {
 	.postenable = &ad4000_offload_buffer_postenable,
-	.postdisable = &ad4000_offload_buffer_postdisable,
+	.predisable = &ad4000_offload_buffer_predisable,
 };
 
 static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
