@@ -1080,6 +1080,7 @@ static int ad4000_probe(struct spi_device *spi)
 	st->sdi_pin = ret == -EINVAL ? AD4000_SDI_MOSI : ret;
 	switch (st->sdi_pin) {
 	case AD4000_SDI_MOSI:
+		indio_dev->info = &ad4000_reg_access_info;
 
 		/* Set CNV/CS high time for when turbo mode is used */
 		spi->cs_inactive.value = st->time_spec->t_quiet1_ns;
@@ -1094,8 +1095,6 @@ static int ad4000_probe(struct spi_device *spi)
 		ret = spi_setup(spi);
 		if (ret < 0)
 			return ret;
-
-		indio_dev->info = &ad4000_reg_access_info;
 
 		if (st->using_offload) {
 			indio_dev->channels = &chip->reg_access_offload_chan_spec;
