@@ -1168,8 +1168,6 @@ static int ad4000_probe(struct spi_device *spi)
 			indio_dev->channels = &chip->offload_chan_spec;
 			indio_dev->num_channels = 1;
 
-			spi->cs_hold.value = st->time_spec->t_conv_ns;
-			spi->cs_hold.unit = SPI_DELAY_UNIT_NSECS;
 			ret = ad4000_prepare_offload_message(st, indio_dev->channels);
 			if (ret)
 				return dev_err_probe(dev, ret,
