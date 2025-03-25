@@ -1035,9 +1035,7 @@ static int ad4000_prepare_4wire_mode_message(struct ad4000_state *st,
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	xfers[1].rx_buf = &st->scan.data;
-	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
-	if (chan->scan_type.endianness != IIO_BE)
-		xfers[1].bits_per_word = chan->scan_type.realbits;
+	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
 
 	spi_message_init_with_transfers(&st->msg, st->xfers, 2);
 
