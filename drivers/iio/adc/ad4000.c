@@ -891,48 +891,6 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
 /*
  * This executes a data sample transfer when using SPI offloading for when the
  * device connections are in "3-wire" mode, selected when the adi,sdi-pin device
- * tree property is absent. In this connection mode, the ADC SDI pin is
- * connected to MOSI or to VIO and ADC CNV pin is connected to a SPI controller
- * CS (it can't be connected to a GPIO).
- *
- * In order to achieve the maximum sample rate, we only do one transfer per
- * SPI offload trigger. Because the ADC output has a one sample latency (delay)
- * when the device is wired in "3-wire" mode and only one transfer per sample is
- * being made in turbo mode, the first data sample is not valid because it
- * contains the output of an earlier conversion result. We also set transfer
- * `bits_per_word` to achieve higher throughput by using the minimum number of
- * SCLK cycles. Also, a delay is added to make sure we meet the minimum quiet
- * time before releasing the CS line. Plus the CS change delay is set to ensure
- * that we meet the minimum quiet time before asserting CS again.
- *
- * Note that, with `bits_per_word` set to the number of ADC precision bits,
- * transfers use larger word sizes that get stored in 'in-memory wordsizes' that
- * are always in native CPU byte order. Because of that, IIO buffer elements
- * ought to be read in CPU endianness which requires setting IIO scan_type
- * endianness accordingly (i.e. IIO_CPU).
- *
- * This timing is only valid if turbo mode is enabled (reading during conversion).
- */
-static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
-						const struct iio_chan_spec *chan)
-{
-	struct spi_transfer *xfers = st->offload_xfers;
-
-	xfers[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
-	xfers[0].bits_per_word = chan->scan_type.realbits;
-	xfers[0].len = chan->scan_type.realbits > 16 ? 4 : 2;
-	xfers[0].delay.value = st->time_spec->t_quiet2_ns;
-	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	spi_message_init_with_transfers(&st->offload_msg, xfers, 1);
-	st->offload_msg.offload = st->offload;
-
-	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->offload_msg);
-}
-
-/*
- * This executes a data sample transfer when using SPI offloading for when the
- * device connections are in "3-wire" mode, selected when the adi,sdi-pin device
  * tree property is set to "high". In this connection mode, the ADC SDI pin is
  * connected to VIO and ADC CNV pin is connected to a SPI controller CS (it
  * can't be connected to a GPIO).
@@ -1139,7 +1097,7 @@ static int ad4000_probe(struct spi_device *spi)
 		if (st->using_offload) {
 			indio_dev->channels = &chip->reg_access_offload_chan_spec;
 			indio_dev->num_channels = 1;
-			ret = ad4000_prepare_offload_turbo_message(st, indio_dev->channels);
+			ret = ad4000_prepare_offload_message(st, indio_dev->channels);
 			if (ret)
 				return dev_err_probe(dev, ret,
 						     "Failed to optimize SPI msg\n");
