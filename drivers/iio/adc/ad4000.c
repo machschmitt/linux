@@ -1179,6 +1179,7 @@ static int ad4000_probe(struct spi_device *spi)
 			indio_dev->channels = chip->chan_spec;
 			indio_dev->num_channels = ARRAY_SIZE(chip->chan_spec);
 		}
+
 		ret = ad4000_prepare_3wire_mode_message(st, &indio_dev->channels[0]);
 		if (ret)
 			return dev_err_probe(dev, ret,
