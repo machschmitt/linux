@@ -918,19 +918,13 @@ static int ad4000_prepare_offload_turbo_message(struct ad4000_state *st,
 {
 	struct spi_transfer *xfers = st->offload_xfers;
 
-	/* Have to do a short CS toggle to trigger conversion. */
-	xfers[0].cs_change = 1;
-	xfers[0].cs_change_delay.value = AD4000_TQUIET1_NS;
-	xfers[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
 	xfers[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
+	xfers[0].bits_per_word = chan->scan_type.realbits;
+	xfers[0].len = chan->scan_type.realbits > 16 ? 4 : 2;
+	xfers[0].delay.value = st->time_spec->t_quiet2_ns;
+	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
 
-	xfers[1].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
-	xfers[1].bits_per_word = chan->scan_type.realbits;
-	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
-	xfers[1].delay.value = st->time_spec->t_quiet2_ns;
-	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
-
-	spi_message_init_with_transfers(&st->offload_msg, xfers, 2);
+	spi_message_init_with_transfers(&st->offload_msg, xfers, 1);
 	st->offload_msg.offload = st->offload;
 
 	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->offload_msg);
