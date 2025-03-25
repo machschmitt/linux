@@ -1004,6 +1004,13 @@ static int ad4000_prepare_3wire_mode_message(struct ad4000_state *st,
 
 	xfers[1].rx_buf = &st->scan.data;
 	xfers[1].len = chan->scan_type.realbits > 16 ? 4 : 2;
+
+	/*
+	 * If the device is set up for SPI offloading, IIO channel scan_type is
+	 * set to IIO_CPU. When that is the case, use larger SPI word sizes for
+	 * single-shot reads too. Thus, sample data can be correctly handled in
+	 * ad4000_single_conversion() according to scan_type endianness.
+	 */
 	if (chan->scan_type.endianness != IIO_BE)
 		xfers[1].bits_per_word = chan->scan_type.realbits;
 	xfers[1].delay.value = st->time_spec->t_quiet2_ns;
