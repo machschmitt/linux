@@ -909,8 +909,6 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
  * are always in native CPU byte order. Because of that, IIO buffer elements
  * ought to be read in CPU endianness which requires setting IIO scan_type
  * endianness accordingly (i.e. IIO_CPU).
- *
- * This timing is only valid if turbo mode is disabled (reading during acquisition).
  */
 static int ad4000_prepare_offload_message(struct ad4000_state *st,
 					  const struct iio_chan_spec *chan)
