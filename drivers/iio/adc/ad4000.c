@@ -471,7 +471,6 @@ static const struct ad4000_chip_info ad7983_chip_info = {
 	.offload_chan_spec = AD4000_PSEUDO_DIFF_CHANNEL('u', 16, 0, 1),
 	.time_spec = &ad7983_t_spec,
 	.max_rate_hz = 1 * MEGA + 333 * KILO + 333,
-
 };
 
 static const struct ad4000_chip_info ad7984_chip_info = {
