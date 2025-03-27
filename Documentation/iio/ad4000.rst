@@ -201,6 +201,10 @@ SPI offload support.
 
 .. _AXI SPI Engine: http://analogdevicesinc.github.io/hdl/projects/pulsar_adc/index.html
 
+To keep up with SPI offloading transfer speeds, the ADC must be connected either
+in 3-wire turbo mode or in 3-wire without busy indicator mode and have SPI
+controller CS line connected to the CNV pin.
+
 When set for SPI offload support, the IIO device will provide different
 interfaces.
 
