@@ -888,11 +888,10 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
 }
 
 /*
- * This executes a data sample transfer when using SPI offloading for when the
- * device connections are in "3-wire" mode, selected when the adi,sdi-pin device
- * tree property is set to "high". In this connection mode, the ADC SDI pin is
- * connected to VIO and ADC CNV pin is connected to a SPI controller CS (it
- * can't be connected to a GPIO).
+ * This executes a data sample transfer when using SPI offloading. The device
+ * connections should be in "3-wire" mode, selected either when the adi,sdi-pin
+ * device tree property is absent or set to "high". Also, the ADC CNV pin must
+ * be connected to a SPI controller CS (it can't be connected to a GPIO).
  *
  * In order to achieve the maximum sample rate, we only do one transfer per
  * SPI offload trigger. Because the ADC output has a one sample latency (delay)
