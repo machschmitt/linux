@@ -1080,10 +1080,6 @@ static int ad4000_probe(struct spi_device *spi)
 	case AD4000_SDI_MOSI:
 		indio_dev->info = &ad4000_reg_access_info;
 
-		/* Set CNV/CS high time for when turbo mode is used */
-		spi->cs_inactive.value = st->time_spec->t_quiet1_ns;
-		spi->cs_inactive.unit = SPI_DELAY_UNIT_NSECS;
-
 		/*
 		 * In "3-wire mode", the ADC SDI line must be kept high when
 		 * data is not being clocked out of the controller.
@@ -1125,15 +1121,6 @@ static int ad4000_probe(struct spi_device *spi)
 			indio_dev->info = &ad4000_offload_info;
 			indio_dev->channels = &chip->offload_chan_spec;
 			indio_dev->num_channels = 1;
-
-			/* Set CNV/CS high time for when turbo mode is not used */
-			if (!st->cnv_gpio) {
-				spi->cs_inactive.value = st->time_spec->t_conv_ns;
-				spi->cs_inactive.unit = SPI_DELAY_UNIT_NSECS;
-				ret = spi_setup(spi);
-				if (ret < 0)
-					return ret;
-			}
 
 			ret = ad4000_prepare_offload_message(st, indio_dev->channels);
 			if (ret)
