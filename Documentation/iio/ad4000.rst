@@ -195,8 +195,9 @@ Typical voltage channel attributes of a differential AD4000 series device:
 SPI offload support
 -------------------
 
-To be able to achieve the maximum sample rate, the driver can be used with the
-`AXI SPI Engine`_ to provide SPI offload support.
+To be able to achieve the maximum sample rate, the driver can be used with SPI
+offload engines such as the one usually present in `AXI SPI Engine`_, to provide
+SPI offload support.
 
 .. _AXI SPI Engine: http://analogdevicesinc.github.io/hdl/projects/pulsar_adc/index.html
 
