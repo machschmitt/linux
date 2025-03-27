@@ -65,7 +65,7 @@
 			      (_reg_access), (_offl))
 
 /*
- * When SPI offload is configured, transfers are executed withouth CPU
+ * When SPI offload is configured, transfers are executed without CPU
  * intervention so no soft timestamp can be recorded when transfers run.
  * Because of that, the macros that set timestamp channel are only used when
  * transfers are not offloaded.
