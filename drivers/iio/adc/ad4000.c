@@ -134,7 +134,6 @@ static const int ad4000_gains[] = {
 
 struct ad4000_time_spec {
 	int t_conv_ns;
-	int t_quiet1_ns;
 	int t_quiet2_ns;
 };
 
@@ -144,63 +143,54 @@ struct ad4000_time_spec {
  */
 static const struct ad4000_time_spec ad4000_t_spec = {
 	.t_conv_ns = 320,
-	.t_quiet1_ns = 190,
 	.t_quiet2_ns = 60,
 };
 
 /* AD4020, AD4021, AD4022 */
 static const struct ad4000_time_spec ad4020_t_spec = {
 	.t_conv_ns = 350,
-	.t_quiet1_ns = 200,
 	.t_quiet2_ns = 60,
 };
 
 /* AD7983, AD7984 */
 static const struct ad4000_time_spec ad7983_t_spec = {
 	.t_conv_ns = 500,
-	.t_quiet1_ns = 0,
 	.t_quiet2_ns = 0,
 };
 
 /* AD7980, AD7982 */
 static const struct ad4000_time_spec ad7980_t_spec = {
 	.t_conv_ns = 800,
-	.t_quiet1_ns = 0,
 	.t_quiet2_ns = 0,
 };
 
 /* AD7946, AD7686, AD7688, AD7988-5, AD7693 */
 static const struct ad4000_time_spec ad7686_t_spec = {
 	.t_conv_ns = 1600,
-	.t_quiet1_ns = 0,
 	.t_quiet2_ns = 0,
 };
 
 /* AD7690 */
 static const struct ad4000_time_spec ad7690_t_spec = {
 	.t_conv_ns = 2100,
-	.t_quiet1_ns = 0,
 	.t_quiet2_ns = 0,
 };
 
 /* AD7942, AD7685, AD7687 */
 static const struct ad4000_time_spec ad7687_t_spec = {
 	.t_conv_ns = 3200,
-	.t_quiet1_ns = 0,
 	.t_quiet2_ns = 0,
 };
 
 /* AD7691 */
 static const struct ad4000_time_spec ad7691_t_spec = {
 	.t_conv_ns = 3700,
-	.t_quiet1_ns = 0,
 	.t_quiet2_ns = 0,
 };
 
 /* AD7988-1 */
 static const struct ad4000_time_spec ad7988_1_t_spec = {
 	.t_conv_ns = 9500,
-	.t_quiet1_ns = 0,
 	.t_quiet2_ns = 0,
 };
 
