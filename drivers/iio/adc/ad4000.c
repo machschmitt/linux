@@ -507,7 +507,7 @@ struct ad4000_state {
 	struct gpio_desc *cnv_gpio;
 	struct spi_transfer xfers[2];
 	struct spi_message msg;
-	struct spi_transfer offload_xfers[2];
+	struct spi_transfer offload_xfer;
 	struct spi_message offload_msg;
 	struct spi_offload *offload;
 	struct spi_offload_trigger *offload_trigger;
@@ -911,15 +911,15 @@ static int ad4000_spi_offload_setup(struct iio_dev *indio_dev,
 static int ad4000_prepare_offload_message(struct ad4000_state *st,
 					  const struct iio_chan_spec *chan)
 {
-	struct spi_transfer *xfers = st->offload_xfers;
+	struct spi_transfer *xfer = &st->offload_xfer;
 
-	xfers[0].bits_per_word = chan->scan_type.realbits;
-	xfers[0].len = chan->scan_type.realbits > 16 ? 4 : 2;
-	xfers[0].delay.value = st->time_spec->t_quiet2_ns;
-	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
-	xfers[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
+	xfer->bits_per_word = chan->scan_type.realbits;
+	xfer->len = chan->scan_type.realbits > 16 ? 4 : 2;
+	xfer->delay.value = st->time_spec->t_quiet2_ns;
+	xfer->delay.unit = SPI_DELAY_UNIT_NSECS;
+	xfer->offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 
-	spi_message_init_with_transfers(&st->offload_msg, xfers, 1);
+	spi_message_init_with_transfers(&st->offload_msg, xfer, 1);
 	st->offload_msg.offload = st->offload;
 
 	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->offload_msg);
