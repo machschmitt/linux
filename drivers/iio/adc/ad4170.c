@@ -7,15 +7,11 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
-#include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -28,11 +24,8 @@
 #include <linux/math64.h>
 #include <linux/unaligned.h>
 
-#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
-#include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
 /*
@@ -52,7 +45,6 @@
  * their datasheet counterpart names to provide better code readability.
  */
 #define AD4170_CONFIG_A_REG				0x00
-#define AD4170_CONFIG_B_REG				0x01
 #define AD4170_DEV_CONFIG_REG				0x02
 #define AD4170_CHIP_TYPE_REG				0x03
 #define AD4170_PROD_ID_L_REG				0x04
@@ -69,8 +61,6 @@
 #define AD4170_DATA_16B_STATUS_REG			0x1A
 #define AD4170_DATA_24B_REG				0x1E
 #define AD4170_PIN_MUXING_REG				0x69
-#define AD4170_CLOCK_CTRL_REG				0x6B
-#define AD4170_POWER_DOWN_SW_REG			0x6F
 #define AD4170_ADC_CTRL_REG				0x71
 #define AD4170_CHAN_EN_REG				0x79
 #define AD4170_CHAN_SETUP_REG(x)			(0x81 + 4 * (x))
@@ -81,14 +71,10 @@
 #define AD4170_FILTER_FS_REG(x)				(0xC7 + 14 * (x))
 #define AD4170_OFFSET_REG(x)				(0xCA + 14 * (x))
 #define AD4170_GAIN_REG(x)				(0xCD + 14 * (x))
-#define AD4170_INT_VREF_CTRL_REG			0x131
 #define AD4170_V_BIAS_REG				0x135
-#define AD4170_CURRENT_SRC_REG(x)			(0x139 + 2 * (x))
 #define AD4170_FIR_CTRL					0x141
-#define AD4170_V_BIAS_REG				0x135
 #define AD4170_COEFF_DATA_REG				0x14A
 #define AD4170_COEFF_ADDR_REG				0x14C
-#define AD4170_GPIO_MODE_REG				0x191
 #define AD4170_GPIO_OUTPUT_REG				0x193
 #define AD4170_GPIO_INPUT_REG				0x195
 
@@ -101,13 +87,6 @@
 #define AD4170_PIN_MUXING_DIG_AUX2_CTRL_MSK		GENMASK(7, 6)
 #define AD4170_PIN_MUXING_DIG_AUX1_CTRL_MSK		GENMASK(5, 4)
 #define AD4170_PIN_MUXING_SYNC_CTRL_MSK			GENMASK(3, 2)
-
-/* AD4170_CLOCK_CTRL_REG */
-#define AD4170_CLOCK_CTRL_CLOCKSEL_MSK			GENMASK(1, 0)
-
-/* AD4170_POWER_DOWN_SW_REG */
-#define AD4170_POWER_DOWN_SW_PDSW1_MSK			BIT(1)
-#define AD4170_POWER_DOWN_SW_PDSW0_MSK			BIT(0)
 
 /* AD4170_ADC_CTRL_REG */
 #define AD4170_ADC_CTRL_MULTI_DATA_REG_SEL_MSK		BIT(7)
@@ -139,17 +118,7 @@
 /* AD4170_FILTER_REG */
 #define AD4170_FILTER_FILTER_TYPE_MSK			GENMASK(3, 0)
 
-/* AD4170_CURRENT_SRC_REG */
-#define AD4170_CURRENT_SRC_I_OUT_PIN_MSK		GENMASK(12, 8)
-#define AD4170_CURRENT_SRC_I_OUT_VAL_MSK		GENMASK(2, 0)
-
 /* AD4170 register constants */
-
-/* AD4170_CLOCK_CTRL_REG constants */
-#define AD4170_CLOCK_CTRL_CLOCKSEL_INT			0x0
-#define AD4170_CLOCK_CTRL_CLOCKSEL_INT_OUT		0x1
-#define AD4170_CLOCK_CTRL_CLOCKSEL_EXT			0x2
-#define AD4170_CLOCK_CTRL_CLOCKSEL_EXT_XTAL		0x3
 
 /* AD4170_CHAN_MAP_REG constants */
 #define AD4170_CHAN_MAP_AIN(x)			(x)
@@ -199,7 +168,6 @@
 /* Device properties and auxiliary constants */
 
 #define AD4170_NUM_ANALOG_PINS				9
-#define AD4170_NUM_GPIO_PINS				4
 #define AD4170_MAX_CHANNELS				16
 #define AD4170_MAX_ANALOG_PINS				8
 #define AD4170_MAX_SETUPS				8
@@ -226,36 +194,15 @@
 
 #define AD4170_ADC_CTRL_CONT_READ_EXIT			0xA5
 
-enum ad4170_sensor_type {
-	AD4170_ADC_SENSOR = 0,
-	AD4170_WEIGH_SCALE_SENSOR = 1,
-	AD4170_THERMOCOUPLE_SENSOR = 2,
-	AD4170_RTD_SENSOR = 3,
-};
-
 /* Analog pin functions  */
 #define AD4170_PIN_UNASIGNED				0x00
 #define AD4170_PIN_ANALOG_IN				0x01
 #define AD4170_PIN_CURRENT_OUT				0x02
-#define AD4170_PIN_VBIAS				0x04
 
-/* GPIO pin functions  */
-#define AD4170_GPIO_UNASIGNED				0x00
-#define AD4170_GPIO_PW_DOW_SWITCH			0x01
-#define AD4170_GPIO_AC_EXCITATION			0x02
-#define AD4170_GPIO_OUTPUT				0x04
-
-/**
- * @enum ad4170_ref_buf
- * @brief REFIN Buffer Enable.
- */
 enum ad4170_ref_buf {
-	/** Pre-charge Buffer. */
-	AD4170_REF_BUF_PRE,
-	/** Full Buffer.*/
-	AD4170_REF_BUF_FULL,
-	/** Bypass */
-	AD4170_REF_BUF_BYPASS
+	AD4170_REF_BUF_PRE,	/* Pre-charge referrence buffer */
+	AD4170_REF_BUF_FULL,	/* Full referrence buffering */
+	AD4170_REF_BUF_BYPASS	/* Bypass referrence buffering */
 };
 
 enum ad4170_ref_select {
@@ -265,52 +212,10 @@ enum ad4170_ref_select {
 	AD4170_REF_AVDD
 };
 
-/**
- * @enum ad4170_filter_type
- * @brief Filter Mode for Sinc-Based Filters.
- */
 enum ad4170_filter_type {
 	AD4170_SINC5_AVG,
 	AD4170_SINC5,
 	AD4170_SINC3,
-};
-
-#define AD4170_IOUT_AIN0		0
-#define AD4170_IOUT_AIN1		1
-#define AD4170_IOUT_AIN2		2
-#define AD4170_IOUT_AIN3		3
-#define AD4170_IOUT_AIN4		4
-#define AD4170_IOUT_AIN5		5
-#define AD4170_IOUT_AIN6		6
-#define AD4170_IOUT_AIN7		7
-#define AD4170_IOUT_AIN8		8
-#define AD4170_IOUT_GPIO0		17
-#define AD4170_IOUT_GPIO1		18
-#define AD4170_IOUT_GPIO2		19
-#define AD4170_IOUT_GPIO3		20
-
-static const unsigned int ad4170_iout_pin_tbl[] = {
-	AD4170_IOUT_AIN0,
-	AD4170_IOUT_AIN1,
-	AD4170_IOUT_AIN2,
-	AD4170_IOUT_AIN3,
-	AD4170_IOUT_AIN4,
-	AD4170_IOUT_AIN5,
-	AD4170_IOUT_AIN6,
-	AD4170_IOUT_AIN7,
-	AD4170_IOUT_AIN8,
-	AD4170_IOUT_GPIO0,
-	AD4170_IOUT_GPIO1,
-	AD4170_IOUT_GPIO2,
-	AD4170_IOUT_GPIO3,
-};
-
-static const unsigned int ad4170_iout_current_ua_tbl[] = {
-	0, 10, 50, 100, 250, 500, 1000, 1500
-};
-
-static const unsigned int ad4170_burnout_current_na_tbl[] = {
-	0, 100, 2000, 10000
 };
 
 enum ad4170_regulator {
@@ -324,10 +229,6 @@ enum ad4170_regulator {
 	AD4170_MAX_SUP
 };
 
-static const char *const ad4170_clk_sel[] = {
-	"ext-clk", "xtal"
-};
-
 enum ad4170_int_pin_sel {
 	AD4170_INT_PIN_SDO,
 	AD4170_INT_PIN_DIG_AUX1,
@@ -339,41 +240,14 @@ static const char * const ad4170_int_pin_names[] = {
 };
 
 static const unsigned int ad4170_sinc3_filt_fs_tbl[] = {
-	4,
-	8,
-	12,
-	16,
-	20,
-	40,
-	48,
-	80,
-	100,
-	256,
-	500,
-	1000,
-	5000,
-	8332,
-	10000,
-	25000,
-	50000,
-	65532
+	4, 8, 12, 16, 20, 40, 48, 80, 100, 256, 500, 1000, 5000, 8332, 10000,
+	25000, 50000, 65532
 };
 
 #define AD4170_MAX_FS_TBL_SIZE		ARRAY_SIZE(ad4170_sinc3_filt_fs_tbl)
 
 static const unsigned int ad4170_sinc5_filt_fs_tbl[] = {
-	1,
-	2,
-	4,
-	8,
-	12,
-	16,
-	20,
-	40,
-	48,
-	80,
-	100,
-	256
+	1, 2, 4, 8, 12, 16, 20, 40, 48, 80, 100, 256
 };
 
 struct ad4170_chip_info {
@@ -424,11 +298,11 @@ struct ad4170_setup_info {
 };
 
 struct ad4170_chan_info {
-	int setup_num; /* Index to access state setup_infos array */
+	unsigned int input_range_uv;
+	unsigned int setup_num; /* Index to access state setup_infos array */
 	struct ad4170_setup setup; /* cached setup */
-	int input_range_uv;
-	u32 scale_tbl[10][2];
 	int offset_tbl[10];
+	u32 scale_tbl[10][2];
 	bool initialized;
 	bool enabled;
 };
@@ -445,31 +319,16 @@ struct ad4170_state {
 	struct regmap *regmap24;
 	struct spi_device *spi;
 	int vrefs_uv[AD4170_MAX_SUP];
-	struct mutex lock; /* Protect device register write operations */
+	u32 int_pin_sel;
+	struct mutex lock; /* Protect read-modify-write and multi write sequences */
 	struct iio_chan_spec chans[AD4170_MAX_CHANNELS];
 	struct ad4170_chan_info chan_infos[AD4170_MAX_CHANNELS];
 	struct ad4170_setup_info setup_infos[AD4170_MAX_SETUPS];
-	u32 mclk_hz;
 	int pins_fn[AD4170_NUM_ANALOG_PINS];
-	int gpio_fn[AD4170_NUM_GPIO_PINS];
-	u32 int_pin_sel;
-	unsigned int clock_ctrl;
-	struct clk *ext_clk;
-	struct clk_hw int_clk_hw;
 	int sps_tbl[ARRAY_SIZE(ad4170_filt_names)][AD4170_MAX_FS_TBL_SIZE][2];
+	u32 mclk_hz;
 	struct completion completion;
-	u32 data[AD4170_MAX_CHANNELS];
 	struct iio_trigger *trig;
-
-	struct spi_transfer xfer;
-	struct spi_message msg;
-	/*
-	 * DMA (thus cache coherency maintenance) requires the transfer buffers
-	 * to live in their own cache lines.
-	 */
-	u8 reg_write_tx_buf[6] __aligned(IIO_DMA_MINALIGN);
-	__be32 reg_read_rx_buf;
-	__be16 reg_read_tx_buf;
 };
 
 static void ad4170_fill_sps_tbl(struct ad4170_state *st)
@@ -1080,52 +939,20 @@ static const struct iio_chan_spec ad4170_channel_template = {
 	},
 };
 
-static int _ad4170_find_table_index(const unsigned int *tbl, size_t len,
-				    unsigned int val)
-{
-	unsigned int i;
-
-	for (i = 0; i < len; i++)
-		if (tbl[i] == val)
-			return i;
-
-	return -EINVAL;
-}
-
-#define ad4170_find_table_index(table, val) \
-	_ad4170_find_table_index(table, ARRAY_SIZE(table), val)
-
 /*
- * Receives the device state, the number of a multiplexed input (AINP_N
- * or AIM_N), and stores the voltage (in µV) of the specified input into the
- * third argument. If the input number is not one of the special multiplexed
- * inputs ((AVDD-AVSS)/5, ..., REFOUT), stores zero to the voltage argument.
- * If a voltage regulator required by the special input is unavailable, return
+ * Receives the number of a multiplexed AD4170 input (ain_n), and stores the
+ * voltage (in µV) of the specified input into ain_voltage. If the input number
+ * is a ordinary analog input (AIN0 to AIN8), stores zero into ain_voltage.
+ * If a voltage regulator required by a special input is unavailable, return
  * error code. Return 0 on success.
- *
- * @st: pointer to device state struct
- * @ain_n: number of a multiplexed AD4170 input
- * @ain_voltage: pointer to a variable where to store ain_n voltage
  */
-static int ad4170_get_AINM_voltage_uv(struct ad4170_state *st, int ain_n,
-				      int *ain_voltage)
+static int ad4170_get_ain_voltage_uv(struct ad4170_state *st, int ain_n,
+				     int *ain_voltage)
 {
 	struct device *dev = &st->spi->dev;
 	int v_diff;
 
 	*ain_voltage = 0;
-	/*
-	 * The voltage bias (vbias) sets the common-mode voltage of the channel
-	 * to (AVDD + AVSS)/2. If provided, AVSS supply provides the magnitude
-	 * of the negative voltage supplied to the AVSS pin so we do AVDD - AVSS
-	 * to compute the DC voltage generated by the bias voltage generator.
-	 */
-	if (st->pins_fn[ain_n] & AD4170_PIN_VBIAS) {
-		*ain_voltage = (st->vrefs_uv[AD4170_AVDD_SUP]
-				- st->vrefs_uv[AD4170_AVSS_SUP]) / 2;
-		return 0;
-	}
-
 	if (ain_n <= AD4170_CHAN_MAP_TEMP_SENSOR)
 		return 0;
 
@@ -1213,33 +1040,22 @@ static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool 
 /*
  * Verifies whether the channel input configuration is valid by checking the
  * provided input type and input numbers.
- * Returns 0 on valid channel input configuration. -EINVAl otherwise.
+ * Returns 0 on valid channel input configuration. -EINVAL otherwise.
  */
 static int ad4170_validate_channel(struct ad4170_state *st,
 				   struct iio_chan_spec const *chan)
 {
 	int ret;
 
-	/* Check temperature channel mapping. */
-	if (chan->channel == AD4170_CHAN_MAP_TEMP_SENSOR) {
-		if (chan->channel2 != AD4170_CHAN_MAP_TEMP_SENSOR)
-			return dev_err_probe(&st->spi->dev, -EINVAL,
-					     "Invalid temperature channel pin. %d\n",
-					     chan->channel2);
-
-		return 0;
-	}
-
 	ret = ad4170_validate_channel_input(st, chan->channel, false);
 	if (ret)
 		return ret;
 
-	return ad4170_validate_channel_input(st, chan->channel2, !chan->differential);
+	return ad4170_validate_channel_input(st, chan->channel2,
+					     !chan->differential);
 }
 
 /*
- * Receives the device state, the channel spec, a reference selection, and
- * returns the magnitude of the allowed input range in µV.
  * Verifies whether the channel configuration is valid by checking the provided
  * input type, polarity, and voltage references result in a sane input range.
  * Returns negative error code on failure.
@@ -1290,7 +1106,7 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	 * voltage reference selection.
 	 * AD4170 channels are either differential or pseudo-differential.
 	 * Diff input voltage range: −VREF/gain to +VREF/gain (datasheet page 6)
-	 * Single-ended input voltage range: 0 to VREF/gain (datasheet page 6)
+	 * Pseudo-diff input voltage range: 0 to VREF/gain (datasheet page 6)
 	 */
 	if (chan->differential) {
 		if (!bipolar)
@@ -1309,7 +1125,7 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	/*
 	 * Some configurations can lead to invalid setups.
 	 * For example, if AVSS = -2.5V, REF_SELECT set to REFOUT (REFOUT/AVSS),
-	 * and single-ended channel configuration set, then the input range
+	 * and pseudo-diff channel configuration set, then the input range
 	 * should go from 0V to +VREF (single-ended - datasheet pg 10), but
 	 * REFOUT/AVSS range would be -2.5V to 0V.
 	 * Check the positive reference is higher than 0V for pseudo-diff
@@ -1325,9 +1141,9 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 
 	/*
 	 * Pseudo-differential unipolar channel.
-	 * Input allowed to swing from IN- to +VREF.
+	 * Input expected to swing from IN- to +VREF.
 	 */
-	ret = ad4170_get_AINM_voltage_uv(st, chan->channel2, &ain_voltage);
+	ret = ad4170_get_ain_voltage_uv(st, chan->channel2, &ain_voltage);
 	if (ret)
 		return ret;
 
@@ -1348,9 +1164,9 @@ static int ad4170_read_sample(struct iio_dev *indio_dev,
 	guard(mutex)(&st->lock);
 	/*
 	 * The ADC sequences through all the enabled channels. That can lead to
-	 * incorrect channel being sampled if another single-shot (or buffered)
-	 * read is done with a different channel enabled. Thus, always enable
-	 * and disable the channel on single-shot read.
+	 * incorrect channel being sampled if a previous read would left a
+	 * different channel enabled. Thus, always enable and disable the
+	 * channel on single-shot read.
 	 */
 	ret = ad4170_set_channel_enable(st, chan->address, true);
 	if (ret)
@@ -1425,8 +1241,6 @@ static int ad4170_read_raw(struct iio_dev *indio_dev,
 		switch (f_type) {
 		case AD4170_SINC5_AVG:
 		case AD4170_SINC3:
-			//TODO use something other than find_closest
-			//https://lore.kernel.org/lkml/41c6f424ed42655a62a7b66aa81604605676a551.camel@gmail.com/
 			fs_idx = find_closest(setup->filter_fs,
 					      ad4170_sinc3_filt_fs_tbl,
 					      ARRAY_SIZE(ad4170_sinc3_filt_fs_tbl));
@@ -1467,7 +1281,7 @@ static int ad4170_fill_scale_tbl(struct iio_dev *indio_dev,
 	unsigned long long offset;
 
 	ainm_voltage = 0;
-	ret = ad4170_get_AINM_voltage_uv(st, chan->channel2, &ainm_voltage);
+	ret = ad4170_get_ain_voltage_uv(st, chan->channel2, &ainm_voltage);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to fill scale table\n");
 
@@ -1488,8 +1302,8 @@ static int ad4170_fill_scale_tbl(struct iio_dev *indio_dev,
 		 * AD4170 gain is a power of 2 so the above can be written as
 		 * _scale = input_range / 2^(precision + gain)
 		 * Keep the input range in µV to avoid truncating the less
-		 * significan bits when right shifting it and thus preserve
-		 * scale precision.
+		 * significan bits when right shifting it so to preserve scale
+		 * precision.
 		 */
 		nv = (u64)chan_info->input_range_uv * NANO;
 		lshift = (pga >> 3 & 1);  /* handle options 8 and 9 */
@@ -1560,23 +1374,6 @@ static int ad4170_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
-static int ad4170_write_raw_get_fmt(struct iio_dev *indio_dev,
-				    struct iio_chan_spec const *chan,
-				    long info)
-{
-	switch (info) {
-	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		return IIO_VAL_INT_PLUS_MICRO;
-	case IIO_CHAN_INFO_CALIBBIAS:
-	case IIO_CHAN_INFO_CALIBSCALE:
-		return IIO_VAL_INT;
-	default:
-		return -EINVAL;
-	}
-}
-
 static int ad4170_set_pga(struct ad4170_state *st,
 			  struct iio_chan_spec const *chan, int val, int val2)
 {
@@ -1619,8 +1416,8 @@ static int ad4170_set_channel_freq(struct ad4170_state *st,
 	struct ad4170_chan_info *chan_info = &st->chan_infos[chan->address];
 	struct ad4170_setup *setup = &chan_info->setup;
 	enum ad4170_filter_type f_type = __ad4170_get_filter_type(setup->filter);
-	int filt_fs_tbl_size, i, ret = 0;
-	unsigned int old_filter_fs;
+	unsigned int old_filter_fs, i;
+	int filt_fs_tbl_size, ret;
 
 	switch (f_type) {
 	case AD4170_SINC5_AVG:
@@ -1726,21 +1523,21 @@ static int ad4170_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int ad4170_update_scan_mode(struct iio_dev *indio_dev,
-				   const unsigned long *active_scan_mask)
+static int ad4170_write_raw_get_fmt(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan,
+				    long info)
 {
-	struct ad4170_state *st = iio_priv(indio_dev);
-	unsigned int chan_index;
-	int ret;
-
-	guard(mutex)(&st->lock);
-
-	iio_for_each_active_channel(indio_dev, chan_index) {
-		ret = ad4170_set_channel_enable(st, chan_index, true);
-		if (ret)
-			return ret;
+	switch (info) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_CALIBBIAS:
+	case IIO_CHAN_INFO_CALIBSCALE:
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
 	}
-	return 0;
 }
 
 static const struct iio_info ad4170_info = {
@@ -1748,7 +1545,6 @@ static const struct iio_info ad4170_info = {
 	.read_avail = ad4170_read_avail,
 	.write_raw = ad4170_write_raw,
 	.write_raw_get_fmt = ad4170_write_raw_get_fmt,
-	.update_scan_mode = ad4170_update_scan_mode,
 	.debugfs_reg_access = ad4170_debugfs_reg_access,
 };
 
@@ -1767,262 +1563,35 @@ static int ad4170_soft_reset(struct ad4170_state *st)
 	return 0;
 }
 
-/*
- * Verifies whether the provided pins can be used for external bridge circuit
- * excitation.
- * Returns 0 on valid channel input configuration. -EINVAl otherwise.
- */
-static int ad4170_validate_excitation_pins(struct ad4170_state *st,
-					   u32 *exc_pins, int num_exc_pins)
-{
-	struct device *dev = &st->spi->dev;
-	int ret, i;
-
-	for (i = 0; i < num_exc_pins; i++) {
-		unsigned int pin = exc_pins[i];
-
-		ret = ad4170_find_table_index(ad4170_iout_pin_tbl, pin);
-		if (ret < 0)
-			return dev_err_probe(dev, ret,
-					     "Invalid excitation pin: %u\n",
-					     pin);
-
-		if (pin <= AD4170_MAX_ANALOG_PINS) {
-			if (st->pins_fn[pin] != AD4170_PIN_UNASIGNED)
-				return dev_err_probe(dev, -EINVAL,
-						     "Pin %u already used with fn %u\n",
-						     pin, st->pins_fn[pin]);
-
-			st->pins_fn[pin] = AD4170_PIN_CURRENT_OUT;
-		} else {
-			unsigned int gpio = pin - AD4170_IOUT_GPIO0;
-
-			if (st->gpio_fn[gpio] != AD4170_GPIO_UNASIGNED)
-				return dev_err_probe(dev, -EINVAL,
-						     "GPIO %u already used with fn %u\n",
-						     gpio, st->gpio_fn[gpio]);
-
-			st->gpio_fn[gpio] = AD4170_GPIO_AC_EXCITATION;
-		}
-	}
-	return 0;
-}
-
-static int ad4170_setup_rtd(struct ad4170_state *st,
-			    struct fwnode_handle *child,
-			    struct ad4170_setup *setup, u32 *exc_pins,
-			    int num_exc_pins, int exc_cur, bool ac_excited)
-{
-	int current_src, ret, i;
-
-	for (i = 0; i < num_exc_pins; i++) {
-		unsigned int pin = exc_pins[i];
-
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
-
-		ret = regmap_write(st->regmap16, AD4170_CURRENT_SRC_REG(i),
-				   current_src);
-		if (ret)
-			return ret;
-	}
-
-	if (ac_excited)
-		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_IEXC_MSK,
-					  num_exc_pins == 2 ? 0x2 : 0x3);
-
-	return 0;
-}
-
-static int ad4170_setup_bridge(struct ad4170_state *st,
-			       struct fwnode_handle *child,
-			       struct ad4170_setup *setup, u32 *exc_pins,
-			       int num_exc_pins, int exc_cur, bool ac_excited)
-{
-	int current_src, ret, i;
-
-	if (!ac_excited)
-		return 0;
-
-	/*
-	 * If a specific current is provided through
-	 * adi,excitation-current-microamp, set excitation pins provided through
-	 * adi,excitation-pins to AC excite the bridge circuit. Else, use
-	 * predefined ACX1, ACX1_N (ACX1 negated), ACX2, ACX2_N (ACX2 negated)
-	 * signals to AC excite the bridge. Those singals are output on
-	 * GPIO2, GPIO0, GPIO3, and GPIO1, respectively. If only two pins are
-	 * specified for AC excitation, use ACX1 and ACX2. See AD4170 datasheet
-	 * for instructions on how to setup the bridge circuit.
-	 *
-	 * Also, to avoid any short-circuit condition when more than one channel
-	 * is enabled, set GPIO2 and GPIO0 high, and set GPIO1 and GPIO3 low to
-	 * DC excite the bridge whenever a channel without AC excitation is
-	 * selected. That is needed because GPIO pins are controlled by the next
-	 * highest priority GPIO function when a channel doesn't enable AC
-	 * excitation. See datasheet Figure 113 Weigh Scale (AC Excitation) for
-	 * an example circuit diagram.
-	 */
-	if (exc_cur == 0) {
-		if (num_exc_pins == 2) {
-			setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x3);
-			ret = regmap_set_bits(st->regmap16,
-					      AD4170_GPIO_MODE_REG,
-					      BIT(7) | BIT(5));
-			if (ret)
-				return ret;
-
-			ret = regmap_set_bits(st->regmap16,
-					      AD4170_GPIO_OUTPUT_REG,
-					      BIT(3) | BIT(2));
-			if (ret)
-				return ret;
-
-			st->gpio_fn[3] |= AD4170_GPIO_OUTPUT;
-			st->gpio_fn[2] |= AD4170_GPIO_OUTPUT;
-		} else {
-			setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x2);
-			ret = regmap_set_bits(st->regmap16,
-					      AD4170_GPIO_MODE_REG,
-					      BIT(7) | BIT(5) | BIT(3) | BIT(1));
-			if (ret)
-				return ret;
-
-			ret = regmap_set_bits(st->regmap16,
-					      AD4170_GPIO_OUTPUT_REG,
-					      BIT(3) | BIT(2) | BIT(1) | BIT(0));
-			if (ret)
-				return ret;
-
-			st->gpio_fn[3] |= AD4170_GPIO_OUTPUT;
-			st->gpio_fn[2] |= AD4170_GPIO_OUTPUT;
-			st->gpio_fn[1] |= AD4170_GPIO_OUTPUT;
-			st->gpio_fn[0] |= AD4170_GPIO_OUTPUT;
-		}
-
-		return 0;
-	}
-	for (i = 0; i < num_exc_pins; i++) {
-		unsigned int pin = exc_pins[i];
-
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
-
-		ret = regmap_write(st->regmap16, AD4170_CURRENT_SRC_REG(i),
-				   current_src);
-		if (ret)
-			return ret;
-	}
-
-	setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_IEXC_MSK,
-				  num_exc_pins == 2 ? 0x1 : 0x11);
-
-	return 0;
-}
-
-static int ad4170_parse_external_sensor(struct ad4170_state *st,
-					struct fwnode_handle *child,
-					struct ad4170_setup *setup,
-					struct iio_chan_spec *chan, u8 s_type)
-{
-	struct device *dev = &st->spi->dev;
-	u32 pins[2], exc_pins[4];
-	unsigned int reg_val;
-	int num_exc_pins, exc_cur, ret;
-	bool ac_excited, vbias;
-
-	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
-					     ARRAY_SIZE(pins));
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to read sensor diff-channels\n");
-
-	chan->differential = true;
-	chan->channel = pins[0];
-	chan->channel2 = pins[1];
-
-	ac_excited = fwnode_property_read_bool(child, "adi,ac-excited");
-
-	num_exc_pins = fwnode_property_count_u32(child, "adi,excitation-pins");
-	if (num_exc_pins != 2 && num_exc_pins != 4)
-		return dev_err_probe(dev, -EINVAL,
-				     "Invalid number of excitation pins\n");
-
-	ret = fwnode_property_read_u32_array(child, "adi,excitation-pins",
-					     exc_pins, num_exc_pins);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to read adi,excitation-pins\n");
-
-	ret = ad4170_validate_excitation_pins(st, exc_pins, num_exc_pins);
-	if (ret)
-		return ret;
-
-	exc_cur = 0;
-	ret = fwnode_property_read_u32(child, "adi,excitation-current-microamp",
-				       &exc_cur);
-	if (ret && s_type == AD4170_RTD_SENSOR)
-		return dev_err_probe(dev, ret,
-				     "Failed to read adi,excitation-current-microamp\n");
-
-	ret = ad4170_find_table_index(ad4170_iout_current_ua_tbl, exc_cur);
-	if (ret < 0)
-		return dev_err_probe(dev, ret,
-				     "Invalid excitation current: %uuA\n",
-				     exc_cur);
-
-	/* Get the excitation current configuration value */
-	exc_cur = ret;
-
-	if (s_type == AD4170_THERMOCOUPLE_SENSOR) {
-		vbias = fwnode_property_read_bool(child, "adi,vbias");
-		if (vbias) {
-			st->pins_fn[chan->channel2] |= AD4170_PIN_VBIAS;
-			reg_val = BIT(chan->channel2);
-			return regmap_write(st->regmap16, AD4170_V_BIAS_REG,
-					    reg_val);
-		}
-	}
-	if (s_type == AD4170_WEIGH_SCALE_SENSOR ||
-	    s_type == AD4170_THERMOCOUPLE_SENSOR) {
-		ret = ad4170_setup_bridge(st, child, setup, exc_pins,
-					  num_exc_pins, exc_cur, ac_excited);
-	} else {
-		ret = ad4170_setup_rtd(st, child, setup, exc_pins, num_exc_pins,
-				       exc_cur, ac_excited);
-	}
-	return ret;
-}
-
 static int ad4170_parse_reference(struct ad4170_state *st,
 				  struct fwnode_handle *child,
 				  struct ad4170_setup *setup)
 {
 	struct device *dev = &st->spi->dev;
-	u32 tmp;
-	u8 aux;
 	int ret;
+	u8 aux;
 
 	/* Positive reference buffer setup */
-	tmp = AD4170_REF_BUF_PRE; /* Default to have precharge buffer enabled. */
-	ret = fwnode_property_read_u32(child, "adi,buffered-positive", &tmp);
+	aux = AD4170_REF_BUF_PRE; /* Default to have precharge buffer enabled. */
+	ret = fwnode_property_read_u8(child, "adi,buffered-positive", &aux);
 	if (ret) {
-		if (tmp < AD4170_REF_BUF_PRE || tmp > AD4170_REF_BUF_BYPASS)
+		if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
 			return dev_err_probe(dev, -EINVAL,
 					     "Invalid adi,buffered-positive: %u\n",
-					     tmp);
+					     aux);
 	}
-	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_P_MSK, tmp);
+	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_P_MSK, aux);
 
 	/* Negative reference buffer setup */
-	tmp = AD4170_REF_BUF_PRE; /* Default to have precharge buffer enabled. */
-	ret = fwnode_property_read_u32(child, "adi,buffered-negative", &tmp);
+	aux = AD4170_REF_BUF_PRE; /* Default to have precharge buffer enabled. */
+	ret = fwnode_property_read_u8(child, "adi,buffered-negative", &aux);
 	if (ret) {
-		if (tmp < AD4170_REF_BUF_PRE || tmp > AD4170_REF_BUF_BYPASS)
+		if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
 			return dev_err_probe(dev, -EINVAL,
 					     "Invalid adi,buffered-negative: %u\n",
-					     tmp);
+					     aux);
 	}
-	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_M_MSK, tmp);
+	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_M_MSK, aux);
 
 	/* Voltage reference selection */
 	aux = AD4170_REF_REFOUT; /* Default reference selection. */
@@ -2078,7 +1647,6 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	struct ad4170_chan_info *chan_info;
 	struct ad4170_setup *setup;
 	struct iio_chan_spec *chan;
-	u8 s_type = 0;
 	u8 ref_select;
 	bool bipolar;
 	int ret;
@@ -2109,32 +1677,9 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_u8(child, "adi,sensor-type", &s_type);
-	if (!ret) {
-		if (s_type > AD4170_RTD_SENSOR)
-			return dev_err_probe(dev, ret,
-					     "Invalid adi,sensor-type: %u\n",
-					     s_type);
-	}
-	switch (s_type) {
-	case AD4170_ADC_SENSOR:
-		ret = ad4170_parse_adc_channel_type(dev, child, chan);
-		if (ret < 0)
-			return ret;
-
-		break;
-	case AD4170_WEIGH_SCALE_SENSOR:
-	case AD4170_THERMOCOUPLE_SENSOR:
-	case AD4170_RTD_SENSOR:
-		ret = ad4170_parse_external_sensor(st, child, setup, chan,
-						   s_type);
-		if (ret < 0)
-			return ret;
-
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = ad4170_parse_adc_channel_type(dev, child, chan);
+	if (ret < 0)
+		return ret;
 
 	bipolar = fwnode_property_read_bool(child, "bipolar");
 	setup->afe |= FIELD_PREP(AD4170_AFE_BIPOLAR_MSK, bipolar);
@@ -2150,8 +1695,7 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 
 	ret = ad4170_get_input_range(st, chan, ch_reg, ref_select);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Cannot use reference %u\n",
-				     ref_select);
+		return dev_err_probe(dev, ret, "Invalid input config\n");
 
 	chan_info->input_range_uv = ret;
 	return 0;
@@ -2173,133 +1717,17 @@ static int ad4170_parse_channels(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static struct ad4170_state *clk_hw_to_ad4170(struct clk_hw *hw)
-{
-	return container_of(hw, struct ad4170_state, int_clk_hw);
-}
-
-static unsigned long ad4170_sel_clk(struct ad4170_state *st,
-				    unsigned int clk_sel)
-{
-	st->clock_ctrl &= ~AD4170_CLOCK_CTRL_CLOCKSEL_MSK;
-	st->clock_ctrl |= FIELD_PREP(AD4170_CLOCK_CTRL_CLOCKSEL_MSK, clk_sel);
-	return regmap_write(st->regmap16, AD4170_CLOCK_CTRL_REG, st->clock_ctrl);
-}
-
-static unsigned long ad4170_clk_recalc_rate(struct clk_hw *hw,
-					    unsigned long parent_rate)
-{
-	return AD4170_INT_CLOCK_16MHZ;
-}
-
-static int ad4170_clk_output_is_enabled(struct clk_hw *hw)
-{
-	struct ad4170_state *st = clk_hw_to_ad4170(hw);
-	u32 clk_sel;
-
-	clk_sel = FIELD_GET(AD4170_CLOCK_CTRL_CLOCKSEL_MSK, st->clock_ctrl);
-	return clk_sel == AD4170_CLOCK_CTRL_CLOCKSEL_INT_OUT;
-}
-
-static int ad4170_clk_output_prepare(struct clk_hw *hw)
-{
-	struct ad4170_state *st = clk_hw_to_ad4170(hw);
-
-	return ad4170_sel_clk(st, AD4170_CLOCK_CTRL_CLOCKSEL_INT_OUT);
-}
-
-static void ad4170_clk_output_unprepare(struct clk_hw *hw)
-{
-	struct ad4170_state *st = clk_hw_to_ad4170(hw);
-
-	ad4170_sel_clk(st, AD4170_CLOCK_CTRL_CLOCKSEL_INT);
-}
-
-static const struct clk_ops ad4170_int_clk_ops = {
-	.recalc_rate = ad4170_clk_recalc_rate,
-	.is_enabled = ad4170_clk_output_is_enabled,
-	.prepare = ad4170_clk_output_prepare,
-	.unprepare = ad4170_clk_output_unprepare,
-};
-
-static int ad4170_register_clk_provider(struct iio_dev *indio_dev)
-{
-	struct ad4170_state *st = iio_priv(indio_dev);
-	struct device *dev = indio_dev->dev.parent;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct clk_init_data init = {};
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_COMMON_CLK))
-		return 0;
-
-	init.name = fwnode_get_name(fwnode);
-	init.ops = &ad4170_int_clk_ops;
-
-	st->int_clk_hw.init = &init;
-	ret = devm_clk_hw_register(dev, &st->int_clk_hw);
-	if (ret)
-		return ret;
-
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
-					   &st->int_clk_hw);
-}
-
-static int ad4170_clock_select(struct iio_dev *indio_dev)
-{
-	struct ad4170_state *st = iio_priv(indio_dev);
-	struct device *dev = &st->spi->dev;
-	int ret;
-
-	st->mclk_hz = AD4170_INT_CLOCK_16MHZ;
-	ret = device_property_match_property_string(dev, "clock-names",
-						    ad4170_clk_sel,
-						    ARRAY_SIZE(ad4170_clk_sel));
-	if (ret < 0) {
-		/* Use internal clock reference */
-		st->clock_ctrl |= FIELD_PREP(AD4170_CLOCK_CTRL_CLOCKSEL_MSK,
-					     AD4170_CLOCK_CTRL_CLOCKSEL_INT_OUT);
-		return ad4170_register_clk_provider(indio_dev);
-	}
-
-	/* Use external clock reference */
-	st->ext_clk = devm_clk_get_enabled(dev, ad4170_clk_sel[ret]);
-	if (IS_ERR(st->ext_clk))
-		return dev_err_probe(dev, PTR_ERR(st->ext_clk),
-				     "Failed to get external clock\n");
-
-	st->clock_ctrl |= FIELD_PREP(AD4170_CLOCK_CTRL_CLOCKSEL_MSK,
-				     AD4170_CLOCK_CTRL_CLOCKSEL_EXT + ret);
-
-	st->mclk_hz = clk_get_rate(st->ext_clk);
-	if (st->mclk_hz < AD4170_EXT_CLOCK_MHZ_MIN ||
-	    st->mclk_hz > AD4170_EXT_CLOCK_MHZ_MAX) {
-		return dev_err_probe(dev, -EINVAL,
-				     "Invalid external clock frequency %u\n",
-				     st->mclk_hz);
-	}
-	return 0;
-}
-
 static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
-	int aux, ret, i;
+	int reg_data, ret;
+	unsigned int i;
 
-	ret = ad4170_clock_select(indio_dev);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "Failed to setup device clock\n");
-
-	ret = regmap_write(st->regmap16, AD4170_CLOCK_CTRL_REG, st->clock_ctrl);
-	if (ret)
-		return ret;
+	st->mclk_hz = AD4170_INT_CLOCK_16MHZ;
 
 	for (i = 0; i < AD4170_NUM_ANALOG_PINS; i++)
 		st->pins_fn[i] = AD4170_PIN_UNASIGNED;
-
-	for (i = 0; i < AD4170_NUM_GPIO_PINS; i++)
-		st->gpio_fn[i] = AD4170_GPIO_UNASIGNED;
 
 	/* On power on, device defaults to using SDO pin for data ready signal */
 	st->int_pin_sel = AD4170_INT_PIN_SDO;
@@ -2309,13 +1737,13 @@ static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 	if (ret >= 0)
 		st->int_pin_sel = ret;
 
-	aux = FIELD_PREP(AD4170_PIN_MUXING_DIG_AUX1_CTRL_MSK,
-			 st->int_pin_sel == AD4170_INT_PIN_DIG_AUX1 ?
-			 AD4170_PIN_MUXING_DIG_AUX1_RDY :
-			 AD4170_PIN_MUXING_DIG_AUX1_DISABLED);
+	reg_data = FIELD_PREP(AD4170_PIN_MUXING_DIG_AUX1_CTRL_MSK,
+			      st->int_pin_sel == AD4170_INT_PIN_DIG_AUX1 ?
+			      AD4170_PIN_MUXING_DIG_AUX1_RDY :
+			      AD4170_PIN_MUXING_DIG_AUX1_DISABLED);
 
 	ret = regmap_update_bits(st->regmap16, AD4170_PIN_MUXING_REG,
-				 AD4170_PIN_MUXING_DIG_AUX1_CTRL_MSK, aux);
+				 AD4170_PIN_MUXING_DIG_AUX1_CTRL_MSK, reg_data);
 	if (ret)
 		return ret;
 
@@ -2325,13 +1753,16 @@ static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 static int ad4170_initial_config(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	int i, ret;
+	struct device *dev = &st->spi->dev;
+	unsigned int i;
+	int ret;
 
 	ad4170_fill_sps_tbl(st);
 
 	ret = ad4170_set_mode(st, AD4170_ADC_CTRL_MODE_IDLE);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "Failed to set ADC mode to idle\n");
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		struct ad4170_chan_info *chan_info;
@@ -2346,29 +1777,34 @@ static int ad4170_initial_config(struct iio_dev *indio_dev)
 		setup->gain = AD4170_GAIN_REG_DEFAULT;
 		ret = ad4170_write_channel_setup(st, chan->address, false);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Failed to write channel setup\n");
 
 		val = FIELD_PREP(AD4170_CHAN_MAP_AINP_MSK, chan->channel) |
 		      FIELD_PREP(AD4170_CHAN_MAP_AINM_MSK, chan->channel2);
 
 		ret = regmap_write(st->regmap16, AD4170_CHAN_MAP_REG(i), val);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Failed to write CHAN_MAP_REG\n");
 
 		ret = ad4170_set_channel_freq(st, chan,
 					      AD4170_DEFAULT_SAMP_RATE, 0);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Failed to set channel freq\n");
 
 		ret = ad4170_fill_scale_tbl(indio_dev, chan);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Failed to fill scale tbl\n");
 	}
 
 	/* Disable all channels to avoid reading from unexpected channel */
 	ret = regmap_write(st->regmap16, AD4170_CHAN_EN_REG, 0);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "Failed to disable channels\n");
 
 	/*
 	 * Configure channels to share the same data output register, i.e. data
@@ -2380,128 +1816,6 @@ static int ad4170_initial_config(struct iio_dev *indio_dev)
 				 AD4170_ADC_CTRL_MULTI_DATA_REG_SEL_MSK);
 }
 
-static int ad4170_prepare_spi_message(struct ad4170_state *st)
-{
-	/*
-	 * Continuous data register read is enabled on buffer postenable so
-	 * no instruction phase is needed meaning we don't need to send the
-	 * register address to read data. Transfer only needs the read buffer.
-	 */
-	st->xfer.rx_buf = &st->reg_read_rx_buf;
-	st->xfer.bits_per_word = ad4170_channel_template.scan_type.storagebits;
-	st->xfer.len = BITS_TO_BYTES(ad4170_channel_template.scan_type.storagebits);
-
-	spi_message_init_with_transfers(&st->msg, &st->xfer, 1);
-
-	return devm_spi_optimize_message(&st->spi->dev, st->spi, &st->msg);
-}
-
-static int ad4170_buffer_postenable(struct iio_dev *indio_dev)
-{
-	struct ad4170_state *st = iio_priv(indio_dev);
-	int ret;
-
-	ret = ad4170_set_mode(st, AD4170_ADC_CTRL_MODE_CONT);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Enables continuous data register read.
-	 * This enables continuous read of the ADC Data register. The ADC must
-	 * be in a continuous conversion mode.
-	 */
-	return regmap_update_bits(st->regmap16, AD4170_ADC_CTRL_REG,
-				  AD4170_ADC_CTRL_CONT_READ_MSK,
-				  FIELD_PREP(AD4170_ADC_CTRL_CONT_READ_MSK,
-					     AD4170_ADC_CTRL_CONT_READ_ENABLE));
-}
-
-static int ad4170_buffer_predisable(struct iio_dev *indio_dev)
-{
-	struct ad4170_state *st = iio_priv(indio_dev);
-	struct spi_transfer t = {
-		.tx_buf = &st->reg_read_tx_buf, /* Reuse register buffer */
-		.len = 2,
-	};
-	int ret, i;
-
-	/*
-	 * To exit continuous read, write 0xA5 to the ADC during the first 8
-	 * SCLKs of the ADC data read.
-	 */
-	st->reg_read_tx_buf = cpu_to_be16(AD4170_ADC_CTRL_CONT_READ_EXIT << 8);
-	ret = spi_sync_transfer(st->spi, &t, 1);
-	if (ret)
-		return ret;
-
-	ret = regmap_update_bits(st->regmap16, AD4170_ADC_CTRL_REG,
-				 AD4170_ADC_CTRL_CONT_READ_MSK,
-				 FIELD_PREP(AD4170_ADC_CTRL_CONT_READ_MSK,
-					    AD4170_ADC_CTRL_CONT_READ_DISABLE));
-	if (ret)
-		return ret;
-
-	ret =  ad4170_set_mode(st, AD4170_ADC_CTRL_MODE_IDLE);
-	if (ret)
-		return ret;
-
-	/*
-	 * The ADC sequences through all the enabled channels (see datasheet
-	 * page 95). That can lead to incorrect channel being read if a
-	 * single-shot read (or buffered read with different active_scan_mask)
-	 * is done after buffer disable. Disable all channels so only requested
-	 * channels will be read.
-	 */
-	for (i = 0; i < indio_dev->num_channels; i++) {
-		ret = ad4170_set_channel_enable(st, i, false);
-		if (ret)
-			return ret;
-	}
-	return ret;
-}
-
-static bool ad4170_validate_scan_mask(struct iio_dev *indio_dev,
-				      const unsigned long *scan_mask)
-{
-	/*
-	 * The channel sequencer cycles through the enabled channels in
-	 * sequential order, from channel 0 to channel 15, bypassing disabled
-	 * channels. When more than one channel is enabled, channel 0 must
-	 * always be enabled. See datasheet channel_en register description at
-	 * page 95.
-	 */
-	return test_bit(0, scan_mask);
-}
-
-static const struct iio_buffer_setup_ops ad4170_buffer_ops = {
-	.postenable = ad4170_buffer_postenable,
-	.predisable = ad4170_buffer_predisable,
-	.validate_scan_mask = ad4170_validate_scan_mask,
-};
-
-static irqreturn_t ad4170_trigger_handler(int irq, void *p)
-{
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
-	struct ad4170_state *st = iio_priv(indio_dev);
-	int i, ret;
-
-	iio_for_each_active_channel(indio_dev, i) {
-		struct iio_chan_spec const *chan = &indio_dev->channels[i];
-
-		ret = spi_sync(st->spi, &st->msg);
-		if (ret)
-			goto err_out;
-
-		st->data[chan->scan_index] = be16_to_cpu(st->reg_read_rx_buf);
-	}
-
-	iio_push_to_buffers(indio_dev, &st->data);
-err_out:
-	iio_trigger_notify_done(indio_dev->trig);
-	return IRQ_HANDLED;
-}
-
 static const struct iio_trigger_ops ad4170_trigger_ops = {
 	.validate_device = iio_trigger_validate_own_device,
 };
@@ -2511,10 +1825,7 @@ static irqreturn_t ad4170_irq_handler(int irq, void *dev_id)
 	struct iio_dev *indio_dev = dev_id;
 	struct ad4170_state *st = iio_priv(indio_dev);
 
-	if (iio_buffer_enabled(indio_dev))
-		iio_trigger_poll(st->trig);
-	else
-		complete(&st->completion);
+	complete(&st->completion);
 
 	return IRQ_HANDLED;
 };
@@ -2653,10 +1964,6 @@ static int ad4170_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to setup device\n");
 
-	ret = ad4170_prepare_spi_message(st);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to prepare SPI message\n");
-
 	init_completion(&st->completion);
 
 	if (spi->irq) {
@@ -2664,12 +1971,6 @@ static int ad4170_probe(struct spi_device *spi)
 		if (ret)
 			return dev_err_probe(dev, ret, "Failed to setup trigger\n");
 	}
-
-	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
-					      &ad4170_trigger_handler,
-					      &ad4170_buffer_ops);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to setup read buffer\n");
 
 	return devm_iio_device_register(dev, indio_dev);
 }
