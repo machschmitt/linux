@@ -235,6 +235,7 @@ patternProperties:
           0: Reference precharge buffer.
           1: Full Buffer.
           2: Bypass reference buffers (buffering disabled).
+        $ref: /schemas/types.yaml#/definitions/uint8
         enum: [0, 1, 2]
         default: 0
 
@@ -253,6 +254,7 @@ patternProperties:
           0: Reference precharge buffer.
           1: Full Buffer.
           2: Bypass reference buffers (buffering disabled).
+        $ref: /schemas/types.yaml#/definitions/uint8
         enum: [0, 1, 2]
         default: 0
 
