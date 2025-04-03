@@ -154,6 +154,14 @@ properties:
   '#clock-cells':
     const: 0
 
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+    description: |
+      The first cell is for the GPIO number: 0 to 3.
+      The second cell takes standard GPIO flags.
+
   ldac-gpios:
     description:
       GPIO connected to DIG_AUX2 pin to be used as LDAC toggle to control the
