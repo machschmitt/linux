@@ -93,6 +93,7 @@ properties:
   compatible:
     enum:
       - adi,ad4170
+      - adi,ad4190
 
   avss-supply:
     description:
