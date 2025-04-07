@@ -1638,10 +1638,10 @@ static int ad4170_parse_adc_channel_type(struct device *dev,
 }
 
 static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
-				     struct fwnode_handle *child)
+				     struct fwnode_handle *child,
+				     unsigned int chan_num)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	unsigned int index = indio_dev->num_channels++;
 	unsigned int ch_reg;
 	struct device *dev = &st->spi->dev;
 	struct ad4170_chan_info *chan_info;
@@ -1651,9 +1651,6 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	bool bipolar;
 	int ret;
 
-	if (indio_dev->num_channels >= AD4170_MAX_CHANNELS)
-		return dev_err_probe(dev, -EINVAL, "Too many channels\n");
-
 	ret = fwnode_property_read_u32(child, "reg", &ch_reg);
 	if (ret)
 		return ret;
@@ -1662,11 +1659,11 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 		return dev_err_probe(dev, -EINVAL,
 				     "Channel idx greater than no of channels\n");
 
-	chan = &st->chans[index];
+	chan = &st->chans[chan_num];
 	*chan = ad4170_channel_template;
 
-	chan->address = index;
-	chan->scan_index = index;
+	chan->address = ch_reg;
+	chan->scan_index = ch_reg;
 	chan_info = &st->chan_infos[chan->address];
 
 	chan_info->setup_num = AD4170_INVALID_SETUP;
@@ -1705,14 +1702,22 @@ static int ad4170_parse_channels(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
+	unsigned int num_channels;
+	unsigned int chan_num;
 	int ret;
 
+	num_channels = device_get_child_node_count(dev);
+
+	if (num_channels > AD4170_MAX_CHANNELS)
+		return dev_err_probe(dev, -EINVAL, "Too many channels\n");
+
 	device_for_each_child_node_scoped(dev, child) {
-		ret = ad4170_parse_channel_node(indio_dev, child);
+		ret = ad4170_parse_channel_node(indio_dev, child, chan_num++);
 		if (ret)
 			return ret;
 	}
 
+	indio_dev->num_channels = num_channels;
 	indio_dev->channels = st->chans;
 	return 0;
 }
