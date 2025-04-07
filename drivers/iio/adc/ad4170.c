@@ -1894,13 +1894,11 @@ static irqreturn_t ad4170_trigger_handler(int irq, void *p)
 	int ret;
 
 	iio_for_each_active_channel(indio_dev, i) {
-		struct iio_chan_spec const *chan = &indio_dev->channels[i];
-
 		ret = spi_sync(st->spi, &st->msg);
 		if (ret)
 			goto err_out;
 
-		st->bounce_buffer[chan->scan_index] = get_unaligned_be32(st->rx_buf);
+		st->bounce_buffer[i] = get_unaligned_be32(st->rx_buf);
 	}
 
 	iio_push_to_buffers(indio_dev, st->bounce_buffer);
