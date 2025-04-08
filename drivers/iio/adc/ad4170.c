@@ -1133,8 +1133,8 @@ static int ad4170_read_sample(struct iio_dev *indio_dev,
 
 	guard(mutex)(&st->lock);
 	/*
-	 * The ADC sequences through all the enabled channels. That can lead to
-	 * incorrect channel being sampled if a previous read would left a
+	 * The ADC sequences through all enabled channels. That can lead to
+	 * incorrect channel being sampled if a previous read would have left a
 	 * different channel enabled. Thus, always enable and disable the
 	 * channel on single-shot read.
 	 */
@@ -1154,7 +1154,7 @@ static int ad4170_read_sample(struct iio_dev *indio_dev,
 	 * time depends on the filter type, filter frequency, and ADC clock
 	 * frequency (see datasheet page 53). The maximum settling time among
 	 * all filter configurations is 6291164 / fCLK. Use that formula to wait
-	 * for suficient time whatever the filter configuration may be.
+	 * for sufficient time whatever the filter configuration may be.
 	 */
 	settling_time_ms = DIV_ROUND_UP(6291164 * MILLI, st->mclk_hz);
 	ret = wait_for_completion_timeout(&st->completion,
