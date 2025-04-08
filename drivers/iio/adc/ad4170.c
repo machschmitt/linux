@@ -1961,7 +1961,7 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 	 * adi,excitation-current-microamp, set excitation pins provided through
 	 * adi,excitation-pins to AC excite the bridge circuit. Else, use
 	 * predefined ACX1, ACX1 negated, ACX2, ACX2 negated signals to AC
-	 * excite the bridge. Those singals are output on GPIO2, GPIO0, GPIO3,
+	 * excite the bridge. Those signals are output on GPIO2, GPIO0, GPIO3,
 	 * and GPIO1, respectively. If only two pins are specified for AC
 	 * excitation, use ACX1 and ACX2. See AD4170 datasheet for instructions
 	 * on how to setup the bridge circuit.
@@ -2026,7 +2026,7 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 	}
 
 	setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_IEXC_MSK,
-				  num_exc_pins == 2 ? 0x1 : 0x11);
+				  num_exc_pins == 2 ? 0x2 : 0x3);
 
 	return 0;
 }
@@ -2036,11 +2036,11 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 					struct ad4170_setup *setup,
 					struct iio_chan_spec *chan, u8 s_type)
 {
+	unsigned int num_exc_pins, exc_cur, reg_val;
 	struct device *dev = &st->spi->dev;
 	u32 pins[2], exc_pins[4];
-	unsigned int reg_val;
-	int num_exc_pins, exc_cur, ret;
 	bool ac_excited, vbias;
+	int ret;
 
 	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
 					     ARRAY_SIZE(pins));
