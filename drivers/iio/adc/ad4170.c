@@ -1595,7 +1595,7 @@ err_release:
 	return ret;
 }
 
-static void ad4170_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
+static int ad4170_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct iio_dev *indio_dev = gpiochip_get_data(gc);
 	struct ad4170_state *st = iio_priv(indio_dev);
@@ -1603,18 +1603,19 @@ static void ad4170_gpio_set(struct gpio_chip *gc, unsigned int offset, int value
 	int ret;
 
 	if (!iio_device_claim_direct(indio_dev))
-		return;
+		return -EBUSY;
 
 	ret = regmap_read(st->regmap, AD4170_GPIO_MODE_REG, &val);
 	if (ret)
 		goto err_release;
 
 	if (val & BIT(offset * 2 + 1))
-		regmap_update_bits(st->regmap, AD4170_GPIO_OUTPUT_REG,
-				   BIT(offset), value << offset);
+		ret = regmap_update_bits(st->regmap, AD4170_GPIO_OUTPUT_REG,
+					 BIT(offset), value << offset);
 
 err_release:
 	iio_device_release_direct(indio_dev);
+	return ret;
 }
 
 static int ad4170_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
