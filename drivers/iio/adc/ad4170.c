@@ -1641,11 +1641,11 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 				     unsigned int chan_num)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	unsigned int ch_reg;
 	struct device *dev = &st->spi->dev;
 	struct ad4170_chan_info *chan_info;
 	struct ad4170_setup *setup;
 	struct iio_chan_spec *chan;
+	unsigned int ch_reg;
 	u8 ref_select;
 	bool bipolar;
 	int ret;
