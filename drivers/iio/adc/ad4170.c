@@ -1103,7 +1103,7 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	 */
 	if (refp <= 0)
 		return dev_err_probe(&st->spi->dev, -EINVAL,
-				     "REF+ < GND for pseudo-diff chan %u\n",
+				     "REF+ <= GND for pseudo-diff chan %u\n",
 				     ch_reg);
 
 	if (bipolar)
