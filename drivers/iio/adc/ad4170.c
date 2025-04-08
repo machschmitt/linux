@@ -2186,10 +2186,10 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
 	struct ad4170_chan_info *chan_info;
+	u8 s_type = AD4170_ADC_SENSOR;
 	struct ad4170_setup *setup;
 	struct iio_chan_spec *chan;
 	unsigned int ch_reg;
-	u8 s_type = 0;
 	u8 ref_select;
 	bool bipolar;
 	int ret;
