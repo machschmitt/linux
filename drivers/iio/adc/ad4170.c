@@ -45,13 +45,6 @@
  */
 #define AD4170_CONFIG_A_REG				0x00
 #define AD4170_DEV_CONFIG_REG				0x02
-#define AD4170_CHIP_TYPE_REG				0x03
-#define AD4170_PROD_ID_L_REG				0x04
-#define AD4170_PROD_ID_H_REG				0x05
-#define AD4170_CHIP_GRADE_REG				0x06
-#define AD4170_SPI_REV_REG				0x07
-#define AD4170_VENDOR_L_REG				0x08
-#define AD4170_VENDOR_H_REG				0x09
 #define AD4170_SCRATCH_PAD_REG				0x0A
 #define AD4170_CONFIG_C_REG				0x0A
 #define AD4170_IF_STATUS_A_REG				0x11
@@ -72,7 +65,6 @@
 #define AD4170_GAIN_REG(x)				(0xCD + 14 * (x))
 #define AD4170_V_BIAS_REG				0x135
 #define AD4170_FIR_CTRL					0x141
-#define AD4170_COEFF_DATA_REG				0x14A
 #define AD4170_COEFF_ADDR_REG				0x14C
 #define AD4170_GPIO_OUTPUT_REG				0x193
 #define AD4170_GPIO_INPUT_REG				0x195
@@ -456,28 +448,6 @@ static const struct regmap_access_table ad4170_regmap24_wr_table = {
 	.n_yes_ranges = ARRAY_SIZE(ad4170_24bit_wr_reg_range),
 };
 
-static bool ad4170_writeable_reg(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case AD4170_CHIP_TYPE_REG:
-	case AD4170_PROD_ID_L_REG:
-	case AD4170_PROD_ID_H_REG:
-	case AD4170_CHIP_GRADE_REG:
-	case AD4170_SPI_REV_REG:
-	case AD4170_VENDOR_L_REG:
-	case AD4170_VENDOR_H_REG:
-	case AD4170_STATUS_REG:
-	case AD4170_DATA_16B_REG:
-	case AD4170_DATA_16B_STATUS_REG:
-	case AD4170_DATA_24B_REG:
-	case AD4170_COEFF_DATA_REG:
-	case AD4170_GPIO_INPUT_REG:
-		return false;
-	default:
-		return true;
-	}
-}
-
 static int ad4170_debugfs_reg_access(struct iio_dev *indio_dev,
 				     unsigned int reg, unsigned int writeval,
 				     unsigned int *readval)
@@ -522,9 +492,9 @@ static const struct regmap_config ad4170_regmap8_config = {
 	.name = "ad4170-8",
 	.reg_bits = 16,
 	.val_bits = 8,
-	.writeable_reg = &ad4170_writeable_reg,
 	.max_register = AD4170_IF_STATUS_A_REG,
 	.rd_table = &ad4170_regmap8_rd_table,
+	.wr_table = &ad4170_regmap8_wr_table,
 	.read_flag_mask = BIT(6),
 	.zero_flag_mask = BIT(7),
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
@@ -535,8 +505,8 @@ static const struct regmap_config ad4170_regmap16_config = {
 	.name = "ad4170-16",
 	.reg_bits = 16,
 	.val_bits = 16,
-	.writeable_reg = &ad4170_writeable_reg,
 	.rd_table = &ad4170_regmap16_rd_table,
+	.wr_table = &ad4170_regmap16_wr_table,
 	.read_flag_mask = BIT(6),
 	.zero_flag_mask = BIT(7),
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
@@ -547,7 +517,8 @@ static const struct regmap_config ad4170_regmap24_config = {
 	.name = "ad4170-24",
 	.reg_bits = 16,
 	.val_bits = 24,
-	.writeable_reg = &ad4170_writeable_reg,
+	.rd_table = &ad4170_regmap24_rd_table,
+	.wr_table = &ad4170_regmap24_wr_table,
 	.read_flag_mask = BIT(6),
 	.zero_flag_mask = BIT(7),
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
