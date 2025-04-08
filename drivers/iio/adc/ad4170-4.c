@@ -2139,11 +2139,11 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	unsigned int s_type = AD4170_ADC_SENSOR;
 	struct device *dev = &st->spi->dev;
 	struct ad4170_chan_info *chan_info;
+	u8 s_type = AD4170_ADC_SENSOR;
 	struct ad4170_setup *setup;
 	struct iio_chan_spec *chan;
 	unsigned int ref_select;
 	unsigned int ch_reg;
-	u8 s_type = 0;
 	bool bipolar;
 	int ret;
 
