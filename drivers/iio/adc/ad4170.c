@@ -1009,7 +1009,7 @@ static int ad4170_validate_channel_input(struct ad4170_state *st, int pin, bool 
 
 /*
  * Verifies whether the channel input configuration is valid by checking the
- * provided input type and input numbers.
+ * input numbers.
  * Returns 0 on valid channel input configuration. -EINVAL otherwise.
  */
 static int ad4170_validate_channel(struct ad4170_state *st,
