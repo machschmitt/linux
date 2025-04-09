@@ -522,14 +522,6 @@ examples:
                 adi,excitation-current-microamp = <100>;
                 adi,reference-select = /bits/ 8 <0>;
             };
-            // Temperature sensor
-            channel@7 {
-                reg = <7>;
-                bipolar;
-                diff-channels = <17 17>;
-                adi,sensor-type = /bits/ 8 <0>;
-                adi,reference-select = /bits/ 8 <2>;
-            };
         };
     };
 ...
