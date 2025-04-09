@@ -519,7 +519,6 @@ examples:
                 adi,sensor-type = /bits/ 8 <1>;
                 adi,ac-excited;
                 adi,excitation-pins = <17 18>, <19 20>;
-                adi,excitation-current-microamp = <100>;
                 adi,reference-select = /bits/ 8 <0>;
             };
         };
