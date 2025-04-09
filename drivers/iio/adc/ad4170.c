@@ -1869,6 +1869,9 @@ static int ad4170_buffer_predisable(struct iio_dev *indio_dev)
 static bool ad4170_validate_scan_mask(struct iio_dev *indio_dev,
 				      const unsigned long *scan_mask)
 {
+	unsigned int masklength = iio_get_masklength(indio_dev);
+	unsigned long first, next;
+
 	/*
 	 * The channel sequencer cycles through the enabled channels in
 	 * sequential order, from channel 0 to channel 15, bypassing disabled
@@ -1876,7 +1879,12 @@ static bool ad4170_validate_scan_mask(struct iio_dev *indio_dev,
 	 * always be enabled. See datasheet channel_en register description at
 	 * page 95.
 	 */
-	return test_bit(0, scan_mask);
+	first = find_next_bit(scan_mask, masklength, 0);
+	next = find_next_bit(scan_mask, masklength, first + 1);
+	if (next < masklength)
+		return test_bit(0, scan_mask);
+
+	return true;
 }
 
 static const struct iio_buffer_setup_ops ad4170_buffer_ops = {
