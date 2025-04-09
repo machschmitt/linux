@@ -420,7 +420,17 @@ required:
   - spi-cpha
 
 allOf:
-  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  # Some devices don't have integrated DAC
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad4190
+              - adi,ad4195
+    then:
+      properties:
+        ldac-gpios: false
 
 unevaluatedProperties: false
 
