@@ -8,13 +8,19 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/device.h>
+#include <linux/dmaengine.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/spi-engine.h>
 #include <linux/units.h>
 
+#include <linux/iio/buffer.h>
+#include <linux/iio/buffer-dma.h>
+#include <linux/iio/buffer-dmaengine.h>
 #include <linux/iio/iio.h>
 
 #define AD4134_NAME				"ad4134"
@@ -50,8 +56,11 @@ enum ad4134_regulators {
 };
 
 struct ad4134_state {
+	struct fwnode_handle		*spi_engine_fwnode;
 	struct regmap			*regmap;
 	struct spi_device		*spi;
+	struct spi_device		*spi_engine;
+	struct pwm_device		*odr_pwm;
 	struct regulator_bulk_data	regulators[AD4134_NUM_REGULATORS];
 
 	/*
@@ -68,6 +77,57 @@ struct ad4134_state {
 	int				refin_mv;
 };
 
+static int ad4134_samp_freq_avail[] = { AD4134_ODR_MIN, 1, AD4134_ODR_MAX };
+
+static int _ad4134_set_odr(struct ad4134_state *st, unsigned int odr)
+{
+	struct pwm_state state;
+	int ret;
+
+	if (odr < AD4134_ODR_MIN || odr > AD4134_ODR_MAX)
+		return -EINVAL;
+
+	pwm_get_state(st->odr_pwm, &state);
+
+	/*
+	 * fDIGCLK = fSYSCLK / 2
+	 * tDIGCLK = 1s / fDIGCLK
+	 * tODR_HIGH_TIME = 3 * tDIGCLK
+	 * See datasheet page 10, Table 3. Data Interface Timing with Gated DCLK.
+	 */
+	state.duty_cycle = DIV_ROUND_CLOSEST_ULL(PICO * 6, st->sys_clk_rate);
+	state.period = DIV_ROUND_CLOSEST_ULL(PICO, odr);
+	state.time_unit = PWM_UNIT_PSEC;
+
+	ret = pwm_apply_state(st->odr_pwm, &state);
+	if (ret)
+		return ret;
+
+	st->odr = odr;
+
+	return 0;
+}
+
+static int ad4134_set_odr(struct iio_dev *indio_dev, unsigned int odr)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
+
+	mutex_lock(&st->lock);
+
+	ret = _ad4134_set_odr(st, odr);
+
+	mutex_unlock(&st->lock);
+
+	iio_device_release_direct_mode(indio_dev);
+
+	return ret;
+}
+
 static int ad4134_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
@@ -80,6 +140,40 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 		*val2 = chan->scan_type.realbits - 1;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		mutex_lock(&st->lock);
+		*val = st->odr;
+		mutex_unlock(&st->lock);
+
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad4134_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long info)
+{
+	switch (info) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*vals = ad4134_samp_freq_avail;
+		*type = IIO_VAL_INT;
+
+		return IIO_AVAIL_RANGE;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad4134_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long info)
+{
+	switch (info) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return ad4134_set_odr(indio_dev, val);
 	default:
 		return -EINVAL;
 	}
@@ -98,6 +192,8 @@ static int ad4134_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 
 static const struct iio_info ad4134_info = {
 	.read_raw = ad4134_read_raw,
+	.read_avail = ad4134_read_avail,
+	.write_raw = ad4134_write_raw,
 	.debugfs_reg_access = ad4134_reg_access,
 };
 
@@ -125,6 +221,50 @@ static const struct iio_chan_spec ad4134_channels[] = {
 	AD4134_CHANNEL(3),
 };
 
+static const unsigned long ad4134_channel_masks[] = {
+	GENMASK(AD4134_NUM_CHANNELS - 1, 0),
+	0,
+};
+
+static int ad4134_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = spi_engine_offload_load_msg(st->spi_engine, &st->buf_read_msg);
+	if (ret)
+		return ret;
+
+	spi_engine_offload_enable(st->spi_engine, true);
+
+	return 0;
+}
+
+static int ad4134_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+
+	spi_engine_offload_enable(st->spi_engine, false);
+
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops ad4134_buffer_ops = {
+	.postenable = ad4134_buffer_postenable,
+	.predisable = ad4134_buffer_predisable,
+};
+
+static int ad4134_hw_submit_block(struct iio_dma_buffer_queue *queue,
+				  struct iio_dma_buffer_block *block)
+{
+	return iio_dmaengine_buffer_submit_block(queue, block, DMA_DEV_TO_MEM);
+}
+
+static const struct iio_dma_buffer_ops dma_buffer_ops = {
+	.submit = ad4134_hw_submit_block,
+	.abort = iio_dmaengine_buffer_abort,
+};
+
 static void ad4134_disable_regulators(void *data)
 {
 	struct ad4134_state *st = data;
@@ -135,6 +275,11 @@ static void ad4134_disable_regulators(void *data)
 static void ad4134_disable_clk(void *data)
 {
 	clk_disable_unprepare(data);
+}
+
+static void ad4134_disable_pwm(void *data)
+{
+	pwm_disable(data);
 }
 
 static int ad4134_setup(struct ad4134_state *st)
@@ -190,6 +335,24 @@ static int ad4134_setup(struct ad4134_state *st)
 
 	gpiod_set_value_cansleep(reset_gpio, 0);
 
+	st->odr_pwm = devm_pwm_get(dev, "odr_pwm");
+	if (IS_ERR(st->odr_pwm))
+		return dev_err_probe(dev, PTR_ERR(st->odr_pwm),
+				     "Failed to find ODR PWM\n");
+
+	ret = _ad4134_set_odr(st, AD4134_ODR_DEFAULT);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to initialize ODR\n");
+
+	ret = pwm_enable(st->odr_pwm);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, ad4134_disable_pwm, st->odr_pwm);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to add ODR PWM disable action\n");
+
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
@@ -215,9 +378,53 @@ static const struct regmap_config ad4134_regmap_config = {
 	.val_bits = 8,
 };
 
+static inline int ad4134_spi_engine_compare_fwnode(struct device *dev, void *data)
+{
+	struct fwnode_handle *fwnode = data;
+
+	return device_match_fwnode(dev, fwnode);
+}
+
+static inline void ad4134_spi_engine_release_fwnode(struct device *dev, void *data)
+{
+	struct fwnode_handle *fwnode = data;
+
+	fwnode_handle_put(fwnode);
+}
+
+static int ad4134_bind(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad4134_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = component_bind_all(dev, st);
+	if (ret)
+		return ret;
+
+	return iio_device_register(indio_dev);
+}
+
+static void ad4134_unbind(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	iio_device_unregister(indio_dev);
+
+	component_unbind_all(dev, NULL);
+}
+
+static const struct component_master_ops ad4134_comp_ops = {
+	.bind = ad4134_bind,
+	.unbind = ad4134_unbind,
+};
+
 static int ad4134_probe(struct spi_device *spi)
 {
+	struct component_match *match = NULL;
 	struct device *dev = &spi->dev;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct iio_buffer *buffer;
 	struct iio_dev *indio_dev;
 	struct ad4134_state *st;
 	int ret;
@@ -238,21 +445,57 @@ static int ad4134_probe(struct spi_device *spi)
 	st->regulators[AD4134_IOVDD_REGULATOR].supply = "iovdd";
 	st->regulators[AD4134_REFIN_REGULATOR].supply = "refin";
 
+	/*
+	 * Receive buffer needs to be non-zero for the SPI engine master
+	 * to mark the transfer as a read.
+	 */
+	st->buf_read_xfer.rx_buf = (void *)-1;
+	st->buf_read_xfer.len = 1;
+	st->buf_read_xfer.bits_per_word = AD4134_WORD_BITS;
+	spi_message_init_with_transfers(&st->buf_read_msg,
+					&st->buf_read_xfer, 1);
+
 	st->regmap = devm_regmap_init_spi(spi, &ad4134_regmap_config);
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
 
 	indio_dev->channels = ad4134_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad4134_channels);
+	indio_dev->available_scan_masks = ad4134_channel_masks;
 	indio_dev->name = AD4134_NAME;
-	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_HARDWARE;
+	indio_dev->setup_ops = &ad4134_buffer_ops;
 	indio_dev->info = &ad4134_info;
 
 	ret = ad4134_setup(st);
 	if (ret)
 		return ret;
 
-	return devm_iio_device_register(dev, indio_dev);
+	buffer = devm_iio_dmaengine_buffer_alloc(dev, "rx", &dma_buffer_ops,
+						 indio_dev);
+	if (IS_ERR(buffer))
+		return dev_err_probe(dev, PTR_ERR(buffer),
+				     "Failed to allocate IIO DMA buffer\n");
+
+	iio_device_attach_buffer(indio_dev, buffer);
+
+	st->spi_engine_fwnode = fwnode_find_reference(fwnode, "adi,spi-engine", 0);
+	if (IS_ERR(st->spi_engine_fwnode))
+		return dev_err_probe(dev, PTR_ERR(st->spi_engine_fwnode),
+				     "Failed to find SPI engine node\n");
+
+	component_match_add_release(dev, &match, ad4134_spi_engine_release_fwnode,
+				    ad4134_spi_engine_compare_fwnode,
+				    st->spi_engine_fwnode);
+
+	return component_master_add_with_match(dev, &ad4134_comp_ops, match);
+}
+
+static int ad4134_remove(struct spi_device *spi)
+{
+	component_master_del(&spi->dev, &ad4134_comp_ops);
+
+	return 0;
 }
 
 static const struct spi_device_id ad4134_id[] = {
@@ -275,9 +518,84 @@ static struct spi_driver ad4134_driver = {
 		.of_match_table = ad4134_of_match,
 	},
 	.probe = ad4134_probe,
+	.remove = ad4134_remove,
 	.id_table = ad4134_id,
 };
-module_spi_driver(ad4134_driver);
+
+static int ad4134_spi_engine_bind(struct device *dev, struct device *master,
+				  void *data)
+{
+	struct ad4134_state *st = data;
+
+	st->spi_engine = to_spi_device(dev);
+
+	return 0;
+}
+
+static const struct component_ops ad4134_spi_engine_ops = {
+	.bind   = ad4134_spi_engine_bind,
+};
+
+static int ad4134_spi_engine_probe(struct spi_device *spi)
+{
+	return component_add(&spi->dev, &ad4134_spi_engine_ops);
+}
+
+static int ad4134_spi_engine_remove(struct spi_device *spi)
+{
+	component_del(&spi->dev, &ad4134_spi_engine_ops);
+
+	return 0;
+}
+
+static const struct spi_device_id ad4134_spi_engine_id[] = {
+	{ "ad4134-spi-engine", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(spi, ad4134_spi_engine_id);
+
+static const struct of_device_id ad4134_spi_engine_of_match[] = {
+	{
+		.compatible = "adi,ad4134-spi-engine",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ad4134_spi_engine_of_match);
+
+static struct spi_driver ad4134_spi_engine_driver = {
+	.driver = {
+		.name = "ad4134-spi-engine",
+		.of_match_table = ad4134_spi_engine_of_match,
+	},
+	.probe = ad4134_spi_engine_probe,
+	.remove = ad4134_spi_engine_remove,
+	.id_table = ad4134_spi_engine_id,
+};
+
+static int __init ad4134_init(void)
+{
+	int ret;
+
+	ret = spi_register_driver(&ad4134_driver);
+	if (ret)
+		return ret;
+
+	ret = spi_register_driver(&ad4134_spi_engine_driver);
+	if (ret) {
+		spi_unregister_driver(&ad4134_driver);
+		return ret;
+	}
+
+	return 0;
+}
+module_init(ad4134_init);
+
+static void __exit ad4134_exit(void)
+{
+	spi_unregister_driver(&ad4134_spi_engine_driver);
+	spi_unregister_driver(&ad4134_driver);
+}
+module_exit(ad4134_exit);
 
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD4134 SPI driver");
