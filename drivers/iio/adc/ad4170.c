@@ -1499,8 +1499,6 @@ static int ad4170_update_scan_mode(struct iio_dev *indio_dev,
 	unsigned int chan_index;
 	int ret;
 
-	guard(mutex)(&st->lock);
-
 	iio_for_each_active_channel(indio_dev, chan_index) {
 		ret = ad4170_set_channel_enable(st, chan_index, true);
 		if (ret)
