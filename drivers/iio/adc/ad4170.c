@@ -1902,7 +1902,9 @@ static int ad4170_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	devm_mutex_init(dev, &st->lock);
+	ret = devm_mutex_init(dev, &st->lock);
+	if (ret)
+		return ret;
 
 	chip = spi_get_device_match_data(spi);
 	if (!chip)
