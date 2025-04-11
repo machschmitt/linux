@@ -1825,7 +1825,8 @@ static int ad4170_trigger_setup(struct iio_dev *indio_dev)
 	iio_trigger_set_drvdata(st->trig, indio_dev);
 	ret = devm_iio_trigger_register(indio_dev->dev.parent, st->trig);
 	if (ret)
-		return ret;
+		return dev_err_probe(&st->spi->dev, ret,
+				     "Failed to register trigger\n");
 
 	indio_dev->trig = iio_trigger_get(st->trig);
 
@@ -1950,7 +1951,7 @@ static int ad4170_probe(struct spi_device *spi)
 	if (spi->irq) {
 		ret = ad4170_trigger_setup(indio_dev);
 		if (ret)
-			return dev_err_probe(dev, ret, "Failed to setup trigger\n");
+			return ret;
 	}
 
 	return devm_iio_device_register(dev, indio_dev);
