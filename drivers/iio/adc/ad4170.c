@@ -1625,7 +1625,8 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 
 	ret = fwnode_property_read_u32(child, "reg", &ch_reg);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, -EINVAL,
+				     "Failed to read channel reg\n");
 
 	if (ch_reg >= AD4170_MAX_CHANNELS)
 		return dev_err_probe(dev, -EINVAL,
