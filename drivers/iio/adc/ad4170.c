@@ -827,6 +827,7 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
+	guard(mutex)(&st->lock);
 	/*
 	 * The filters provide the same ODR for a given filter_fs value but
 	 * there are different minimum and maximum filter_fs limits for each
@@ -854,7 +855,6 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 	setup->filter |= FIELD_PREP(AD4170_FILTER_FILTER_TYPE_MSK,
 				    filter_type_conf);
 
-	guard(mutex)(&st->lock);
 	ret = ad4170_write_channel_setup(st, chan->address, false);
 	if (ret) {
 		setup->filter = old_filter;
@@ -1364,10 +1364,10 @@ static int ad4170_set_pga(struct ad4170_state *st,
 	if (pga == old_pga)
 		return 0;
 
+	guard(mutex)(&st->lock);
 	setup->afe &= ~AD4170_AFE_PGA_GAIN_MSK;
 	setup->afe |= FIELD_PREP(AD4170_AFE_PGA_GAIN_MSK, pga);
 
-	guard(mutex)(&st->lock);
 	ret = ad4170_write_channel_setup(st, chan->address, false);
 	if (ret) {
 		setup->afe &= ~AD4170_AFE_PGA_GAIN_MSK;
@@ -1406,13 +1406,13 @@ static int ad4170_set_channel_freq(struct ad4170_state *st,
 	if (i == filt_fs_tbl_size)
 		return -EINVAL;
 
+	guard(mutex)(&st->lock);
 	old_filter_fs = setup->filter_fs;
 	if (f_type == AD4170_SINC5)
 		setup->filter_fs = ad4170_sinc5_filt_fs_tbl[i];
 	else
 		setup->filter_fs = ad4170_sinc3_filt_fs_tbl[i];
 
-	guard(mutex)(&st->lock);
 	ret = ad4170_write_channel_setup(st, chan->address, false);
 	if (ret)
 		setup->filter_fs = old_filter_fs;
@@ -1428,10 +1428,10 @@ static int ad4170_set_calib_offset(struct ad4170_state *st,
 	u32 old_offset;
 	int ret;
 
+	guard(mutex)(&st->lock);
 	old_offset = setup->offset;
 	setup->offset = val;
 
-	guard(mutex)(&st->lock);
 	ret = ad4170_write_channel_setup(st, chan->address, false);
 	if (ret)
 		setup->offset = old_offset;
@@ -1447,10 +1447,10 @@ static int ad4170_set_calib_gain(struct ad4170_state *st,
 	u32 old_gain;
 	int ret;
 
+	guard(mutex)(&st->lock);
 	old_gain = setup->gain;
 	setup->gain = val;
 
-	guard(mutex)(&st->lock);
 	ret = ad4170_write_channel_setup(st, chan->address, false);
 	if (ret)
 		setup->gain = old_gain;
