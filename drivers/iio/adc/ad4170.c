@@ -1829,8 +1829,9 @@ static int ad4170_trigger_setup(struct iio_dev *indio_dev)
 
 	indio_dev->trig = iio_trigger_get(st->trig);
 
-	return request_irq(st->spi->irq, &ad4170_irq_handler, IRQF_ONESHOT,
-			   indio_dev->name, indio_dev);
+	return devm_request_irq(&st->spi->dev, st->spi->irq,
+				&ad4170_irq_handler, IRQF_ONESHOT,
+				indio_dev->name, indio_dev);
 }
 
 static int ad4170_regulator_setup(struct ad4170_state *st)
