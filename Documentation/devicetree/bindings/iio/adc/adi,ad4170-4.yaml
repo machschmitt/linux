@@ -144,12 +144,12 @@ properties:
     maxItems: 1
 
   interrupt-names:
-    description: |
+    description:
       Specify which pin should be configured as Data Ready interrupt.
-      Default if not supplied is sdo.
     enum:
       - sdo
       - dig_aux1
+    default: sdo
 
   clocks:
     maxItems: 1
