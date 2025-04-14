@@ -49,9 +49,9 @@ $defs:
         description: Type of sensor connected to the device.
         $ref: /schemas/types.yaml#/definitions/uint8
 
-      adi,ac-excited:
+      adi,excitation-ac:
         type: boolean
-        description: |
+        description:
           Whether the external circuit has to be AC or DC excited.
 
       adi,excitation-pins:
@@ -497,7 +497,7 @@ examples:
                 bipolar;
                 diff-channels = <7 8>;
                 adi,sensor-type = /bits/ 8 <1>;
-                adi,ac-excited;
+                adi,excitation-ac;
                 adi,excitation-pins = <17 18>, <19 20>;
                 adi,reference-select = /bits/ 8 <0>;
             };
