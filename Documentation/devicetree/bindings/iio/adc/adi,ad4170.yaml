@@ -55,13 +55,20 @@ $defs:
           Whether the external circuit has to be AC or DC excited.
 
       adi,excitation-pins:
-        $ref: /schemas/types.yaml#/definitions/uint32-array
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
         description: |
-          ADC pins used for external circuit excitation. Some applications
-          require optimum matching between excitation currents. Using excitation
-          current pairs minimizes the excitation current mismatch and the
-          excitation current drift matching on the ADC. Must describe either 1
-          or 2 pairs of pins. E.g. <0 1>; <2 3>; <0 1>, <2 3>.
+          Pairs of ADC pins used for external circuit excitation. Some
+          applications require optimum matching between excitation currents.
+          Using excitation current pairs minimizes the excitation current
+          mismatch and the excitation current drift matching on the ADC. For
+          weigh scale and thermocouple sensors, one or two pairs may be
+          specified. E.g. <0 1>; <2 3>; <0 1>, <2 3>. For RTD sensors, only one
+          pair must be described.
+        items:
+          minItems: 2
+          maxItems: 2
+          items:
+            maximum: 20
 
       adi,excitation-current-microamp:
         description: |
@@ -309,16 +316,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint8
         const: 1
 
-      adi,excitation-pins:
-        description: |
-          ADC pins to use for weigh scale bridge circuit excitation. Must
-          describe either 1 or 2 pairs of pins. E.g. <0 1>; <2 3>; <0 1>, <2 3>.
-        $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 2
-        maxItems: 4
-        items:
-          minimum: 0
-          maximum: 20
+      adi,excitation-pins: true
 
       adi,excitation-current-microamp:
         description: |
@@ -348,16 +346,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint8
         const: 2
 
-      adi,excitation-pins:
-        description: |
-          ADC pins to use for bridge circuit excitation. Must describe either 1
-          or 2 pairs of pins. E.g. <0 1>; <2 3>; <0 1>, <2 3>.
-        $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 2
-        maxItems: 4
-        items:
-          minimum: 0
-          maximum: 20
+      adi,excitation-pins: true
 
       adi,excitation-current-microamp:
         description: |
@@ -395,16 +384,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint8
         const: 3
 
-      adi,excitation-pins:
-        description: |
-          ADC pins to use for RTD circuit excitation. Must describe a pair of
-          pins. E.g. <0 1>; <2 3>.
-        $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 2
-        maxItems: 2
-        items:
-          minimum: 0
-          maximum: 20
+      adi,excitation-pins: true
 
       adi,excitation-current-microamp: true
 
