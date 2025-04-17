@@ -436,54 +436,27 @@ examples:
                 adi,sensor-type = /bits/ 8 <0>;
                 adi,reference-select = /bits/ 8 <3>;
             };
-            // Sample AIN3 with respect to 2.5V throughout AVDD/AVSS input range
-            // Pseudo-differential bipolar (fig. 2b)
-            channel@2 {
+            // Weigh scale sensor
+            weighscale@2 {
                 reg = <2>;
                 bipolar;
-                single-channel = <3>;
-                common-mode-channel = <29>;
-                adi,sensor-type = /bits/ 8 <0>;
-                adi,reference-select = /bits/ 8 <3>;
+                diff-channels = <3 4>;
+                adi,sensor-type = /bits/ 8 <1>;
+                adi,reference-select = /bits/ 8 <0>;
+                adi,excitation-ac;
+                adi,excitation-pins = <19 20>;
+                adi,power-down-switch-pin = /bits/ 8 <0>;
             };
-            // Sample AIN4 with respect to DGND throughout AVDD/AVSS input range
-            // Pseudo-differential bipolar (fig. 2c)
-            channel@3 {
+            // RTD sensor
+            rtd@3 {
                 reg = <3>;
                 bipolar;
-                single-channel = <4>;
-                common-mode-channel = <24>;
-                adi,sensor-type = /bits/ 8 <0>;
-                adi,reference-select = /bits/ 8 <3>;
-            };
-            // Sample AIN5 with respect to 2.5V throughout AVDD/AVSS input range
-            // Pseudo-differential unipolar (AD4170 datasheet page 46 example)
-            channel@4 {
-                reg = <4>;
-                single-channel = <5>;
-                common-mode-channel = <29>;
-                adi,sensor-type = /bits/ 8 <0>;
-                adi,reference-select = /bits/ 8 <3>;
-            };
-            // Sample AIN6 with respect to 2.5V throughout REFIN+/REFIN- input range
-            // Pseudo-differential bipolar
-            channel@5 {
-                reg = <5>;
-                bipolar;
-                single-channel = <6>;
-                common-mode-channel = <29>;
-                adi,sensor-type = /bits/ 8 <0>;
+                diff-channels = <5 6>;
+                adi,sensor-type = /bits/ 8 <2>;
                 adi,reference-select = /bits/ 8 <0>;
-            };
-            // Weigh scale sensor
-            weighscale@6 {
-                reg = <6>;
-                bipolar;
-                diff-channels = <7 8>;
-                adi,sensor-type = /bits/ 8 <1>;
                 adi,excitation-ac;
-                adi,excitation-pins = <17 18>, <19 20>;
-                adi,reference-select = /bits/ 8 <0>;
+                adi,excitation-pins = <7 8>;
+                adi,excitation-current-microamp = <500>;
             };
         };
     };
