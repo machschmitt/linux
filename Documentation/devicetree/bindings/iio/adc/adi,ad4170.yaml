@@ -21,8 +21,16 @@ $ref: /schemas/spi/spi-peripheral-props.yaml#
 $defs:
   sensor-node:
     type: object
-    description: |
-      Common properties of external sensor circuitry connected to the ADC.
+    $ref: /schemas/iio/adc/adc.yaml#
+    description:
+      The AD4170 and similar designs have features to aid interfacing with weigh
+      scale, RTD, and thermocouple sensors. Each of those sensor types requires
+      either distinct wiring configuration or external circuitry for proper
+      sensor operation and can use different AD4170 functionality on their
+      setups. A key characteristic of those external sensors is that they must
+      be excited either by voltage supply or by AD4170 excitation signals. The
+      sensor can then be read through a pair of analog inputs. These properties
+      describe external sensor circuitry connected to the ADC.
 
     properties:
       reg:
