@@ -361,10 +361,10 @@ static const unsigned int ad4170_iout_current_ua_tbl[] = {
 };
 
 enum ad4170_sensor_type {
-	AD4170_ADC_SENSOR = 0,
-	AD4170_WEIGH_SCALE_SENSOR = 1,
+	AD4170_WEIGH_SCALE_SENSOR = 0,
+	AD4170_RTD_SENSOR = 1,
 	AD4170_THERMOCOUPLE_SENSOR = 2,
-	AD4170_RTD_SENSOR = 3,
+	AD4170_ADC_SENSOR = 3,
 };
 
 struct ad4170_chip_info {
@@ -2220,7 +2220,7 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 
 	ret = fwnode_property_read_u8(child, "adi,sensor-type", &s_type);
 	if (!ret) {
-		if (s_type > AD4170_RTD_SENSOR)
+		if (s_type > AD4170_THERMOCOUPLE_SENSOR)
 			return dev_err_probe(dev, ret,
 					     "Invalid adi,sensor-type: %u\n",
 					     s_type);
