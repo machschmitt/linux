@@ -42,8 +42,8 @@ $defs:
 
       diff-channels:
         description:
-          Defines the ADC inputs pins to which the external sensor is connected
-          to. Only regular analog input pins can be used.
+          Defines the ADC input pins used to read sensor data. Only regular
+          analog input pins can be used.
         items:
           enum: [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
