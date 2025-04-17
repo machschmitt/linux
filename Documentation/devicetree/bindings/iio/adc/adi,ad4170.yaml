@@ -210,9 +210,8 @@ patternProperties:
       reg:
         description: |
           The channel number.
-        items:
-          minimum: 0
-          maximum: 15
+        minimum: 0
+        maximum: 15
 
       diff-channels:
         description: |
