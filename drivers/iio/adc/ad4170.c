@@ -2052,7 +2052,7 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 	chan->channel = pins[0];
 	chan->channel2 = pins[1];
 
-	ac_excited = fwnode_property_read_bool(child, "adi,ac-excited");
+	ac_excited = fwnode_property_read_bool(child, "adi,excitation-ac");
 
 	num_exc_pins = fwnode_property_count_u32(child, "adi,excitation-pins");
 	if (num_exc_pins != 2 && num_exc_pins != 4)
