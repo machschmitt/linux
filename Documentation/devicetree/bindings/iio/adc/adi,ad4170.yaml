@@ -50,7 +50,16 @@ $defs:
       bipolar: true
 
       adi,sensor-type:
-        description: Type of sensor connected to the device.
+        description: |
+          Type of sensor connected to the device. Depending on the sensor type
+          (weigh scale, RTD, or thermocouple) the values of sensor-node
+          properties have slightly different constraints. This property
+          specifies which particular external sensor is connected to the ADC so
+          the sensor-node properties can be properly parsed and verified. The
+          possible sensor types are:
+          0: weigh scale;
+          1: RTD;
+          2: thermocouple.
         $ref: /schemas/types.yaml#/definitions/uint8
 
       adi,reference-select:
@@ -253,11 +262,6 @@ patternProperties:
 
       bipolar: true
 
-      adi,sensor-type:
-        description: Sensor type for direct ADC sensors.
-        $ref: /schemas/types.yaml#/definitions/uint8
-        const: 0
-
       adi,buffered-positive:
         description: |
           Enable precharge buffer, full buffer, or skip reference buffering of
@@ -333,7 +337,7 @@ patternProperties:
       adi,sensor-type:
         description: Weigh scale sensor.
         $ref: /schemas/types.yaml#/definitions/uint8
-        const: 1
+        const: 0
 
       adi,excitation-pins: true
 
@@ -348,7 +352,7 @@ patternProperties:
       adi,sensor-type:
         description: RTD sensor.
         $ref: /schemas/types.yaml#/definitions/uint8
-        const: 2
+        const: 1
 
       adi,excitation-pins: true
 
@@ -369,7 +373,7 @@ patternProperties:
       adi,sensor-type:
         description: Thermocouple sensor.
         $ref: /schemas/types.yaml#/definitions/uint8
-        const: 3
+        const: 2
 
     required:
       - adi,excitation-pins
@@ -424,7 +428,6 @@ examples:
                 reg = <0>;
                 bipolar;
                 diff-channels = <0 1>;
-                adi,sensor-type = /bits/ 8 <0>;
                 adi,reference-select = /bits/ 8 <3>;
             };
             // Sample AIN2 with respect to DGND throughout AVDD/DGND input range
@@ -433,7 +436,6 @@ examples:
                 reg = <1>;
                 single-channel = <2>;
                 common-mode-channel = <24>;
-                adi,sensor-type = /bits/ 8 <0>;
                 adi,reference-select = /bits/ 8 <3>;
             };
             // Weigh scale sensor
@@ -441,7 +443,7 @@ examples:
                 reg = <2>;
                 bipolar;
                 diff-channels = <3 4>;
-                adi,sensor-type = /bits/ 8 <1>;
+                adi,sensor-type = /bits/ 8 <0>;
                 adi,reference-select = /bits/ 8 <0>;
                 adi,excitation-ac;
                 adi,excitation-pins = <19 20>;
@@ -452,7 +454,7 @@ examples:
                 reg = <3>;
                 bipolar;
                 diff-channels = <5 6>;
-                adi,sensor-type = /bits/ 8 <2>;
+                adi,sensor-type = /bits/ 8 <1>;
                 adi,reference-select = /bits/ 8 <0>;
                 adi,excitation-ac;
                 adi,excitation-pins = <7 8>;
