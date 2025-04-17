@@ -182,6 +182,9 @@
 
 #define AD4170_ADC_CTRL_CONT_READ_EXIT			0xA5
 
+/* GPIO pin functions  */
+#define AD4170_GPIO_UNASSIGNED				0x00
+
 static const unsigned int ad4170_reg_size[] = {
 	[AD4170_CONFIG_A_REG] = 1,
 	[AD4170_DATA_24B_REG] = 3,
@@ -373,6 +376,7 @@ struct ad4170_state {
 	struct clk_hw int_clk_hw;
 	unsigned int clock_ctrl;
 	unsigned int pins_fn[AD4170_NUM_ANALOG_PINS];
+	int gpio_fn[AD4170_NUM_GPIO_PINS];
 	struct gpio_chip gpiochip;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -1619,6 +1623,23 @@ err_release:
 	return ret;
 }
 
+static int ad4170_gpio_init_valid_mask(struct gpio_chip *gc,
+				       unsigned long *valid_mask,
+				       unsigned int ngpios)
+{
+	struct ad4170_state *st = gpiochip_get_data(gc);
+	unsigned int i;
+
+	/* Only expose GPIOs that were not assigned any other function. */
+	for (i = 0; i < ngpios; i++) {
+		bool valid = st->gpio_fn[i] == AD4170_GPIO_UNASSIGNED;
+
+		__assign_bit(i, valid_mask, valid);
+	}
+
+	return 0;
+}
+
 static int ad4170_gpio_init(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
@@ -1628,6 +1649,7 @@ static int ad4170_gpio_init(struct iio_dev *indio_dev)
 	st->gpiochip.ngpio = AD4170_NUM_GPIO_PINS;
 	st->gpiochip.parent = &st->spi->dev;
 	st->gpiochip.can_sleep = true;
+	st->gpiochip.init_valid_mask = ad4170_gpio_init_valid_mask;
 	st->gpiochip.get_direction = ad4170_gpio_get_direction;
 	st->gpiochip.direction_input = ad4170_gpio_direction_input;
 	st->gpiochip.direction_output = ad4170_gpio_direction_output;
