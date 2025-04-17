@@ -1541,7 +1541,7 @@ static int ad4170_parse_reference(struct ad4170_state *st,
 	u8 aux;
 
 	/* Optional positive reference buffering, if omitted we use the default */
-	aux = AD4170_REF_BUF_PRE; /* Default to have precharge buffer enabled. */
+	aux = AD4170_REF_BUF_FULL; /* Default to full precharge buffer enabled. */
 	ret = fwnode_property_read_u8(child, "adi,buffered-positive", &aux);
 	if (!ret) {
 		if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
@@ -1552,7 +1552,7 @@ static int ad4170_parse_reference(struct ad4170_state *st,
 	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_P_MSK, aux);
 
 	/* Optional negative reference buffering, if omitted we use the default */
-	aux = AD4170_REF_BUF_PRE; /* Default to have precharge buffer enabled. */
+	aux = AD4170_REF_BUF_FULL; /* Default to full precharge buffer enabled. */
 	ret = fwnode_property_read_u8(child, "adi,buffered-negative", &aux);
 	if (!ret) {
 		if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
