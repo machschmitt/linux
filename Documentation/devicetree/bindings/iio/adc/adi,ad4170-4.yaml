@@ -422,27 +422,19 @@ examples:
             #address-cells = <1>;
             #size-cells = <0>;
 
-            // Sample AIN0 with respect to AIN1 throughout AVDD/AVSS input range
-            // Differential bipolar. If AVSS < 0V, differential true bipolar
+            // Sample AIN0 with respect to DGND throughout AVDD/DGND input range
+            // Pseudo-differential unipolar
             channel@0 {
                 reg = <0>;
-                bipolar;
-                diff-channels = <0 1>;
-                adi,reference-select = /bits/ 8 <3>;
-            };
-            // Sample AIN2 with respect to DGND throughout AVDD/DGND input range
-            // Pseudo-differential unipolar (fig. 2a)
-            channel@1 {
-                reg = <1>;
-                single-channel = <2>;
+                single-channel = <0>;
                 common-mode-channel = <24>;
                 adi,reference-select = /bits/ 8 <3>;
             };
             // Weigh scale sensor
-            weighscale@2 {
-                reg = <2>;
+            weighscale@1 {
+                reg = <1>;
                 bipolar;
-                diff-channels = <3 4>;
+                diff-channels = <1 2>;
                 adi,sensor-type = /bits/ 8 <0>;
                 adi,reference-select = /bits/ 8 <0>;
                 adi,excitation-ac;
@@ -450,15 +442,26 @@ examples:
                 adi,power-down-switch-pin = /bits/ 8 <0>;
             };
             // RTD sensor
-            rtd@3 {
-                reg = <3>;
+            rtd@2 {
+                reg = <2>;
                 bipolar;
-                diff-channels = <5 6>;
+                diff-channels = <3 4>;
                 adi,sensor-type = /bits/ 8 <1>;
                 adi,reference-select = /bits/ 8 <0>;
                 adi,excitation-ac;
-                adi,excitation-pins = <7 8>;
+                adi,excitation-pins = <5 6>;
                 adi,excitation-current-microamp = <500>;
+            };
+            // Thermocouple sensor
+            thermocouple@3 {
+                reg = <3>;
+                bipolar;
+                diff-channels = <7 8>;
+                adi,sensor-type = /bits/ 8 <2>;
+                adi,reference-select = /bits/ 8 <0>;
+                adi,excitation-pins = <18>;
+                adi,excitation-current-microamp = <500>;
+                adi,vbias;
             };
         };
     };
