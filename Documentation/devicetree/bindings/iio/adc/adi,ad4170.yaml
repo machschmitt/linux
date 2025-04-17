@@ -180,6 +180,7 @@ properties:
     enum:
       - ext-clk
       - xtal
+    default: ext-clk
 
   '#clock-cells':
     const: 0
