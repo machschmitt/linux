@@ -61,10 +61,8 @@ $defs:
           1: Differential reference voltage REFIN2+ - REFIN2−.
           2: Internal 2.5V referece (REFOUT) relative to AVSS.
           3: Analog supply voltage (AVDD) relative AVSS.
-          If this field is left empty, the first external reference is selected.
         $ref: /schemas/types.yaml#/definitions/uint8
         enum: [0, 1, 2, 3]
-        default: 0
 
       adi,excitation-ac:
         type: boolean
