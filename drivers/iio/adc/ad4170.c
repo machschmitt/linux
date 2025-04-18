@@ -1612,6 +1612,8 @@ static int ad4170_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 	if (val & BIT(offset * 2 + 1))
 		ret = regmap_update_bits(st->regmap, AD4170_GPIO_OUTPUT_REG,
 					 BIT(offset), value << offset);
+	else
+		ret = -EPERM;
 
 err_release:
 	iio_device_release_direct(indio_dev);
