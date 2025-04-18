@@ -1362,7 +1362,7 @@ static int ad4170_set_pga(struct ad4170_state *st,
 	struct ad4170_setup *setup = &chan_info->setup;
 	unsigned int old_pga = FIELD_GET(AD4170_AFE_PGA_GAIN_MSK, setup->afe);
 	unsigned int pga;
-	int ret = 0;
+	int ret;
 
 	for (pga = 0; pga < AD4170_NUM_PGA_OPTIONS; pga++) {
 		if (val == chan_info->scale_tbl[pga][0] &&
