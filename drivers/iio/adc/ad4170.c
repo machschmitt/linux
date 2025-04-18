@@ -1125,26 +1125,15 @@ static int ad4170_get_input_range(struct ad4170_state *st,
 	return refp - ain_voltage;
 }
 
-static int ad4170_read_sample(struct iio_dev *indio_dev,
-			      struct iio_chan_spec const *chan, int *val)
+static int __ad4170_read_sample(struct iio_dev *indio_dev,
+				struct iio_chan_spec const *chan, int *val)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	int settling_time_ms, ret;
 
-	guard(mutex)(&st->lock);
-	/*
-	 * The ADC sequences through all enabled channels. That can lead to
-	 * incorrect channel being sampled if a previous read would have left a
-	 * different channel enabled. Thus, always enable and disable the
-	 * channel on single-shot read.
-	 */
-	ret = ad4170_set_channel_enable(st, chan->address, true);
-	if (ret)
-		return ret;
-
 	ret = ad4170_set_mode(st, AD4170_ADC_CTRL_MODE_SINGLE);
 	if (ret)
-		goto err_disable;
+		return ret;
 
 	/*
 	 * When a channel is manually selected by the user, the ADC needs an
@@ -1164,12 +1153,35 @@ static int ad4170_read_sample(struct iio_dev *indio_dev,
 
 	ret = regmap_read(st->regmap24, AD4170_DATA_24B_REG, val);
 	if (ret)
-		goto err_disable;
+		return ret;
 
 	if (chan->scan_type.sign == 's')
 		*val = sign_extend32(*val, chan->scan_type.realbits - 1);
 
-err_disable:
+	return 0;
+}
+
+static int ad4170_read_sample(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan, int *val)
+{
+	struct ad4170_state *st = iio_priv(indio_dev);
+	int ret;
+
+	guard(mutex)(&st->lock);
+	/*
+	 * The ADC sequences through all enabled channels. That can lead to
+	 * incorrect channel being sampled if a previous read would have left a
+	 * different channel enabled. Thus, always enable and disable the
+	 * channel on single-shot read.
+	 */
+	ret = ad4170_set_channel_enable(st, chan->address, true);
+	if (ret)
+		return ret;
+
+	ret = __ad4170_read_sample(indio_dev, chan, val);
+	if (ret)
+		dev_err(&st->spi->dev, "failed to read sample: %d\n", ret);
+
 	ret = ad4170_set_channel_enable(st, chan->address, false);
 	if (ret)
 		return ret;
