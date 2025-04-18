@@ -1598,6 +1598,10 @@ static int ad4170_gpio_direction_output(struct gpio_chip *gc,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	int ret;
 
+	ret = ad4170_gpio_set(gc, offset, value);
+	if (ret)
+		return ret;
+
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
@@ -1612,7 +1616,6 @@ static int ad4170_gpio_direction_output(struct gpio_chip *gc,
 err_release:
 	iio_device_release_direct(indio_dev);
 
-	ad4170_gpio_set(gc, offset, value);
 	return ret;
 }
 
