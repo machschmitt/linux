@@ -1605,6 +1605,7 @@ static int ad4170_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
+	guard(mutex)(&st->lock);
 	ret = regmap_read(st->regmap, AD4170_GPIO_MODE_REG, &val);
 	if (ret)
 		goto err_release;
