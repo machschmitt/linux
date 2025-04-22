@@ -232,13 +232,13 @@ static const char * const ad4170_int_pin_names[] = {
 
 static const unsigned int ad4170_sinc3_filt_fs_tbl[] = {
 	4, 8, 12, 16, 20, 40, 48, 80, 100, 256, 500, 1000, 5000, 8332, 10000,
-	25000, 50000, 65532
+	25000, 50000, 65532,
 };
 
 #define AD4170_MAX_FS_TBL_SIZE		ARRAY_SIZE(ad4170_sinc3_filt_fs_tbl)
 
 static const unsigned int ad4170_sinc5_filt_fs_tbl[] = {
-	1, 2, 4, 8, 12, 16, 20, 40, 48, 80, 100, 256
+	1, 2, 4, 8, 12, 16, 20, 40, 48, 80, 100, 256,
 };
 
 struct ad4170_chip_info {
