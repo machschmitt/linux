@@ -13,8 +13,6 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/trigger.h>
-#include <linux/iio/trigger_consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/math64.h>
@@ -319,7 +317,6 @@ struct ad4170_state {
 	int sps_tbl[ARRAY_SIZE(ad4170_filt_names)][AD4170_MAX_FS_TBL_SIZE][2];
 	u32 mclk_hz;
 	struct completion completion;
-	struct iio_trigger *trig;
 };
 
 static void ad4170_fill_sps_tbl(struct ad4170_state *st)
@@ -1803,10 +1800,6 @@ static int ad4170_initial_config(struct iio_dev *indio_dev)
 				 AD4170_ADC_CTRL_MULTI_DATA_REG_SEL_MSK);
 }
 
-static const struct iio_trigger_ops ad4170_trigger_ops = {
-	.validate_device = iio_trigger_validate_own_device,
-};
-
 static irqreturn_t ad4170_irq_handler(int irq, void *dev_id)
 {
 	struct iio_dev *indio_dev = dev_id;
@@ -1816,33 +1809,6 @@ static irqreturn_t ad4170_irq_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 };
-
-static int ad4170_trigger_setup(struct iio_dev *indio_dev)
-{
-	struct ad4170_state *st = iio_priv(indio_dev);
-	int ret;
-
-	st->trig = devm_iio_trigger_alloc(indio_dev->dev.parent, "%s-trig%d",
-					  indio_dev->name,
-					  iio_device_id(indio_dev));
-	if (!st->trig)
-		return -ENOMEM;
-
-	st->trig->ops = &ad4170_trigger_ops;
-	st->trig->dev.parent = indio_dev->dev.parent;
-
-	iio_trigger_set_drvdata(st->trig, indio_dev);
-	ret = devm_iio_trigger_register(indio_dev->dev.parent, st->trig);
-	if (ret)
-		return dev_err_probe(&st->spi->dev, ret,
-				     "Failed to register trigger\n");
-
-	indio_dev->trig = iio_trigger_get(st->trig);
-
-	return devm_request_irq(&st->spi->dev, st->spi->irq,
-				&ad4170_irq_handler, IRQF_ONESHOT,
-				indio_dev->name, indio_dev);
-}
 
 static int ad4170_regulator_setup(struct ad4170_state *st)
 {
@@ -1958,7 +1924,9 @@ static int ad4170_probe(struct spi_device *spi)
 	init_completion(&st->completion);
 
 	if (spi->irq) {
-		ret = ad4170_trigger_setup(indio_dev);
+		ret = devm_request_irq(&st->spi->dev, st->spi->irq,
+				       &ad4170_irq_handler, IRQF_ONESHOT,
+				       indio_dev->name, indio_dev);
 		if (ret)
 			return ret;
 	}
