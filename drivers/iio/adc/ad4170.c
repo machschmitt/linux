@@ -161,6 +161,7 @@
 #define AD4170_MAX_ANALOG_PINS				8
 #define AD4170_MAX_SETUPS				8
 #define AD4170_INVALID_SETUP				9
+#define AD4170_SPI_MAX_XFER_LEN				6
 #define AD4170_NUM_CURRENT_SRC				4
 #define AD4170_DEFAULT_SAMP_RATE			(125 * KILO)
 
@@ -187,6 +188,46 @@
 #define AD4170_PIN_UNASIGNED				0x00
 #define AD4170_PIN_ANALOG_IN				0x01
 #define AD4170_PIN_CURRENT_OUT				0x02
+
+static const unsigned int ad4170_reg_size[] = {
+	[AD4170_CONFIG_A_REG] = 1,
+	[AD4170_DATA_24B_REG] = 3,
+	[AD4170_PIN_MUXING_REG] = 2,
+	[AD4170_ADC_CTRL_REG] = 2,
+	[AD4170_CHAN_EN_REG] = 2,
+	/*
+	 * CHANNEL_SETUP and CHANNEL_MAP register are all 2 byte size each and
+	 * their addresses are interleaved such that we have CHANNEL_SETUP0
+	 * address followed by CHANNEL_MAP0 address, followed by CHANNEL_SETUP1,
+	 * and so on until CHANNEL_MAP15.
+	 * Thus, initialize the register size for them only once.
+	 */
+	[AD4170_CHAN_SETUP_REG(0) ... AD4170_CHAN_MAP_REG(AD4170_MAX_CHANNELS - 1)] = 2,
+	/*
+	 * MISC, AFE, FILTER, FILTER_FS, OFFSET, and GAIN register addresses are
+	 * also interleaved but MISC, AFE, FILTER, FILTER_FS, OFFSET are 16-bit
+	 * while OFFSET, GAIN are 24-bit registers so we can't init them all to
+	 * the same size.
+	 */
+	[AD4170_MISC_REG(0) ... AD4170_FILTER_FS_REG(0)] = 2,
+	[AD4170_MISC_REG(1) ... AD4170_FILTER_FS_REG(1)] = 2,
+	[AD4170_MISC_REG(2) ... AD4170_FILTER_FS_REG(2)] = 2,
+	[AD4170_MISC_REG(3) ... AD4170_FILTER_FS_REG(3)] = 2,
+	[AD4170_MISC_REG(4) ... AD4170_FILTER_FS_REG(4)] = 2,
+	[AD4170_MISC_REG(5) ... AD4170_FILTER_FS_REG(5)] = 2,
+	[AD4170_MISC_REG(6) ... AD4170_FILTER_FS_REG(6)] = 2,
+	[AD4170_MISC_REG(7) ... AD4170_FILTER_FS_REG(7)] = 2,
+	/* Init OFFSET register size */
+	/* Init GAIN register size */
+	[AD4170_OFFSET_REG(0) ... AD4170_GAIN_REG(0)] = 3,
+	[AD4170_OFFSET_REG(1) ... AD4170_GAIN_REG(1)] = 3,
+	[AD4170_OFFSET_REG(2) ... AD4170_GAIN_REG(2)] = 3,
+	[AD4170_OFFSET_REG(3) ... AD4170_GAIN_REG(3)] = 3,
+	[AD4170_OFFSET_REG(4) ... AD4170_GAIN_REG(4)] = 3,
+	[AD4170_OFFSET_REG(5) ... AD4170_GAIN_REG(5)] = 3,
+	[AD4170_OFFSET_REG(6) ... AD4170_GAIN_REG(6)] = 3,
+	[AD4170_OFFSET_REG(7) ... AD4170_GAIN_REG(7)] = 3,
+};
 
 enum ad4170_ref_buf {
 	AD4170_REF_BUF_PRE,	/* Pre-charge referrence buffer */
@@ -303,6 +344,7 @@ static const char * const ad4170_filt_names[] = {
 };
 
 struct ad4170_state {
+	struct regmap *regmap;
 	struct regmap *regmap8;
 	struct regmap *regmap16;
 	struct regmap *regmap24;
@@ -317,6 +359,8 @@ struct ad4170_state {
 	int sps_tbl[ARRAY_SIZE(ad4170_filt_names)][AD4170_MAX_FS_TBL_SIZE][2];
 	u32 mclk_hz;
 	struct completion completion;
+	u8 tx_buf[AD4170_SPI_MAX_XFER_LEN] __aligned(IIO_DMA_MINALIGN);
+	u8 rx_buf[4];
 };
 
 static void ad4170_fill_sps_tbl(struct ad4170_state *st)
@@ -450,35 +494,37 @@ static int ad4170_debugfs_reg_access(struct iio_dev *indio_dev,
 				     unsigned int *readval)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
+	unsigned int reg_size = ad4170_reg_size[reg];
 	int ret = -EINVAL;
 
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
 	if (readval) {
-		if (regmap_check_range_table(st->regmap8, reg,
-					     &ad4170_regmap8_rd_table))
-			ret = regmap_read(st->regmap8, reg, readval);
-
-		if (regmap_check_range_table(st->regmap16, reg,
-					     &ad4170_regmap16_rd_table))
-			ret = regmap_read(st->regmap16, reg, readval);
-
-		if (regmap_check_range_table(st->regmap24, reg,
-					     &ad4170_regmap24_rd_table))
-			ret = regmap_read(st->regmap24, reg, readval);
+		ret = regmap_bulk_read(st->regmap, reg, readval, reg_size);
+		switch (reg_size) {
+		case 1:
+			break;
+		case 2:
+			*readval = get_unaligned_be16(readval);
+			break;
+		case 3:
+			*readval = get_unaligned_be24(readval);
+			break;
+		}
 	} else {
-		if (regmap_check_range_table(st->regmap8, reg,
-					     &ad4170_regmap8_wr_table))
-			ret = regmap_write(st->regmap8, reg, writeval);
-
-		if (regmap_check_range_table(st->regmap16, reg,
-					     &ad4170_regmap16_wr_table))
-			ret = regmap_write(st->regmap16, reg, writeval);
-
-		if (regmap_check_range_table(st->regmap24, reg,
-					     &ad4170_regmap24_wr_table))
-			ret = regmap_write(st->regmap24, reg, writeval);
+		switch (reg_size) {
+		case 1:
+			st->tx_buf[0] = writeval;
+			break;
+		case 2:
+			put_unaligned_be16(writeval, st->tx_buf);
+			break;
+		case 3:
+			put_unaligned_be24(writeval, st->tx_buf);
+			break;
+		}
+		ret = regmap_bulk_write(st->regmap, reg, st->tx_buf, reg_size);
 	}
 	iio_device_release_direct(indio_dev);
 
@@ -516,6 +562,17 @@ static const struct regmap_config ad4170_regmap24_config = {
 	.val_bits = 24,
 	.rd_table = &ad4170_regmap24_rd_table,
 	.wr_table = &ad4170_regmap24_wr_table,
+	.read_flag_mask = BIT(6),
+	.zero_flag_mask = BIT(7),
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+};
+
+static const struct regmap_config ad4170_regmap_config = {
+	.name = "ad4170",
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = AD4170_IF_STATUS_A_REG,
 	.read_flag_mask = BIT(6),
 	.zero_flag_mask = BIT(7),
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
