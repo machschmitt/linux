@@ -239,6 +239,9 @@ static const unsigned int ad4170_reg_size[] = {
 	[AD4170_OFFSET_REG(5) ... AD4170_GAIN_REG(5)] = 3,
 	[AD4170_OFFSET_REG(6) ... AD4170_GAIN_REG(6)] = 3,
 	[AD4170_OFFSET_REG(7) ... AD4170_GAIN_REG(7)] = 3,
+	[AD4170_GPIO_MODE_REG] = 2,
+	[AD4170_GPIO_OUTPUT_REG] = 2,
+	[AD4170_GPIO_INPUT_REG] = 2,
 	[AD4170_ADC_CTRL_CONT_READ_EXIT_REG] = 0,
 };
 
@@ -1569,7 +1572,7 @@ static int ad4170_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
-	ret = regmap_read(st->regmap16, AD4170_GPIO_MODE_REG, &val);
+	ret = regmap_read(st->regmap, AD4170_GPIO_MODE_REG, &val);
 	if (ret)
 		goto err_release;
 
@@ -1579,9 +1582,9 @@ static int ad4170_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	 * AD4170_GPIO_OUTPUT_REG.
 	 */
 	if (val & BIT(offset * 2))
-		ret = regmap_read(st->regmap16, AD4170_GPIO_INPUT_REG, &val);
+		ret = regmap_read(st->regmap, AD4170_GPIO_INPUT_REG, &val);
 	else
-		ret = regmap_read(st->regmap16, AD4170_GPIO_OUTPUT_REG, &val);
+		ret = regmap_read(st->regmap, AD4170_GPIO_OUTPUT_REG, &val);
 	if (ret)
 		goto err_release;
 
@@ -1602,12 +1605,12 @@ static void ad4170_gpio_set(struct gpio_chip *gc, unsigned int offset, int value
 	if (!iio_device_claim_direct(indio_dev))
 		return;
 
-	ret = regmap_read(st->regmap16, AD4170_GPIO_MODE_REG, &val);
+	ret = regmap_read(st->regmap, AD4170_GPIO_MODE_REG, &val);
 	if (ret)
 		goto err_release;
 
 	if (val & BIT(offset * 2 + 1))
-		regmap_update_bits(st->regmap16, AD4170_GPIO_OUTPUT_REG,
+		regmap_update_bits(st->regmap, AD4170_GPIO_OUTPUT_REG,
 				   BIT(offset), value << offset);
 
 err_release:
@@ -1624,7 +1627,7 @@ static int ad4170_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
-	ret = regmap_read(st->regmap16, AD4170_GPIO_MODE_REG, &val);
+	ret = regmap_read(st->regmap, AD4170_GPIO_MODE_REG, &val);
 	if (ret)
 		goto err_release;
 
@@ -1648,12 +1651,12 @@ static int ad4170_gpio_direction_input(struct gpio_chip *gc, unsigned int offset
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
-	ret = regmap_clear_bits(st->regmap16, AD4170_GPIO_MODE_REG,
+	ret = regmap_clear_bits(st->regmap, AD4170_GPIO_MODE_REG,
 				BIT(offset * 2 + 1));
 	if (ret)
 		goto err_release;
 
-	ret = regmap_set_bits(st->regmap16, AD4170_GPIO_MODE_REG,
+	ret = regmap_set_bits(st->regmap, AD4170_GPIO_MODE_REG,
 			      BIT(offset * 2));
 
 err_release:
@@ -1672,12 +1675,12 @@ static int ad4170_gpio_direction_output(struct gpio_chip *gc,
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
-	ret = regmap_clear_bits(st->regmap16, AD4170_GPIO_MODE_REG,
+	ret = regmap_clear_bits(st->regmap, AD4170_GPIO_MODE_REG,
 				BIT(offset * 2));
 	if (ret)
 		goto err_release;
 
-	ret = regmap_set_bits(st->regmap16, AD4170_GPIO_MODE_REG,
+	ret = regmap_set_bits(st->regmap, AD4170_GPIO_MODE_REG,
 			      BIT(offset * 2 + 1));
 
 err_release:
