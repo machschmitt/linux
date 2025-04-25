@@ -42,13 +42,6 @@
  * their datasheet counterpart names to provide better code readability.
  */
 #define AD4170_CONFIG_A_REG				0x00
-#define AD4170_DEV_CONFIG_REG				0x02
-#define AD4170_SCRATCH_PAD_REG				0x0A
-#define AD4170_CONFIG_C_REG				0x0A
-#define AD4170_IF_STATUS_A_REG				0x11
-#define AD4170_STATUS_REG				0x15
-#define AD4170_DATA_16B_REG				0x17
-#define AD4170_DATA_16B_STATUS_REG			0x1A
 #define AD4170_DATA_24B_REG				0x1E
 #define AD4170_PIN_MUXING_REG				0x69
 #define AD4170_ADC_CTRL_REG				0x71
@@ -61,11 +54,6 @@
 #define AD4170_FILTER_FS_REG(x)				(0xC7 + 14 * (x))
 #define AD4170_OFFSET_REG(x)				(0xCA + 14 * (x))
 #define AD4170_GAIN_REG(x)				(0xCD + 14 * (x))
-#define AD4170_V_BIAS_REG				0x135
-#define AD4170_FIR_CTRL					0x141
-#define AD4170_COEFF_ADDR_REG				0x14C
-#define AD4170_GPIO_OUTPUT_REG				0x193
-#define AD4170_GPIO_INPUT_REG				0x195
 
 #define AD4170_REG_READ_MASK				BIT(14)
 
@@ -345,9 +333,6 @@ static const char * const ad4170_filt_names[] = {
 
 struct ad4170_state {
 	struct regmap *regmap;
-	struct regmap *regmap8;
-	struct regmap *regmap16;
-	struct regmap *regmap24;
 	struct spi_device *spi;
 	int vrefs_uv[AD4170_MAX_SUP];
 	u32 int_pin_sel;
@@ -359,6 +344,10 @@ struct ad4170_state {
 	int sps_tbl[ARRAY_SIZE(ad4170_filt_names)][AD4170_MAX_FS_TBL_SIZE][2];
 	u32 mclk_hz;
 	struct completion completion;
+	/*
+	 * DMA (thus cache coherency maintenance) requires the transfer buffers
+	 * to live in their own cache lines.
+	 */
 	u8 tx_buf[AD4170_SPI_MAX_XFER_LEN] __aligned(IIO_DMA_MINALIGN);
 	u8 rx_buf[4];
 };
@@ -395,188 +384,111 @@ static void ad4170_fill_sps_tbl(struct ad4170_state *st)
 	}
 }
 
-static const struct regmap_range ad4170_8bit_rd_reg_range[] = {
-	regmap_reg_range(AD4170_CONFIG_A_REG, AD4170_IF_STATUS_A_REG),
-};
-
-static const struct regmap_access_table ad4170_regmap8_rd_table = {
-	.yes_ranges = ad4170_8bit_rd_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(ad4170_8bit_rd_reg_range),
-};
-
-static const struct regmap_range ad4170_8bit_wr_reg_range[] = {
-	regmap_reg_range(AD4170_CONFIG_A_REG, AD4170_DEV_CONFIG_REG),
-	regmap_reg_range(AD4170_SCRATCH_PAD_REG, AD4170_SCRATCH_PAD_REG),
-	regmap_reg_range(AD4170_CONFIG_C_REG, AD4170_IF_STATUS_A_REG),
-};
-
-static const struct regmap_access_table ad4170_regmap8_wr_table = {
-	.yes_ranges = ad4170_8bit_wr_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(ad4170_8bit_wr_reg_range),
-};
-
-static const struct regmap_range ad4170_16bit_rd_reg_range[] = {
-	regmap_reg_range(AD4170_STATUS_REG, AD4170_DATA_16B_REG),
-	regmap_reg_range(AD4170_PIN_MUXING_REG,
-			 AD4170_CHAN_MAP_REG(AD4170_MAX_CHANNELS)),
-	regmap_reg_range(AD4170_MISC_REG(0), AD4170_FILTER_FS_REG(0)),
-	regmap_reg_range(AD4170_MISC_REG(1), AD4170_FILTER_FS_REG(1)),
-	regmap_reg_range(AD4170_MISC_REG(2), AD4170_FILTER_FS_REG(2)),
-	regmap_reg_range(AD4170_MISC_REG(3), AD4170_FILTER_FS_REG(3)),
-	regmap_reg_range(AD4170_MISC_REG(4), AD4170_FILTER_FS_REG(4)),
-	regmap_reg_range(AD4170_MISC_REG(5), AD4170_FILTER_FS_REG(5)),
-	regmap_reg_range(AD4170_MISC_REG(6), AD4170_FILTER_FS_REG(6)),
-	regmap_reg_range(AD4170_MISC_REG(7), AD4170_FILTER_FS_REG(7)),
-	regmap_reg_range(AD4170_V_BIAS_REG, AD4170_FIR_CTRL),
-	regmap_reg_range(AD4170_COEFF_ADDR_REG, AD4170_GPIO_INPUT_REG),
-};
-
-static const struct regmap_access_table ad4170_regmap16_rd_table = {
-	.yes_ranges = ad4170_16bit_rd_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(ad4170_16bit_rd_reg_range),
-};
-
-static const struct regmap_range ad4170_16bit_wr_reg_range[] = {
-	regmap_reg_range(AD4170_PIN_MUXING_REG,
-			 AD4170_CHAN_MAP_REG(AD4170_MAX_CHANNELS)),
-	regmap_reg_range(AD4170_MISC_REG(0), AD4170_FILTER_FS_REG(0)),
-	regmap_reg_range(AD4170_MISC_REG(1), AD4170_FILTER_FS_REG(1)),
-	regmap_reg_range(AD4170_MISC_REG(2), AD4170_FILTER_FS_REG(2)),
-	regmap_reg_range(AD4170_MISC_REG(3), AD4170_FILTER_FS_REG(3)),
-	regmap_reg_range(AD4170_MISC_REG(4), AD4170_FILTER_FS_REG(4)),
-	regmap_reg_range(AD4170_MISC_REG(5), AD4170_FILTER_FS_REG(5)),
-	regmap_reg_range(AD4170_MISC_REG(6), AD4170_FILTER_FS_REG(6)),
-	regmap_reg_range(AD4170_MISC_REG(7), AD4170_FILTER_FS_REG(7)),
-	regmap_reg_range(AD4170_V_BIAS_REG, AD4170_FIR_CTRL),
-	regmap_reg_range(AD4170_COEFF_ADDR_REG, AD4170_GPIO_OUTPUT_REG),
-};
-
-static const struct regmap_access_table ad4170_regmap16_wr_table = {
-	.yes_ranges = ad4170_16bit_wr_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(ad4170_16bit_wr_reg_range),
-};
-
-static const struct regmap_range ad4170_24bit_rd_reg_range[] = {
-	regmap_reg_range(AD4170_DATA_16B_STATUS_REG, AD4170_DATA_24B_REG),
-	regmap_reg_range(AD4170_OFFSET_REG(0), AD4170_GAIN_REG(0)),
-	regmap_reg_range(AD4170_OFFSET_REG(1), AD4170_GAIN_REG(1)),
-	regmap_reg_range(AD4170_OFFSET_REG(2), AD4170_GAIN_REG(2)),
-	regmap_reg_range(AD4170_OFFSET_REG(3), AD4170_GAIN_REG(3)),
-	regmap_reg_range(AD4170_OFFSET_REG(4), AD4170_GAIN_REG(4)),
-	regmap_reg_range(AD4170_OFFSET_REG(5), AD4170_GAIN_REG(5)),
-	regmap_reg_range(AD4170_OFFSET_REG(6), AD4170_GAIN_REG(6)),
-	regmap_reg_range(AD4170_OFFSET_REG(7), AD4170_GAIN_REG(7)),
-};
-
-static const struct regmap_access_table ad4170_regmap24_rd_table = {
-	.yes_ranges = ad4170_24bit_rd_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(ad4170_24bit_rd_reg_range),
-};
-
-static const struct regmap_range ad4170_24bit_wr_reg_range[] = {
-	regmap_reg_range(AD4170_OFFSET_REG(0), AD4170_GAIN_REG(0)),
-	regmap_reg_range(AD4170_OFFSET_REG(1), AD4170_GAIN_REG(1)),
-	regmap_reg_range(AD4170_OFFSET_REG(2), AD4170_GAIN_REG(2)),
-	regmap_reg_range(AD4170_OFFSET_REG(3), AD4170_GAIN_REG(3)),
-	regmap_reg_range(AD4170_OFFSET_REG(4), AD4170_GAIN_REG(4)),
-	regmap_reg_range(AD4170_OFFSET_REG(5), AD4170_GAIN_REG(5)),
-	regmap_reg_range(AD4170_OFFSET_REG(6), AD4170_GAIN_REG(6)),
-	regmap_reg_range(AD4170_OFFSET_REG(7), AD4170_GAIN_REG(7)),
-};
-
-static const struct regmap_access_table ad4170_regmap24_wr_table = {
-	.yes_ranges = ad4170_24bit_wr_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(ad4170_24bit_wr_reg_range),
-};
-
 static int ad4170_debugfs_reg_access(struct iio_dev *indio_dev,
 				     unsigned int reg, unsigned int writeval,
 				     unsigned int *readval)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	unsigned int reg_size = ad4170_reg_size[reg];
 	int ret = -EINVAL;
 
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
-	if (readval) {
-		ret = regmap_bulk_read(st->regmap, reg, readval, reg_size);
-		switch (reg_size) {
-		case 1:
-			break;
-		case 2:
-			*readval = get_unaligned_be16(readval);
-			break;
-		case 3:
-			*readval = get_unaligned_be24(readval);
-			break;
-		}
-	} else {
-		switch (reg_size) {
-		case 1:
-			st->tx_buf[0] = writeval;
-			break;
-		case 2:
-			put_unaligned_be16(writeval, st->tx_buf);
-			break;
-		case 3:
-			put_unaligned_be24(writeval, st->tx_buf);
-			break;
-		}
-		ret = regmap_bulk_write(st->regmap, reg, st->tx_buf, reg_size);
-	}
+	if (readval)
+		ret = regmap_read(st->regmap, reg, readval);
+	else
+		ret = regmap_write(st->regmap, reg, writeval);
+
 	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
 
-static const struct regmap_config ad4170_regmap8_config = {
-	.name = "ad4170-8",
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = AD4170_IF_STATUS_A_REG,
-	.rd_table = &ad4170_regmap8_rd_table,
-	.wr_table = &ad4170_regmap8_wr_table,
-	.read_flag_mask = BIT(6),
-	.zero_flag_mask = BIT(7),
-	.reg_format_endian = REGMAP_ENDIAN_BIG,
-	.val_format_endian = REGMAP_ENDIAN_BIG,
-};
+static int ad4170_get_reg_size(struct ad4170_state *st, unsigned int reg,
+			       unsigned int *size)
+{
+	if (reg >= ARRAY_SIZE(ad4170_reg_size))
+		return -EINVAL;
 
-static const struct regmap_config ad4170_regmap16_config = {
-	.name = "ad4170-16",
-	.reg_bits = 16,
-	.val_bits = 16,
-	.rd_table = &ad4170_regmap16_rd_table,
-	.wr_table = &ad4170_regmap16_wr_table,
-	.read_flag_mask = BIT(6),
-	.zero_flag_mask = BIT(7),
-	.reg_format_endian = REGMAP_ENDIAN_BIG,
-	.val_format_endian = REGMAP_ENDIAN_BIG,
-};
+	*size = ad4170_reg_size[reg];
 
-static const struct regmap_config ad4170_regmap24_config = {
-	.name = "ad4170-24",
-	.reg_bits = 16,
-	.val_bits = 24,
-	.rd_table = &ad4170_regmap24_rd_table,
-	.wr_table = &ad4170_regmap24_wr_table,
-	.read_flag_mask = BIT(6),
-	.zero_flag_mask = BIT(7),
-	.reg_format_endian = REGMAP_ENDIAN_BIG,
-	.val_format_endian = REGMAP_ENDIAN_BIG,
-};
+	return 0;
+}
+
+static int ad4170_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct ad4170_state *st = context;
+	unsigned int size;
+	int ret;
+
+	ret = ad4170_get_reg_size(st, reg, &size);
+	if (ret)
+		return ret;
+
+	put_unaligned_be16(reg, st->tx_buf);
+	switch (size) {
+	case 3:
+		put_unaligned_be24(val, &st->tx_buf[2]);
+		break;
+	case 2:
+		put_unaligned_be16(val, &st->tx_buf[2]);
+		break;
+	case 1:
+		st->tx_buf[2] = val;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return spi_write(st->spi, st->tx_buf, size + 2);
+}
+
+static int ad4170_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct ad4170_state *st = context;
+	struct spi_transfer t[] = {
+		{
+			.tx_buf = st->tx_buf,
+			.len = 2,
+		},
+		{
+			.rx_buf = st->rx_buf,
+		},
+	};
+	unsigned int size;
+	int ret;
+
+	ret = ad4170_get_reg_size(st, reg, &size);
+	if (ret)
+		return ret;
+
+	put_unaligned_be16(AD4170_REG_READ_MASK | reg, st->tx_buf);
+	t[1].len = size;
+
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
+	if (ret)
+		return ret;
+
+	switch (size) {
+	case 3:
+		*val = get_unaligned_be24(st->rx_buf);
+		break;
+	case 2:
+		*val = get_unaligned_be16(st->rx_buf);
+		break;
+	case 1:
+		*val = st->rx_buf[0];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static const struct regmap_config ad4170_regmap_config = {
-	.name = "ad4170",
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = AD4170_IF_STATUS_A_REG,
-	.read_flag_mask = BIT(6),
-	.zero_flag_mask = BIT(7),
-	.reg_format_endian = REGMAP_ENDIAN_BIG,
-	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.reg_read = ad4170_reg_read,
+	.reg_write = ad4170_reg_write,
 };
 
 static bool ad4170_setup_eq(struct ad4170_setup *a, struct ad4170_setup *b)
@@ -673,7 +585,7 @@ static int ad4170_link_channel_setup(struct ad4170_state *st,
 	struct ad4170_chan_info *chan_info = &st->chan_infos[chan_addr];
 	int ret;
 
-	ret = regmap_update_bits(st->regmap16, AD4170_CHAN_SETUP_REG(chan_addr),
+	ret = regmap_update_bits(st->regmap, AD4170_CHAN_SETUP_REG(chan_addr),
 				 AD4170_CHAN_SETUP_SETUP_MSK,
 				 FIELD_PREP(AD4170_CHAN_SETUP_SETUP_MSK,
 					    setup_num));
@@ -693,7 +605,7 @@ static int ad4170_link_channel_setup(struct ad4170_state *st,
  */
 static int ad4170_set_mode(struct ad4170_state *st, unsigned int mode)
 {
-	return regmap_update_bits(st->regmap16, AD4170_ADC_CTRL_REG,
+	return regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
 				  AD4170_ADC_CTRL_MODE_MSK,
 				  FIELD_PREP(AD4170_ADC_CTRL_MODE_MSK, mode));
 }
@@ -711,30 +623,30 @@ static int ad4170_write_setup(struct ad4170_state *st, unsigned int setup_num,
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap16, AD4170_MISC_REG(setup_num), setup->misc);
+	ret = regmap_write(st->regmap, AD4170_MISC_REG(setup_num), setup->misc);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap16, AD4170_AFE_REG(setup_num), setup->afe);
+	ret = regmap_write(st->regmap, AD4170_AFE_REG(setup_num), setup->afe);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap16, AD4170_FILTER_REG(setup_num),
+	ret = regmap_write(st->regmap, AD4170_FILTER_REG(setup_num),
 			   setup->filter);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap16, AD4170_FILTER_FS_REG(setup_num),
+	ret = regmap_write(st->regmap, AD4170_FILTER_FS_REG(setup_num),
 			   setup->filter_fs);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap24, AD4170_OFFSET_REG(setup_num),
+	ret = regmap_write(st->regmap, AD4170_OFFSET_REG(setup_num),
 			   setup->offset);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap24, AD4170_GAIN_REG(setup_num), setup->gain);
+	ret = regmap_write(st->regmap, AD4170_GAIN_REG(setup_num), setup->gain);
 	if (ret)
 		return ret;
 
@@ -827,7 +739,7 @@ static int ad4170_set_channel_enable(struct ad4170_state *st,
 
 	setup_info = &st->setup_infos[chan_info->setup_num];
 
-	ret = regmap_update_bits(st->regmap16, AD4170_CHAN_EN_REG,
+	ret = regmap_update_bits(st->regmap, AD4170_CHAN_EN_REG,
 				 AD4170_CHAN_EN(chan_addr),
 				 status ? AD4170_CHAN_EN(chan_addr) : 0);
 	if (ret)
@@ -1205,7 +1117,7 @@ static int __ad4170_read_sample(struct iio_dev *indio_dev,
 		dev_dbg(&st->spi->dev,
 			"No Data Ready signal. Reading after delay.\n");
 
-	ret = regmap_read(st->regmap24, AD4170_DATA_24B_REG, val);
+	ret = regmap_read(st->regmap, AD4170_DATA_24B_REG, val);
 	if (ret)
 		return ret;
 
@@ -1587,7 +1499,7 @@ static int ad4170_soft_reset(struct ad4170_state *st)
 {
 	int ret;
 
-	ret = regmap_write(st->regmap8, AD4170_CONFIG_A_REG,
+	ret = regmap_write(st->regmap, AD4170_CONFIG_A_REG,
 			   AD4170_SW_RESET_MSK);
 	if (ret)
 		return ret;
@@ -1783,7 +1695,7 @@ static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 			      AD4170_PIN_MUXING_DIG_AUX1_RDY :
 			      AD4170_PIN_MUXING_DIG_AUX1_DISABLED);
 
-	ret = regmap_update_bits(st->regmap16, AD4170_PIN_MUXING_REG,
+	ret = regmap_update_bits(st->regmap, AD4170_PIN_MUXING_REG,
 				 AD4170_PIN_MUXING_DIG_AUX1_CTRL_MSK, reg_data);
 	if (ret)
 		return ret;
@@ -1824,7 +1736,7 @@ static int ad4170_initial_config(struct iio_dev *indio_dev)
 		val = FIELD_PREP(AD4170_CHAN_MAP_AINP_MSK, chan->channel) |
 		      FIELD_PREP(AD4170_CHAN_MAP_AINM_MSK, chan->channel2);
 
-		ret = regmap_write(st->regmap16, AD4170_CHAN_MAP_REG(i), val);
+		ret = regmap_write(st->regmap, AD4170_CHAN_MAP_REG(i), val);
 		if (ret)
 			return dev_err_probe(dev, ret,
 					     "Failed to write CHAN_MAP_REG\n");
@@ -1842,7 +1754,7 @@ static int ad4170_initial_config(struct iio_dev *indio_dev)
 	}
 
 	/* Disable all channels to avoid reading from unexpected channel */
-	ret = regmap_write(st->regmap16, AD4170_CHAN_EN_REG, 0);
+	ret = regmap_write(st->regmap, AD4170_CHAN_EN_REG, 0);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to disable channels\n");
@@ -1852,7 +1764,7 @@ static int ad4170_initial_config(struct iio_dev *indio_dev)
 	 * can be read from the same register address regardless of channel
 	 * number.
 	 */
-	return regmap_update_bits(st->regmap16, AD4170_ADC_CTRL_REG,
+	return regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
 				 AD4170_ADC_CTRL_MULTI_DATA_REG_SEL_MSK,
 				 AD4170_ADC_CTRL_MULTI_DATA_REG_SEL_MSK);
 }
@@ -1947,20 +1859,11 @@ static int ad4170_probe(struct spi_device *spi)
 	indio_dev->info = &ad4170_info;
 
 	st->spi = spi;
-	st->regmap8 = devm_regmap_init_spi(spi, &ad4170_regmap8_config);
-	if (IS_ERR(st->regmap8))
-		return dev_err_probe(dev, PTR_ERR(st->regmap8),
-				     "Failed to initialize regmap8\n");
 
-	st->regmap16 = devm_regmap_init_spi(spi, &ad4170_regmap16_config);
-	if (IS_ERR(st->regmap16))
-		return dev_err_probe(dev, PTR_ERR(st->regmap16),
-				     "Failed to initialize regmap16\n");
-
-	st->regmap24 = devm_regmap_init_spi(spi, &ad4170_regmap24_config);
-	if (IS_ERR(st->regmap24))
-		return dev_err_probe(dev, PTR_ERR(st->regmap24),
-				     "Failed to initialize regmap24\n");
+	st->regmap = devm_regmap_init(dev, NULL, st, &ad4170_regmap_config);
+	if (IS_ERR(st->regmap))
+		return dev_err_probe(dev, PTR_ERR(st->regmap),
+				     "Failed to initialize regmap\n");
 
 	ret = ad4170_regulator_setup(st);
 	if (ret)
