@@ -276,6 +276,8 @@ static const unsigned int ad4170_reg_size[] = {
 	[AD4170_OFFSET_REG(5) ... AD4170_GAIN_REG(5)] = 3,
 	[AD4170_OFFSET_REG(6) ... AD4170_GAIN_REG(6)] = 3,
 	[AD4170_OFFSET_REG(7) ... AD4170_GAIN_REG(7)] = 3,
+	[AD4170_V_BIAS_REG] = 2,
+	[AD4170_CURRENT_SRC_REG(0) ... AD4170_CURRENT_SRC_REG(3)] = 2,
 	[AD4170_GPIO_MODE_REG] = 2,
 	[AD4170_GPIO_OUTPUT_REG] = 2,
 	[AD4170_GPIO_INPUT_REG] = 2,
@@ -1931,7 +1933,7 @@ static int ad4170_setup_rtd(struct ad4170_state *st,
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
 
-		ret = regmap_write(st->regmap16, AD4170_CURRENT_SRC_REG(i),
+		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(i),
 				   current_src);
 		if (ret)
 			return ret;
@@ -1975,13 +1977,13 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 	if (exc_cur == 0) {
 		if (num_exc_pins == 2) {
 			setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x3);
-			ret = regmap_set_bits(st->regmap16,
+			ret = regmap_set_bits(st->regmap,
 					      AD4170_GPIO_MODE_REG,
 					      BIT(7) | BIT(5));
 			if (ret)
 				return ret;
 
-			ret = regmap_set_bits(st->regmap16,
+			ret = regmap_set_bits(st->regmap,
 					      AD4170_GPIO_OUTPUT_REG,
 					      BIT(3) | BIT(2));
 			if (ret)
@@ -1991,13 +1993,13 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 			st->gpio_fn[2] |= AD4170_GPIO_OUTPUT;
 		} else {
 			setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x2);
-			ret = regmap_set_bits(st->regmap16,
+			ret = regmap_set_bits(st->regmap,
 					      AD4170_GPIO_MODE_REG,
 					      BIT(7) | BIT(5) | BIT(3) | BIT(1));
 			if (ret)
 				return ret;
 
-			ret = regmap_set_bits(st->regmap16,
+			ret = regmap_set_bits(st->regmap,
 					      AD4170_GPIO_OUTPUT_REG,
 					      BIT(3) | BIT(2) | BIT(1) | BIT(0));
 			if (ret)
@@ -2017,7 +2019,7 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
 
-		ret = regmap_write(st->regmap16, AD4170_CURRENT_SRC_REG(i),
+		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(i),
 				   current_src);
 		if (ret)
 			return ret;
@@ -2088,7 +2090,7 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 		if (vbias) {
 			st->pins_fn[chan->channel2] |= AD4170_PIN_VBIAS;
 			reg_val = BIT(chan->channel2);
-			return regmap_write(st->regmap16, AD4170_V_BIAS_REG,
+			return regmap_write(st->regmap, AD4170_V_BIAS_REG,
 					    reg_val);
 		}
 	}
