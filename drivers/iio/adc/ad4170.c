@@ -199,6 +199,7 @@ static const unsigned int ad4170_reg_size[] = {
 	[AD4170_CONFIG_A_REG] = 1,
 	[AD4170_DATA_24B_REG] = 3,
 	[AD4170_PIN_MUXING_REG] = 2,
+	[AD4170_CLOCK_CTRL_REG] = 2,
 	[AD4170_ADC_CTRL_REG] = 2,
 	[AD4170_CHAN_EN_REG] = 2,
 	/*
@@ -1722,7 +1723,7 @@ static unsigned long ad4170_sel_clk(struct ad4170_state *st,
 {
 	st->clock_ctrl &= ~AD4170_CLOCK_CTRL_CLOCKSEL_MSK;
 	st->clock_ctrl |= FIELD_PREP(AD4170_CLOCK_CTRL_CLOCKSEL_MSK, clk_sel);
-	return regmap_write(st->regmap16, AD4170_CLOCK_CTRL_REG, st->clock_ctrl);
+	return regmap_write(st->regmap, AD4170_CLOCK_CTRL_REG, st->clock_ctrl);
 }
 
 static unsigned long ad4170_clk_recalc_rate(struct clk_hw *hw,
@@ -1832,7 +1833,7 @@ static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to setup device clock\n");
 
-	ret = regmap_write(st->regmap16, AD4170_CLOCK_CTRL_REG, st->clock_ctrl);
+	ret = regmap_write(st->regmap, AD4170_CLOCK_CTRL_REG, st->clock_ctrl);
 	if (ret)
 		return ret;
 
