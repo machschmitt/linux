@@ -65,6 +65,7 @@
 #define AD4170_FILTER_FS_REG(x)				(0xC7 + 14 * (x))
 #define AD4170_OFFSET_REG(x)				(0xCA + 14 * (x))
 #define AD4170_GAIN_REG(x)				(0xCD + 14 * (x))
+#define AD4170_ADC_CTRL_CONT_READ_EXIT_REG		0x200 /* virtual reg */
 
 #define AD4170_REG_READ_MASK				BIT(14)
 
@@ -197,6 +198,7 @@ static const unsigned int ad4170_reg_size[] = {
 	[AD4170_OFFSET_REG(5) ... AD4170_GAIN_REG(5)] = 3,
 	[AD4170_OFFSET_REG(6) ... AD4170_GAIN_REG(6)] = 3,
 	[AD4170_OFFSET_REG(7) ... AD4170_GAIN_REG(7)] = 3,
+	[AD4170_ADC_CTRL_CONT_READ_EXIT_REG] = 0,
 };
 
 enum ad4170_ref_buf {
@@ -334,14 +336,7 @@ struct ad4170_state {
 	struct completion completion;
 	unsigned int pins_fn[AD4170_NUM_ANALOG_PINS];
 	u32 int_pin_sel;
-	/*
-	 * DMA (thus cache coherency maintenance) requires the transfer buffers
-	 * to live in their own cache lines.
-	 */
-	u8 tx_buf[AD4170_SPI_MAX_XFER_LEN] __aligned(IIO_DMA_MINALIGN);
-	u8 rx_buf[AD4170_SPI_MAX_XFER_LEN];
 	struct iio_trigger *trig;
-
 	struct spi_transfer xfer;
 	struct spi_message msg;
 	__be32 bounce_buffer[AD4170_MAX_CHANNELS];
@@ -349,8 +344,8 @@ struct ad4170_state {
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
 	 */
-	__be32 rx_buf __aligned(IIO_DMA_MINALIGN);
-	u8 tx_buf[2];
+	u8 tx_buf[AD4170_SPI_MAX_XFER_LEN] __aligned(IIO_DMA_MINALIGN);
+	u8 rx_buf[4];
 };
 
 static void ad4170_fill_sps_tbl(struct ad4170_state *st)
@@ -430,6 +425,10 @@ static int ad4170_reg_write(void *context, unsigned int reg, unsigned int val)
 	case 1:
 		tx_buf[AD4170_SPI_INST_PHASE_LEN] = val;
 		break;
+	case 0:
+		/* Write continuous read exit code */
+		st->tx_buf[0] = AD4170_ADC_CTRL_CONT_READ_EXIT;
+		return spi_write(st->spi, st->tx_buf, 1);
 	default:
 		return -EINVAL;
 	}
@@ -1756,7 +1755,7 @@ static int ad4170_buffer_postenable(struct iio_dev *indio_dev)
 	 * This enables continuous read of the ADC data register. The ADC must
 	 * be in continuous conversion mode.
 	 */
-	return regmap_update_bits(st->regmap16, AD4170_ADC_CTRL_REG,
+	return regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
 				  AD4170_ADC_CTRL_CONT_READ_MSK,
 				  FIELD_PREP(AD4170_ADC_CTRL_CONT_READ_MSK,
 					     AD4170_ADC_CTRL_CONT_READ_ENABLE));
@@ -1769,16 +1768,13 @@ static int ad4170_buffer_predisable(struct iio_dev *indio_dev)
 	int ret;
 
 	/*
-	 * To exit continuous read, write 0xA5 to the ADC during the first 8
-	 * SCLKs of the ADC data read.
+	 * Use a high register address (virtual register) to request a write of
+	 * 0xA5 to the ADC during the first 8 SCLKs of the ADC data read cycle,
+	 * thus exiting continuous read.
 	 */
-	st->tx_buf[0] = AD4170_ADC_CTRL_CONT_READ_EXIT;
-	st->tx_buf[1] = 0;
-	ret = spi_write(st->spi, st->tx_buf, 2);
-	if (ret)
-		return ret;
+	ret = regmap_write(st->regmap, AD4170_ADC_CTRL_CONT_READ_EXIT_REG, 0);
 
-	ret = regmap_update_bits(st->regmap16, AD4170_ADC_CTRL_REG,
+	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
 				 AD4170_ADC_CTRL_CONT_READ_MSK,
 				 FIELD_PREP(AD4170_ADC_CTRL_CONT_READ_MSK,
 					    AD4170_ADC_CTRL_CONT_READ_DISABLE));
@@ -1842,7 +1838,7 @@ static irqreturn_t ad4170_trigger_handler(int irq, void *p)
 		if (ret)
 			goto err_out;
 
-		st->bounce_buffer[chan->scan_index] = st->rx_buf;
+		st->bounce_buffer[chan->scan_index] = get_unaligned_be32(st->rx_buf);
 	}
 
 	iio_push_to_buffers(indio_dev, st->bounce_buffer);
