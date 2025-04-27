@@ -194,6 +194,9 @@ properties:
   '#clock-cells':
     const: 0
 
+  clock-output-names:
+    maxItems: 1
+
   gpio-controller: true
 
   "#gpio-cells":
