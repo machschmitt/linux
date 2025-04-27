@@ -1903,7 +1903,7 @@ static int ad4170_validate_excitation_pins(struct ad4170_state *st,
 						     "Pin %u already used with fn %u\n",
 						     pin, st->pins_fn[pin]);
 
-			st->pins_fn[pin] = AD4170_PIN_CURRENT_OUT;
+			st->pins_fn[pin] |= AD4170_PIN_CURRENT_OUT;
 		} else {
 			unsigned int gpio = pin - AD4170_CURRENT_SRC_I_OUT_PIN_GPIO0;
 
@@ -1912,7 +1912,7 @@ static int ad4170_validate_excitation_pins(struct ad4170_state *st,
 						     "GPIO %u already used with fn %u\n",
 						     gpio, st->gpio_fn[gpio]);
 
-			st->gpio_fn[gpio] = AD4170_GPIO_AC_EXCITATION;
+			st->gpio_fn[gpio] |= AD4170_GPIO_AC_EXCITATION;
 		}
 	}
 	return 0;
