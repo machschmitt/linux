@@ -1766,14 +1766,19 @@ static int ad4170_register_clk_provider(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct clk_init_data init = {};
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_COMMON_CLK))
 		return 0;
 
-	init.name = fwnode_get_name(fwnode);
+	if (device_property_read_string(dev, "clock-output-names", &init.name)) {
+		init.name = devm_kasprintf(dev, GFP_KERNEL, "%s-clk",
+					   fwnode_get_name(dev_fwnode(dev)));
+		if (!init.name)
+			return -ENOMEM;
+	}
+
 	init.ops = &ad4170_int_clk_ops;
 
 	st->int_clk_hw.init = &init;
