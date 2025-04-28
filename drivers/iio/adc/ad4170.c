@@ -237,6 +237,9 @@
 #define AD4170_GPIO_AC_EXCITATION			0x02
 #define AD4170_GPIO_OUTPUT				0x04
 
+/* Current source */
+#define AD4170_CURRENT_SRC_DISABLED			0xFF
+
 static const unsigned int ad4170_reg_size[] = {
 	[AD4170_CONFIG_A_REG] = 1,
 	[AD4170_DATA_24B_REG] = 3,
@@ -452,6 +455,7 @@ struct ad4170_state {
 	struct clk *ext_clk;
 	unsigned int clock_ctrl;
 	int gpio_fn[AD4170_NUM_GPIO_PINS];
+	unsigned int cur_src_pins[AD4170_NUM_CURRENT_SRC];
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
@@ -1920,12 +1924,13 @@ static int ad4170_validate_excitation_pins(struct ad4170_state *st,
 	return 0;
 }
 
-static int ad4170_setup_rtd(struct ad4170_state *st,
-			    struct fwnode_handle *child,
-			    struct ad4170_setup *setup, u32 *exc_pins,
-			    int num_exc_pins, int exc_cur, bool ac_excited)
+static int ad4170_setup_current_src(struct ad4170_state *st,
+				    struct fwnode_handle *child,
+				    struct ad4170_setup *setup, u32 *exc_pins,
+				    int num_exc_pins, int exc_cur, bool ac_excited)
 {
-	int current_src, ret, i;
+	unsigned int current_src, i, j;
+	int ret;
 
 	for (i = 0; i < num_exc_pins; i++) {
 		unsigned int pin = exc_pins[i];
@@ -1933,15 +1938,47 @@ static int ad4170_setup_rtd(struct ad4170_state *st,
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
 
-		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(i),
+		for (j = 0; j < AD4170_NUM_CURRENT_SRC; j++) {
+			/*
+			 * Excitation current chopping is configured in pairs.
+			 * If current chopping configured and the first end of
+			 * the current source pair has already been assigned,
+			 * skip to the next pair of output currents.
+			 */
+			if (ac_excited && j % 2 != 0)
+				continue;
+
+			if (st->cur_src_pins[j] == AD4170_CURRENT_SRC_DISABLED) {
+				st->cur_src_pins[j] = pin;
+				break;
+			}
+		}
+		if (j == AD4170_NUM_CURRENT_SRC)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Failed to setup IOUT at pin %u\n",
+					     pin);
+
+		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(j),
 				   current_src);
 		if (ret)
 			return ret;
 	}
 
-	if (ac_excited && num_exc_pins > 1)
+	if (ac_excited && num_exc_pins > 1) {
+		unsigned int exc_cur_pair;
+
+		if (st->cur_src_pins[0] == exc_pins[0])
+			exc_cur_pair = 1;
+		else
+			exc_cur_pair = 2;
+
+		/*
+		 * Configure excitation currents chopping.
+		 * Chop two pairs if using four excitation currents.
+		 */
 		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_IEXC_MSK,
-					  num_exc_pins == 2 ? 0x2 : 0x3);
+					  num_exc_pins == 2 ? exc_cur_pair : 3);
+	}
 
 	return 0;
 }
@@ -1951,7 +1988,7 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 			       struct ad4170_setup *setup, u32 *exc_pins,
 			       int num_exc_pins, int exc_cur, bool ac_excited)
 {
-	int current_src, ret, i;
+	int ret;
 
 	/*
 	 * If a specific current is provided through
@@ -2009,23 +2046,18 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 
 		return 0;
 	}
-	for (i = 0; i < num_exc_pins; i++) {
-		unsigned int pin = exc_pins[i];
 
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
+	return ad4170_setup_current_src(st, child, setup, exc_pins,
+					num_exc_pins, exc_cur, ac_excited);
+}
 
-		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(i),
-				   current_src);
-		if (ret)
-			return ret;
-	}
-
-	if (ac_excited && num_exc_pins > 1)
-		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_IEXC_MSK,
-					  num_exc_pins == 2 ? 0x2 : 0x3);
-
-	return 0;
+static int ad4170_setup_rtd(struct ad4170_state *st,
+			    struct fwnode_handle *child,
+			    struct ad4170_setup *setup, u32 *exc_pins,
+			    int num_exc_pins, int exc_cur, bool ac_excited)
+{
+	return ad4170_setup_current_src(st, child, setup, exc_pins,
+					num_exc_pins, exc_cur, ac_excited);
 }
 
 static int ad4170_parse_external_sensor(struct ad4170_state *st,
@@ -2445,6 +2477,9 @@ static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 
 	for (i = 0; i < AD4170_NUM_GPIO_PINS; i++)
 		st->gpio_fn[i] = AD4170_GPIO_UNASIGNED;
+
+	for (i = 0; i < AD4170_NUM_CURRENT_SRC; i++)
+		st->cur_src_pins[i] = AD4170_CURRENT_SRC_DISABLED;
 
 	/* On power on, device defaults to using SDO pin for data ready signal */
 	st->int_pin_sel = AD4170_INT_PIN_SDO;
