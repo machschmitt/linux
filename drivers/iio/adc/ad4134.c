@@ -136,6 +136,18 @@ static const unsigned long ad4134_channel_masks[] = {
 	0,
 };
 
+struct ad4134_chip_info {
+	const char *name;
+};
+
+static const struct ad4134_chip_info ad4134_chip_info = {
+	.name = "ad4134",
+};
+
+static const struct ad4134_chip_info ad7134_chip_info = {
+	.name = "ad7134",
+};
+
 struct ad4134_state {
 	struct regmap			*regmap;
 	struct spi_device		*spi;
@@ -328,6 +340,7 @@ static const struct regmap_config ad4134_regmap_config = {
 
 static int ad4134_probe(struct spi_device *spi)
 {
+	const struct ad4134_chip_info *chip;
 	struct device *dev = &spi->dev;
 	struct iio_dev *indio_dev;
 	struct ad4134_state *st;
@@ -344,6 +357,12 @@ static int ad4134_probe(struct spi_device *spi)
 		return ret;
 
 	st->spi = spi;
+
+	chip = spi_get_device_match_data(spi);
+	if (!chip)
+		return -EINVAL;
+
+	indio_dev->name = chip->name;
 
 	st->regulators[AD4134_AVDD5_REGULATOR].supply = "avdd5";
 	st->regulators[AD4134_AVDD1V8_REGULATOR].supply = "avdd1v8";
@@ -386,7 +405,6 @@ static int ad4134_probe(struct spi_device *spi)
 		return PTR_ERR(st->regmap);
 
 	indio_dev->available_scan_masks = ad4134_channel_masks;
-	indio_dev->name = AD4134_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4134_info;
 
@@ -398,15 +416,15 @@ static int ad4134_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad4134_id[] = {
-	{ "ad4134", 0 },
+	{ "ad4134", (kernel_ulong_t)&ad4134_chip_info },
+	{ "ad7134", (kernel_ulong_t)&ad7134_chip_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, ad4134_id);
 
 static const struct of_device_id ad4134_of_match[] = {
-	{
-		.compatible = "adi,ad4134",
-	},
+	{ .compatible = "adi,ad4134", .data = &ad4134_chip_info },
+	{ .compatible = "adi,ad7134", .data = &ad7134_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad4134_of_match);
