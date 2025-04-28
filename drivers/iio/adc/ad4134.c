@@ -3,6 +3,7 @@
  * Copyright (C) 2022 Analog Devices, Inc.
  * Author: Cosmin Tanislav <cosmin.tanislav@analog.com>
  * Author: Ioan-daniel Pop <Pop.Ioan-daniel@analog.com>
+ * Author: Marcelo Schmitt <marcelo.schmitt@analog.com>
  */
 
 #include <linux/bitfield.h>
@@ -419,5 +420,6 @@ module_spi_driver(ad4134_driver);
 
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_AUTHOR("Ioan-daniel Pop <Pop.Ioan-daniel@analog.com>");
+MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD4134 SPI driver");
 MODULE_LICENSE("GPL");
