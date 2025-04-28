@@ -86,7 +86,7 @@ static const char * const ad4134_filter_enum[] = {
 	[SINC3_REJECTION] = "SINC3_REJECTION",
 };
 
-#define AD4134_CHANNEL(_index, _realbits, _storebits) {				\
+#define AD4134_CHANNEL(_index, _realbits, _storebits, _ext_info) {		\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
 	.channel = (_index),							\
@@ -100,6 +100,7 @@ static const char * const ad4134_filter_enum[] = {
 		.storagebits = (_storebits),					\
 		.shift = ((_storebits) - (_realbits))				\
 	},									\
+	.ext_info = _ext_info,							\
 }
 
 static int ad4134_set_dig_fil(struct iio_dev *dev,
@@ -122,10 +123,10 @@ static struct iio_chan_spec_ext_info ad4134_ext_info[] = {
 };
 
 #define AD4134_CHAN_SET(_realbits, _storebits) {				\
-	AD4134_CHANNEL(0, _realbits, _storebits),				\
-	AD4134_CHANNEL(1, _realbits, _storebits),				\
-	AD4134_CHANNEL(2, _realbits, _storebits),				\
-	AD4134_CHANNEL(3, _realbits, _storebits),				\
+	AD4134_CHANNEL(0, _realbits, _storebits, ad4134_ext_info),		\
+	AD4134_CHANNEL(1, _realbits, _storebits, ad4134_ext_info),		\
+	AD4134_CHANNEL(2, _realbits, _storebits, ad4134_ext_info),		\
+	AD4134_CHANNEL(3, _realbits, _storebits, ad4134_ext_info),		\
 }
 
 static const struct iio_chan_spec ad4134_16_chan_set[] = AD4134_CHAN_SET(16, 16);
