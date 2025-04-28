@@ -339,7 +339,10 @@ static int ad4134_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	mutex_init(&st->lock);
+	ret = devm_mutex_init(dev, &st->lock);
+	if (ret)
+		return ret;
+
 	st->spi = spi;
 
 	st->regulators[AD4134_AVDD5_REGULATOR].supply = "avdd5";
