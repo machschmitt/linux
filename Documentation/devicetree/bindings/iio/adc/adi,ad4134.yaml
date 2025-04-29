@@ -36,10 +36,21 @@ properties:
 
   clocks:
     maxItems: 1
+    description:
+      Required external clock source. Can specify either an external clock or
+      external crystal.
 
   clock-names:
-    items:
-      - const: sys_clk
+    enum:
+      - xtal1-xtal2
+      - clkin
+    default: clkin
+
+  '#clock-cells':
+    const: 0
+
+  clock-output-names:
+    maxItems: 1
 
   avdd5-supply:
     description: A 5V supply that powers the chip's analog circuitry.
@@ -110,7 +121,7 @@ examples:
         reset-gpios = <&gpio0 86 GPIO_ACTIVE_LOW>;
 
         clocks = <&sys_clk>;
-        clock-names = "sys_clk";
+        clock-names = "clkin";
 
         avdd5-supply = <&avdd5>;
         avdd1v8-supply = <&avdd1v8>;
