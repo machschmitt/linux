@@ -64,6 +64,11 @@ properties:
     description:
       A 1.8V supply that sets the logic levels for the digital interface pins.
 
+  refin-supply:
+    description:
+      Additional supply used to reduce the noise contribution of the reference
+      source to the overall ADC conversion accuracy.
+
   avdd1v8-supply:
     description: A 1.8V supply used by the analog circuitry.
 
@@ -77,11 +82,6 @@ properties:
     description:
       A 2.6V to 5.5V supply that generates 1.8V for AVDD1V8, DVDD1V8, and CLKVDD
       pins.
-
-  refin-supply:
-    description:
-      Additional supply used to reduce the noise contribution of the reference
-      source to the overall ADC conversion accuracy.
 
   odr-gpios:
     description:
@@ -100,9 +100,23 @@ properties:
 required:
   - compatible
   - reg
+  - avdd5-supply
+  - dvdd5-supply
+  - iovdd-supply
+  - refin-supply
   - clocks
   - clock-names
-  - refin-supply
+
+allOf:
+  - if:
+      not:
+        required:
+          - ldoin-supply
+    then:
+      required:
+        - avdd1v8-supply
+        - dvdd1v8-supply
+        - clkvdd-supply
 
 unevaluatedProperties: false
 
@@ -126,9 +140,12 @@ examples:
         clock-names = "clkin";
 
         avdd5-supply = <&avdd5>;
-        avdd1v8-supply = <&avdd1v8>;
+        dvdd5-supply = <&dvdd5>;
         iovdd-supply = <&iovdd>;
         refin-supply = <&refin>;
+        avdd1v8-supply = <&avdd1v8>;
+        dvdd1v8-supply = <&dvdd1v8>;
+        clkvdd-supply = <&clkvdd>;
 
         adi,adc-frame = "24-bit";
       };
