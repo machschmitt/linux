@@ -242,9 +242,8 @@ static const struct iio_info ad4134_info = {
 	.debugfs_reg_access = ad4134_reg_access,
 };
 
-static int ad4134_clock_select(struct iio_dev *indio_dev)
+static int ad4134_clock_select(struct ad4134_state *st)
 {
-	struct ad4134_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
 	struct clk *sys_clk;
 	int ret;
@@ -278,34 +277,15 @@ static void ad4134_disable_regulators(void *data)
 	regulator_bulk_disable(ARRAY_SIZE(st->regulators), st->regulators);
 }
 
-static void ad4134_disable_clk(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int ad4134_setup(struct ad4134_state *st)
 {
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *reset_gpio;
-	struct clk *clk;
 	int ret;
 
-	clk = devm_clk_get(dev, "sys_clk");
-	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk), "Failed to find SYS clock\n");
-
-	ret = clk_prepare_enable(clk);
+	ret = ad4134_clock_select(st);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable SYS clock\n");
-
-	ret = devm_add_action_or_reset(dev, ad4134_disable_clk, clk);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add SYS clock disable action\n");
-
-	st->sys_clk_rate = clk_get_rate(clk);
-	if (!st->sys_clk_rate)
-		return dev_err_probe(dev, -EINVAL, "Failed to get SYS clock rate\n");
+		return ret;
 
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(st->regulators),
 				      st->regulators);
