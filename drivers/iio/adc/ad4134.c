@@ -53,12 +53,18 @@
 
 #define AD4134_RESET_TIME_US			10000000
 
+#define AD4134_EXT_CLOCK_MHZ			(48 * MEGA)
+
 enum ad4134_regulators {
 	AD4134_AVDD5_REGULATOR,
 	AD4134_AVDD1V8_REGULATOR,
 	AD4134_IOVDD_REGULATOR,
 	AD4134_REFIN_REGULATOR,
 	AD4134_NUM_REGULATORS
+};
+
+static const char *const ad4134_clk_sel[] = {
+	"xtal1-xtal2", "clkin"
 };
 
 /* maps adi,adc-frame property value to enum */
@@ -235,6 +241,35 @@ static const struct iio_info ad4134_info = {
 	.read_raw = ad4134_read_raw,
 	.debugfs_reg_access = ad4134_reg_access,
 };
+
+static int ad4134_clock_select(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	struct device *dev = &st->spi->dev;
+	struct clk *sys_clk;
+	int ret;
+
+	ret = device_property_match_property_string(dev, "clock-names",
+						    ad4134_clk_sel,
+						    ARRAY_SIZE(ad4134_clk_sel));
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to find external clock\n");
+
+	sys_clk = devm_clk_get_enabled(dev, ad4134_clk_sel[ret]);
+	if (IS_ERR(sys_clk))
+		return dev_err_probe(dev, PTR_ERR(sys_clk),
+				     "Failed to get %s external clock\n",
+				     ad4134_clk_sel[ret]);
+
+
+	st->sys_clk_rate = clk_get_rate(sys_clk);
+	if (st->sys_clk_rate != AD4134_EXT_CLOCK_MHZ)
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid external clock frequency %lu\n",
+				     st->sys_clk_rate);
+
+	return 0;
+}
 
 static void ad4134_disable_regulators(void *data)
 {
