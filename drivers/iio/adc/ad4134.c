@@ -55,12 +55,9 @@
 
 #define AD4134_EXT_CLOCK_MHZ			(48 * MEGA)
 
-enum ad4134_regulators {
-	AD4134_AVDD5_REGULATOR,
-	AD4134_AVDD1V8_REGULATOR,
-	AD4134_IOVDD_REGULATOR,
-	AD4134_REFIN_REGULATOR,
-	AD4134_NUM_REGULATORS
+static const char * const ad4143_regulator_names[] = {
+	"avdd5", "dvdd5", "iovdd", "refin", "avdd1v8", "dvdd1v8", "clkvdd",
+	"ldoin",
 };
 
 static const char *const ad4134_clk_sel[] = {
@@ -157,7 +154,6 @@ static const struct ad4134_chip_info ad7134_chip_info = {
 struct ad4134_state {
 	struct regmap			*regmap;
 	struct spi_device		*spi;
-	struct regulator_bulk_data	regulators[AD4134_NUM_REGULATORS];
 
 	/*
 	 * Synchronize access to members the of driver state, and ensure
@@ -270,13 +266,6 @@ static int ad4134_clock_select(struct ad4134_state *st)
 	return 0;
 }
 
-static void ad4134_disable_regulators(void *data)
-{
-	struct ad4134_state *st = data;
-
-	regulator_bulk_disable(ARRAY_SIZE(st->regulators), st->regulators);
-}
-
 static int ad4134_setup(struct ad4134_state *st)
 {
 	struct device *dev = &st->spi->dev;
@@ -286,26 +275,6 @@ static int ad4134_setup(struct ad4134_state *st)
 	ret = ad4134_clock_select(st);
 	if (ret)
 		return ret;
-
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(st->regulators),
-				      st->regulators);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get regulators\n");
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(st->regulators), st->regulators);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable regulators\n");
-
-	ret = regulator_get_voltage(st->regulators[AD4134_REFIN_REGULATOR].consumer);
-	if (ret < 0)
-		return ret;
-
-	st->refin_mv = ret / 1000;
-
-	ret = devm_add_action_or_reset(dev, ad4134_disable_regulators, st);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add regulators disable action\n");
 
 	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(reset_gpio))
@@ -356,6 +325,7 @@ static const struct regmap_config ad4134_regmap_config = {
 static int ad4134_probe(struct spi_device *spi)
 {
 	const struct ad4134_chip_info *chip;
+	bool use_internal_ldo_retulator;
 	struct device *dev = &spi->dev;
 	struct iio_dev *indio_dev;
 	struct ad4134_state *st;
@@ -379,10 +349,44 @@ static int ad4134_probe(struct spi_device *spi)
 
 	indio_dev->name = chip->name;
 
-	st->regulators[AD4134_AVDD5_REGULATOR].supply = "avdd5";
-	st->regulators[AD4134_AVDD1V8_REGULATOR].supply = "avdd1v8";
-	st->regulators[AD4134_IOVDD_REGULATOR].supply = "iovdd";
-	st->regulators[AD4134_REFIN_REGULATOR].supply = "refin";
+	/* Required regulators */
+	ret = devm_regulator_bulk_get_enable(dev, 3, ad4143_regulator_names);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable power supplies\n");
+
+	/* Required regulator that we need to read the voltage */
+	ret = devm_regulator_get_enable_read_voltage(dev, "refin");
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to get REFIN voltage.\n");
+
+	st->refin_mv = ret / 1000;
+
+	/*
+	 * If ldoin is not provided, then avdd1v8, dvdd1v8, and clkvdd are
+	 * required.
+	 */
+	ret = devm_regulator_get_enable_optional(dev, "ldoin");
+	if (ret < 0 && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "failed to enable ldoin supply\n");
+
+	use_internal_ldo_retulator = ret == 0;
+
+	if (!use_internal_ldo_retulator) {
+		ret = devm_regulator_get_enable(dev, "avdd1v8");
+		if (ret < 0)
+			return dev_err_probe(dev, ret,
+					     "Failed to enable avdd1v8 supply\n");
+
+		ret = devm_regulator_get_enable(dev, "dvdd1v8");
+		if (ret < 0)
+			return dev_err_probe(dev, ret,
+					     "Failed to enable dvdd1v8 supply\n");
+
+		ret = devm_regulator_get_enable(dev, "clkvdd");
+		if (ret < 0)
+			return dev_err_probe(dev, ret,
+					     "Failed to enable clkvdd supply\n");
+	}
 
 	st->output_frame = AD4134_DATA_PACKET_24BIT_FRAME;
 	ret = device_property_match_property_string(dev, "adi,adc-frame",
