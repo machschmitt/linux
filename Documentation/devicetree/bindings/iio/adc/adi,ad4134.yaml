@@ -84,17 +84,12 @@ properties:
       size is 16-bit when "16-bit" is selected, 24-bit when "16-bit+CRC" or
       "24-bit" are selected, and 32-bit when "24-bit+CRC" is set.
 
-  adi,spi-engine:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle of the SPI slave connected to the SPI engine master
-
 required:
   - compatible
   - reg
   - clocks
   - clock-names
   - refin-supply
-  - adi,spi-engine
 
 additionalProperties: false
 
@@ -123,7 +118,6 @@ examples:
         refin-supply = <&refin>;
 
         adi,adc-frame = "24-bit";
-        adi,spi-engine = <&ad4134_spi_engine>;
       };
     };
 ...
