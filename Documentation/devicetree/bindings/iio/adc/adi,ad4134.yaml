@@ -16,6 +16,8 @@ description: |
 
     https://www.analog.com/en/products/ad4134.html
 
+$ref: /schemas/spi/spi-peripheral-props.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -102,7 +104,7 @@ required:
   - clock-names
   - refin-supply
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
