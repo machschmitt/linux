@@ -41,14 +41,34 @@ properties:
     items:
       - const: sys_clk
 
+  avdd5-supply:
+    description: A 5V supply that powers the chip's analog circuitry.
 
+  dvdd5-supply:
+    description: A 5V supply that powers the chip's digital circuitry.
 
+  iovdd-supply:
+    description:
+      A 1.8V supply that sets the logic levels for the digital interface pins.
 
+  avdd1v8-supply:
+    description: A 1.8V supply used by the analog circuitry.
 
-  avdd5-supply: true
-  avdd1v8-supply: true
-  iovdd-supply: true
-  refin-supply: true
+  dvdd1v8-supply:
+    description: A 1.8V supply used by the digital circuitry.
+
+  clkvdd-supply:
+    description: A 1.8V supply for the chip's clock management circuit.
+
+  ldoin-supply:
+    description:
+      A 2.6V to 5.5V supply that generates 1.8V for AVDD1V8, DVDD1V8, and CLKVDD
+      pins.
+
+  refin-supply:
+    description:
+      Additional supply used to reduce the noise contribution of the reference
+      source to the overall ADC conversion accuracy.
 
   adi,adc-frame:
     $ref: /schemas/types.yaml#/definitions/string
