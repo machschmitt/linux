@@ -1881,7 +1881,7 @@ static bool ad4170_validate_scan_mask(struct iio_dev *indio_dev,
 	if (bitmap_weight(scan_mask, masklength) > 1)
 		return test_bit(0, scan_mask);
 
-	return true;
+	return bitmap_weight(scan_mask, masklength) == 1;
 }
 
 static const struct iio_buffer_setup_ops ad4170_buffer_ops = {
