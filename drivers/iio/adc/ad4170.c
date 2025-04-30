@@ -391,15 +391,10 @@ static int ad4170_debugfs_reg_access(struct iio_dev *indio_dev,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	int ret = -EINVAL;
 
-	if (!iio_device_claim_direct(indio_dev))
-		return -EBUSY;
-
 	if (readval)
 		ret = regmap_read(st->regmap, reg, readval);
 	else
 		ret = regmap_write(st->regmap, reg, writeval);
-
-	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
