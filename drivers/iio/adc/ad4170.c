@@ -1836,6 +1836,8 @@ static int ad4170_buffer_predisable(struct iio_dev *indio_dev)
 	 * thus exiting continuous read.
 	 */
 	ret = regmap_write(st->regmap, AD4170_ADC_CTRL_CONT_READ_EXIT_REG, 0);
+	if (ret)
+		return ret;
 
 	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
 				 AD4170_ADC_CTRL_CONT_READ_MSK,
