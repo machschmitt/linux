@@ -2435,10 +2435,6 @@ static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 
 	/* Only create a GPIO chip if flagged for it */
 	if (device_property_read_bool(dev, "gpio-controller")) {
-		for (i = 0; i < AD4170_NUM_GPIO_PINS; i++)
-			if (st->gpio_fn[i] != AD4170_GPIO_UNASSIGNED)
-				return 0;
-
 		ret = ad4170_gpio_init(indio_dev);
 		if (ret)
 			return ret;
