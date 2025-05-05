@@ -210,6 +210,9 @@
 #define AD4170_PIN_ANALOG_IN				0x01
 #define AD4170_PIN_CURRENT_OUT				0x02
 
+/* GPIO pin functions  */
+#define AD4170_GPIO_UNASIGNED				0x00
+
 static const unsigned int ad4170_reg_size[] = {
 	[AD4170_CONFIG_A_REG] = 1,
 	[AD4170_DATA_24B_REG] = 3,
@@ -1716,8 +1719,11 @@ static int ad4170_gpio_init_valid_mask(struct gpio_chip *gc,
 	unsigned int i;
 
 	/* Only expose GPIOs that were not assigned any other function. */
-	for (i = 0; i < ngpios; i++)
-		__assign_bit(i, valid_mask, st->gpio_fn[i] == AD4170_PIN_UNASIGNED);
+	for (i = 0; i < ngpios; i++) {
+		bool valid = st->gpio_fn[i] == AD4170_GPIO_UNASIGNED;
+
+		__assign_bit(i, valid_mask, valid);
+	}
 
 	return 0;
 }
