@@ -1007,8 +1007,8 @@ static int ad4170_get_ain_voltage_uv(struct ad4170_state *st, int ain_n,
 	 * voltage generator.
 	 */
 	if (st->pins_fn[ain_n] & AD4170_PIN_VBIAS) {
-		*ain_voltage = (st->vrefs_uv[AD4170_AVDD_SUP]
-				- st->vrefs_uv[AD4170_AVSS_SUP]) / 2;
+		int v_diff = st->vrefs_uv[AD4170_AVDD_SUP] - st->vrefs_uv[AD4170_AVSS_SUP];
+		*ain_voltage = v_diff / 2;
 		return 0;
 	}
 
