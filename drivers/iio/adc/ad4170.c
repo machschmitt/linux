@@ -150,6 +150,11 @@
 #define AD4170_CHAN_MAP_REFIN2_N		28
 #define AD4170_CHAN_MAP_REFOUT			29
 
+/* AD4170_MISC_REG constants */
+#define AD4170_MISC_CHOP_IEXC_PAIR1			0x1
+#define AD4170_MISC_CHOP_IEXC_PAIR2			0x2
+#define AD4170_MISC_CHOP_IEXC_BOTH			0x3
+
 /* AD4170_PIN_MUXING_REG constants */
 #define AD4170_PIN_MUXING_DIG_AUX1_DISABLED		0x0
 #define AD4170_PIN_MUXING_DIG_AUX1_RDY			0x1
@@ -1920,7 +1925,8 @@ static int ad4170_setup_current_src(struct ad4170_state *st,
 				    struct ad4170_setup *setup, u32 *exc_pins,
 				    int num_exc_pins, int exc_cur, bool ac_excited)
 {
-	unsigned int current_src, i, j;
+	unsigned int exc_cur_pair, i;
+	unsigned int current_src = 0;
 	int ret;
 
 	for (i = 0; i < num_exc_pins; i++) {
@@ -1929,47 +1935,68 @@ static int ad4170_setup_current_src(struct ad4170_state *st,
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
 
-		for (j = 0; j < AD4170_NUM_CURRENT_SRC; j++) {
-			/*
-			 * Excitation current chopping is configured in pairs.
-			 * If current chopping configured and the first end of
-			 * the current source pair has already been assigned,
-			 * skip to the next pair of output currents.
-			 */
-			if (ac_excited && j % 2 != 0)
-				continue;
-
-			if (st->cur_src_pins[j] == AD4170_CURRENT_SRC_DISABLED) {
-				st->cur_src_pins[j] = pin;
-				break;
-			}
-		}
-		if (j == AD4170_NUM_CURRENT_SRC)
-			return dev_err_probe(&st->spi->dev, -EINVAL,
-					     "Failed to setup IOUT at pin %u\n",
-					     pin);
-
-		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(j),
+		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(i),
 				   current_src);
 		if (ret)
 			return ret;
 	}
 
-	if (ac_excited && num_exc_pins > 1) {
-		unsigned int exc_cur_pair;
+	if (!ac_excited)
+		return 0;
 
-		if (st->cur_src_pins[0] == exc_pins[0])
-			exc_cur_pair = 1;
-		else
-			exc_cur_pair = 2;
+	if (num_exc_pins < 2)
+		return dev_err_probe(&st->spi->dev, -EINVAL,
+			"Current chopping requested but only one pin provided: %u\n",
+			exc_pins[0]);
 
+	/*
+	 * Two use cases to handle here:
+	 * - 2 pairs of excitation currents;
+	 * - 1 pair of excitation currents.
+	 */
+	if (num_exc_pins == 4) {
+		for (i = 0; i < AD4170_NUM_CURRENT_SRC; i++) {
+			unsigned int pin = exc_pins[i];
+
+			if (st->cur_src_pins[i] != AD4170_CURRENT_SRC_DISABLED)
+				return dev_err_probe(&st->spi->dev, -EINVAL,
+						     "Unable to use 4 exc pins\n");
+
+			st->cur_src_pins[i] = pin;
+		}
+	} else {
 		/*
-		 * Configure excitation currents chopping.
-		 * Chop two pairs if using four excitation currents.
+		 * Excitation current chopping is configured in pairs. Current
+		 * sources IOUT0 and IOUT1 form pair 1, IOUT2 and IOUT3 make up
+		 * pair 2. So, if current chopping was requested, check if the
+		 * first end of the first pair of excitation currents is
+		 * available. Try the next pair if IOUT0 has already been
+		 * configured for another channel.
 		 */
-		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_IEXC_MSK,
-					  num_exc_pins == 2 ? exc_cur_pair : 3);
+		i = st->cur_src_pins[0] == AD4170_CURRENT_SRC_DISABLED ? 0 : 2;
+
+		if (st->cur_src_pins[i] != AD4170_CURRENT_SRC_DISABLED ||
+		    st->cur_src_pins[i + 1] != AD4170_CURRENT_SRC_DISABLED)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Failed to setup current chopping\n");
+
+		st->cur_src_pins[i] = exc_pins[0];
+		st->cur_src_pins[i + 1] = exc_pins[1];
+
+		if (i == 0)
+			exc_cur_pair = AD4170_MISC_CHOP_IEXC_PAIR1;
+		else
+			exc_cur_pair = AD4170_MISC_CHOP_IEXC_PAIR2;
 	}
+
+	/*
+	 * Configure excitation current chopping.
+	 * Chop both pairs if using four excitation pins.
+	 */
+	setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_IEXC_MSK,
+				  num_exc_pins == 2 ?
+				  exc_cur_pair :
+				  AD4170_MISC_CHOP_IEXC_BOTH);
 
 	return 0;
 }
