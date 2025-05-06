@@ -1263,8 +1263,8 @@ static int ad4170_read_raw(struct iio_dev *indio_dev,
 			 * again to comply with milli degrees Celsius IIO ABI.
 			 */
 			*val = 0;
-			*val2 = DIV_ROUND_CLOSEST(chan_info->scale_tbl[pga][1] * MILLI,
-						  477) * MILLI;
+			*val2 = DIV_ROUND_CLOSEST(chan_info->scale_tbl[pga][1] * MILLI, 477) *
+						  MILLI;
 			return IIO_VAL_INT_PLUS_NANO;
 		default:
 			return -EINVAL;
