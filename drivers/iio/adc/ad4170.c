@@ -2251,7 +2251,7 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	switch (s_type) {
 	case AD4170_ADC_SENSOR:
 		ret = ad4170_parse_adc_channel_type(dev, child, chan);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		break;
@@ -2260,7 +2260,7 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	case AD4170_RTD_SENSOR:
 		ret = ad4170_parse_external_sensor(st, child, setup, chan,
 						   s_type);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		break;
