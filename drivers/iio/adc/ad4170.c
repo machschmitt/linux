@@ -1862,21 +1862,6 @@ static int ad4170_gpio_init(struct iio_dev *indio_dev)
 	return devm_gpiochip_add_data(&st->spi->dev, &st->gpiochip, indio_dev);
 }
 
-static int _ad4170_find_table_index(const unsigned int *tbl, size_t len,
-				    unsigned int val)
-{
-	unsigned int i;
-
-	for (i = 0; i < len; i++)
-		if (tbl[i] == val)
-			return i;
-
-	return -EINVAL;
-}
-
-#define ad4170_find_table_index(table, val) \
-	_ad4170_find_table_index(table, ARRAY_SIZE(table), val)
-
 static int ad4170_validate_excitation_pin(struct ad4170_state *st, u32 pin)
 {
 	struct device *dev = &st->spi->dev;
@@ -2075,6 +2060,7 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 	struct device *dev = &st->spi->dev;
 	u32 pins[2], exc_pins[4];
 	bool ac_excited, vbias;
+	unsigned int i;
 	int ret;
 
 	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
@@ -2111,8 +2097,11 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 		return dev_err_probe(dev, ret,
 				     "Failed to read adi,excitation-current-microamp\n");
 
-	ret = ad4170_find_table_index(ad4170_iout_current_ua_tbl, exc_cur);
-	if (ret < 0)
+	for (i = 0; i < ARRAY_SIZE(ad4170_iout_current_ua_tbl); i++)
+		if (ad4170_iout_current_ua_tbl[i] == exc_cur)
+			break;
+
+	if (i == ARRAY_SIZE(ad4170_iout_current_ua_tbl))
 		return dev_err_probe(dev, ret,
 				     "Invalid excitation current: %uuA\n",
 				     exc_cur);
