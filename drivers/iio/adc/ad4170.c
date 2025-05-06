@@ -1984,10 +1984,17 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 	/*
 	 * If a specific current is provided through
 	 * adi,excitation-current-microamp, set excitation pins provided through
-	 * adi,excitation-pins to AC excite the bridge circuit. Else, use
-	 * predefined ACX1, ACX1 negated, ACX2, ACX2 negated signals to AC
-	 * excite the bridge. Those signals are output on GPIO2, GPIO0, GPIO3,
-	 * and GPIO1, respectively. If only two pins are specified for AC
+	 * adi,excitation-pins to excite the bridge circuit.
+	 */
+	if (exc_cur > 0)
+		return ad4170_setup_current_src(st, child, setup, exc_pins,
+						num_exc_pins, exc_cur,
+						ac_excited);
+
+	/*
+	 * Else, use predefined ACX1, ACX1 negated, ACX2, ACX2 negated signals
+	 * to AC excite the bridge. Those signals are output on GPIO2, GPIO0,
+	 * GPIO3, and GPIO1, respectively. If only two pins are specified for AC
 	 * excitation, use ACX1 and ACX2.
 	 *
 	 * Also, to avoid any short-circuit condition when more than one channel
@@ -1998,48 +2005,43 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 	 * excitation. See datasheet Figure 113 Weigh Scale (AC Excitation) for
 	 * an example circuit diagram.
 	 */
-	if (exc_cur == 0 && ac_excited) {
-		if (num_exc_pins == 2) {
-			setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x3);
-			ret = regmap_set_bits(st->regmap,
-					      AD4170_GPIO_MODE_REG,
-					      BIT(7) | BIT(5));
-			if (ret)
-				return ret;
+	if (num_exc_pins == 2) {
+		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x3);
+		ret = regmap_set_bits(st->regmap,
+				      AD4170_GPIO_MODE_REG,
+				      BIT(7) | BIT(5));
+		if (ret)
+			return ret;
 
-			ret = regmap_set_bits(st->regmap,
-					      AD4170_GPIO_OUTPUT_REG,
-					      BIT(3) | BIT(2));
-			if (ret)
-				return ret;
+		ret = regmap_set_bits(st->regmap,
+				      AD4170_GPIO_OUTPUT_REG,
+				      BIT(3) | BIT(2));
+		if (ret)
+			return ret;
 
-			st->gpio_fn[3] |= AD4170_GPIO_OUTPUT;
-			st->gpio_fn[2] |= AD4170_GPIO_OUTPUT;
-		} else {
-			setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x2);
-			ret = regmap_set_bits(st->regmap,
-					      AD4170_GPIO_MODE_REG,
-					      BIT(7) | BIT(5) | BIT(3) | BIT(1));
-			if (ret)
-				return ret;
+		st->gpio_fn[3] |= AD4170_GPIO_OUTPUT;
+		st->gpio_fn[2] |= AD4170_GPIO_OUTPUT;
+	} else {
+		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x2);
+		ret = regmap_set_bits(st->regmap,
+				      AD4170_GPIO_MODE_REG,
+				      BIT(7) | BIT(5) | BIT(3) | BIT(1));
+		if (ret)
+			return ret;
 
-			ret = regmap_set_bits(st->regmap,
-					      AD4170_GPIO_OUTPUT_REG,
-					      BIT(3) | BIT(2) | BIT(1) | BIT(0));
-			if (ret)
-				return ret;
+		ret = regmap_set_bits(st->regmap,
+				      AD4170_GPIO_OUTPUT_REG,
+				      BIT(3) | BIT(2) | BIT(1) | BIT(0));
+		if (ret)
+			return ret;
 
-			st->gpio_fn[3] |= AD4170_GPIO_OUTPUT;
-			st->gpio_fn[2] |= AD4170_GPIO_OUTPUT;
-			st->gpio_fn[1] |= AD4170_GPIO_OUTPUT;
-			st->gpio_fn[0] |= AD4170_GPIO_OUTPUT;
-		}
-
-		return 0;
+		st->gpio_fn[3] |= AD4170_GPIO_OUTPUT;
+		st->gpio_fn[2] |= AD4170_GPIO_OUTPUT;
+		st->gpio_fn[1] |= AD4170_GPIO_OUTPUT;
+		st->gpio_fn[0] |= AD4170_GPIO_OUTPUT;
 	}
 
-	return ad4170_setup_current_src(st, child, setup, exc_pins,
-					num_exc_pins, exc_cur, ac_excited);
+	return 0;
 }
 
 static int ad4170_setup_rtd(struct ad4170_state *st,
