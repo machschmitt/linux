@@ -178,7 +178,7 @@
 
 /* AD4170_CURRENT_SRC_REG constants */
 #define AD4170_CURRENT_SRC_I_OUT_PIN_AIN(x)		(x)
-#define AD4170_CURRENT_SRC_I_OUT_PIN_GPIO(x)		(x + 17)
+#define AD4170_CURRENT_SRC_I_OUT_PIN_GPIO(x)		((x) + 17)
 
 /* AD4170_GPIO_MODE_REG constants */
 #define AD4170_GPIO_MODE_GPIO_INPUT			1
