@@ -1613,20 +1613,14 @@ static int ad4170_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct iio_dev *indio_dev = gpiochip_get_data(gc);
 	struct ad4170_state *st = iio_priv(indio_dev);
-	unsigned int val;
 	int ret;
 
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
-	ret = regmap_read(st->regmap, AD4170_GPIO_MODE_REG, &val);
-	if (ret)
-		goto err_release;
-
 	ret = regmap_assign_bits(st->regmap, AD4170_GPIO_OUTPUT_REG,
 				 BIT(offset), !!value);
 
-err_release:
 	iio_device_release_direct(indio_dev);
 	return ret;
 }
