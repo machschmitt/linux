@@ -360,7 +360,7 @@ static const unsigned int ad4170_iout_pin_tbl[] = {
 };
 
 static const unsigned int ad4170_iout_current_ua_tbl[] = {
-	0, 10, 50, 100, 250, 500, 1000, 1500
+	0, 10, 50, 100, 250, 500, 1000, 1500,
 };
 
 enum ad4170_sensor_type {
