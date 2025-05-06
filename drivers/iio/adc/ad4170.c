@@ -1900,7 +1900,7 @@ static int ad4170_validate_excitation_pins(struct ad4170_state *st,
 
 			st->pins_fn[pin] |= AD4170_PIN_CURRENT_OUT;
 		} else {
-			unsigned int gpio = AD4170_CURRENT_SRC_I_OUT_PIN_GPIO(0);
+			unsigned int gpio = pin - AD4170_CURRENT_SRC_I_OUT_PIN_GPIO(0);
 
 			if (st->gpio_fn[gpio] != AD4170_GPIO_UNASIGNED)
 				return dev_err_probe(dev, -EINVAL,
