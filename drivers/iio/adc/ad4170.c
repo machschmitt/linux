@@ -1979,6 +1979,7 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 			       struct ad4170_setup *setup, u32 *exc_pins,
 			       int num_exc_pins, int exc_cur, bool ac_excited)
 {
+	unsigned long gpio_mask;
 	int ret;
 
 	/*
@@ -1995,7 +1996,7 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 	 * Else, use predefined ACX1, ACX1 negated, ACX2, ACX2 negated signals
 	 * to AC excite the bridge. Those signals are output on GPIO2, GPIO0,
 	 * GPIO3, and GPIO1, respectively. If only two pins are specified for AC
-	 * excitation, use ACX1 and ACX2.
+	 * excitation, use ACX1 and ACX2 (GPIO2 and GPIO3).
 	 *
 	 * Also, to avoid any short-circuit condition when more than one channel
 	 * is enabled, set GPIO2 and GPIO0 high, and set GPIO1 and GPIO3 low to
@@ -2007,9 +2008,11 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 	 */
 	if (num_exc_pins == 2) {
 		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x3);
-		ret = regmap_set_bits(st->regmap,
-				      AD4170_GPIO_MODE_REG,
-				      BIT(7) | BIT(5));
+
+		gpio_mask = AD4170_GPIO_MODE_GPIO3_MSK | AD4170_GPIO_MODE_GPIO2_MSK;
+		ret = regmap_update_bits(st->regmap, AD4170_GPIO_MODE_REG, gpio_mask,
+					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 3) |
+					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 2));
 		if (ret)
 			return ret;
 
@@ -2023,9 +2026,14 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 		st->gpio_fn[2] |= AD4170_GPIO_OUTPUT;
 	} else {
 		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x2);
-		ret = regmap_set_bits(st->regmap,
-				      AD4170_GPIO_MODE_REG,
-				      BIT(7) | BIT(5) | BIT(3) | BIT(1));
+
+		gpio_mask = AD4170_GPIO_MODE_GPIO3_MSK | AD4170_GPIO_MODE_GPIO2_MSK |
+			    AD4170_GPIO_MODE_GPIO1_MSK | AD4170_GPIO_MODE_GPIO0_MSK;
+		ret = regmap_update_bits(st->regmap, AD4170_GPIO_MODE_REG, gpio_mask,
+					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 3) |
+					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 2) |
+					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 1) |
+					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 0));
 		if (ret)
 			return ret;
 
