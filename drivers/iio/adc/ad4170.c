@@ -1877,38 +1877,55 @@ static int _ad4170_find_table_index(const unsigned int *tbl, size_t len,
 #define ad4170_find_table_index(table, val) \
 	_ad4170_find_table_index(table, ARRAY_SIZE(table), val)
 
+static int ad4170_validate_excitation_pin(struct ad4170_state *st, u32 pin)
+{
+	struct device *dev = &st->spi->dev;
+	unsigned int i;
+
+	/* Check the pin number is valid */
+	for (i = 0; i < ARRAY_SIZE(ad4170_iout_pin_tbl); i++)
+		if (ad4170_iout_pin_tbl[i] == pin)
+			break;
+
+	if (i == ARRAY_SIZE(ad4170_iout_pin_tbl))
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid excitation pin: %u\n",
+				     pin);
+
+	/* Check the pin is available */
+	if (pin <= AD4170_MAX_ANALOG_PINS) {
+		if (st->pins_fn[pin] != AD4170_PIN_UNASIGNED)
+			return dev_err_probe(dev, -EINVAL,
+					     "Pin %u already used with fn %u\n",
+					     pin, st->pins_fn[pin]);
+
+		st->pins_fn[pin] |= AD4170_PIN_CURRENT_OUT;
+	} else {
+		unsigned int gpio = pin - AD4170_CURRENT_SRC_I_OUT_PIN_GPIO(0);
+
+		if (st->gpio_fn[gpio] != AD4170_GPIO_UNASIGNED)
+			return dev_err_probe(dev, -EINVAL,
+					     "GPIO %u already used with fn %u\n",
+					     gpio, st->gpio_fn[gpio]);
+
+		st->gpio_fn[gpio] |= AD4170_GPIO_AC_EXCITATION;
+	}
+
+	return 0;
+}
+
 static int ad4170_validate_excitation_pins(struct ad4170_state *st,
 					   u32 *exc_pins, int num_exc_pins)
 {
-	struct device *dev = &st->spi->dev;
-	int ret, i;
+	unsigned int i;
+	int ret;
 
 	for (i = 0; i < num_exc_pins; i++) {
 		unsigned int pin = exc_pins[i];
 
-		ret = ad4170_find_table_index(ad4170_iout_pin_tbl, pin);
-		if (ret < 0)
-			return dev_err_probe(dev, ret,
-					     "Invalid excitation pin: %u\n",
-					     pin);
-
-		if (pin <= AD4170_MAX_ANALOG_PINS) {
-			if (st->pins_fn[pin] != AD4170_PIN_UNASIGNED)
-				return dev_err_probe(dev, -EINVAL,
-						     "Pin %u already used with fn %u\n",
-						     pin, st->pins_fn[pin]);
-
-			st->pins_fn[pin] |= AD4170_PIN_CURRENT_OUT;
-		} else {
-			unsigned int gpio = pin - AD4170_CURRENT_SRC_I_OUT_PIN_GPIO(0);
-
-			if (st->gpio_fn[gpio] != AD4170_GPIO_UNASIGNED)
-				return dev_err_probe(dev, -EINVAL,
-						     "GPIO %u already used with fn %u\n",
-						     gpio, st->gpio_fn[gpio]);
-
-			st->gpio_fn[gpio] |= AD4170_GPIO_AC_EXCITATION;
-		}
+		ret = ad4170_validate_excitation_pin(st, pin);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
