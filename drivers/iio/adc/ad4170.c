@@ -1080,6 +1080,7 @@ static int __ad4170_read_sample(struct iio_dev *indio_dev,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	int settling_time_ms, ret;
 
+	reinit_completion(&st->completion);
 	ret = ad4170_set_mode(st, AD4170_ADC_CTRL_MODE_SINGLE);
 	if (ret)
 		return ret;
@@ -1093,7 +1094,6 @@ static int __ad4170_read_sample(struct iio_dev *indio_dev,
 	 * for sufficient time whatever the filter configuration may be.
 	 */
 	settling_time_ms = DIV_ROUND_UP(6291164 * MILLI, st->mclk_hz);
-	reinit_completion(&st->completion);
 	ret = wait_for_completion_timeout(&st->completion,
 					  msecs_to_jiffies(settling_time_ms));
 	if (!ret)
