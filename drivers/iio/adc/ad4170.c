@@ -388,7 +388,7 @@ static int ad4170_debugfs_reg_access(struct iio_dev *indio_dev,
 				     unsigned int *readval)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	int ret = -EINVAL;
+	int ret;
 
 	if (readval)
 		ret = regmap_read(st->regmap, reg, readval);
