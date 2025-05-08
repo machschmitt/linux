@@ -1773,8 +1773,8 @@ static int ad4170_register_clk_provider(struct iio_dev *indio_dev)
 		return 0;
 
 	if (device_property_read_string(dev, "clock-output-names", &init.name)) {
-		init.name = devm_kasprintf(dev, GFP_KERNEL, "%s-clk",
-					   fwnode_get_name(dev_fwnode(dev)));
+		init.name = devm_kasprintf(dev, GFP_KERNEL, "%pfw",
+					   dev_fwnode(dev));
 		if (!init.name)
 			return -ENOMEM;
 	}
