@@ -1184,18 +1184,17 @@ static int ad4170_read_raw(struct iio_dev *indio_dev,
 					      ARRAY_SIZE(ad4170_sinc3_filt_fs_tbl));
 			*val = st->sps_tbl[f_type][fs_idx][0];
 			*val2 = st->sps_tbl[f_type][fs_idx][1];
-			break;
+			return IIO_VAL_INT_PLUS_MICRO;
 		case AD4170_SINC5:
 			fs_idx = find_closest(setup->filter_fs,
 					      ad4170_sinc5_filt_fs_tbl,
 					      ARRAY_SIZE(ad4170_sinc5_filt_fs_tbl));
 			*val = st->sps_tbl[f_type][fs_idx][0];
 			*val2 = st->sps_tbl[f_type][fs_idx][1];
-			break;
+			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
 		}
-		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		*val = setup->offset;
 		return IIO_VAL_INT;
