@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/math64.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -792,18 +793,12 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 	 */
 	old_filter = setup->filter;
 	old_filter_fs = setup->filter_fs;
-	if (val == AD4170_SINC5_AVG || val == AD4170_SINC3) {
-		if (setup->filter_fs < AD4170_SINC3_MIN_FS)
-			setup->filter_fs = AD4170_SINC3_MIN_FS;
-		if (setup->filter_fs > AD4170_SINC3_MAX_FS)
-			setup->filter_fs = AD4170_SINC3_MAX_FS;
-
-	} else if (val == AD4170_SINC5) {
-		if (setup->filter_fs < AD4170_SINC5_MIN_FS)
-			setup->filter_fs = AD4170_SINC5_MIN_FS;
-		if (setup->filter_fs > AD4170_SINC5_MAX_FS)
-			setup->filter_fs = AD4170_SINC5_MAX_FS;
-	}
+	if (val == AD4170_SINC5_AVG || val == AD4170_SINC3)
+		setup->filter_fs = clamp(val, AD4170_SINC3_MIN_FS,
+					 AD4170_SINC3_MAX_FS);
+	else
+		setup->filter_fs = clamp(val, AD4170_SINC5_MIN_FS,
+					 AD4170_SINC5_MAX_FS);
 
 	setup->filter &= ~AD4170_FILTER_FILTER_TYPE_MSK;
 	setup->filter |= FIELD_PREP(AD4170_FILTER_FILTER_TYPE_MSK,
