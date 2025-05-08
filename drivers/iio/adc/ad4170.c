@@ -463,18 +463,16 @@ static int ad4170_reg_read(void *context, unsigned int reg, unsigned int *val)
 	switch (size) {
 	case 3:
 		*val = get_unaligned_be24(st->rx_buf);
-		break;
+		return 0;
 	case 2:
 		*val = get_unaligned_be16(st->rx_buf);
-		break;
+		return 0;
 	case 1:
 		*val = st->rx_buf[0];
-		break;
+		return 0;
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
 }
 
 static const struct regmap_config ad4170_regmap_config = {
