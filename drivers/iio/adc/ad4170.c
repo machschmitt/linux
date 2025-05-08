@@ -151,14 +151,12 @@
 #define AD4170_INVALID_SETUP				9
 #define AD4170_SPI_MAX_XFER_LEN				6
 #define AD4170_NUM_CURRENT_SRC				4
-#define AD4170_DEFAULT_SAMP_RATE			(125 * KILO)
+#define AD4170_DEFAULT_SAMP_RATE			(125 * HZ_PER_KHZ)
 
 #define AD4170_INT_REF_2_5V				2500000
 
 /* Internal and external clock properties */
-#define AD4170_INT_CLOCK_16MHZ				(16 * MEGA)
-#define AD4170_EXT_CLOCK_MHZ_MIN			(1 * MEGA)
-#define AD4170_EXT_CLOCK_MHZ_MAX			(17 * MEGA)
+#define AD4170_INT_CLOCK_16MHZ				(16 * HZ_PER_MHZ)
 
 #define AD4170_NUM_PGA_OPTIONS				10
 
@@ -258,8 +256,9 @@ static const char * const ad4170_int_pin_names[] = {
 };
 
 static const unsigned int ad4170_sinc3_filt_fs_tbl[] = {
-	4, 8, 12, 16, 20, 40, 48, 80, 100, 256, 500, 1000, 5000, 8332, 10000,
-	25000, 50000, 65532,
+	4, 8, 12, 16, 20, 40, 48, 80,			/*  0 -  7 */
+	100, 256, 500, 1000, 5000, 8332, 10000, 25000,  /*  8 - 15 */
+	50000, 65532,					/* 16 - 17 */
 };
 
 #define AD4170_MAX_FS_TBL_SIZE		ARRAY_SIZE(ad4170_sinc3_filt_fs_tbl)
