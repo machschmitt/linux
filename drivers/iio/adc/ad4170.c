@@ -1114,7 +1114,8 @@ static int ad4170_read_sample(struct iio_dev *indio_dev,
 			      struct iio_chan_spec const *chan, int *val)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	int ret;
+	struct device *dev = &st->spi->dev;
+	int ret, ret2;
 
 	guard(mutex)(&st->lock);
 	/*
@@ -1128,8 +1129,15 @@ static int ad4170_read_sample(struct iio_dev *indio_dev,
 		return ret;
 
 	ret = __ad4170_read_sample(indio_dev, chan, val);
-	if (ret)
-		dev_err(&st->spi->dev, "failed to read sample: %d\n", ret);
+	if (ret) {
+		dev_err(dev, "failed to read sample: %d\n", ret);
+
+		ret2 = ad4170_set_channel_enable(st, chan->address, false);
+		if (ret2)
+			dev_err(dev, "failed to disable channel: %d\n", ret2);
+
+		return ret;
+	}
 
 	ret = ad4170_set_channel_enable(st, chan->address, false);
 	if (ret)
