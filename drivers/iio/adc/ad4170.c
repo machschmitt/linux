@@ -581,8 +581,7 @@ static int ad4170_link_channel_setup(struct ad4170_state *st,
 
 	ret = regmap_update_bits(st->regmap, AD4170_CHAN_SETUP_REG(chan_addr),
 				 AD4170_CHAN_SETUP_SETUP_MSK,
-				 FIELD_PREP(AD4170_CHAN_SETUP_SETUP_MSK,
-					    setup_num));
+				 FIELD_PREP(AD4170_CHAN_SETUP_SETUP_MSK, setup_num));
 	if (ret)
 		return ret;
 
