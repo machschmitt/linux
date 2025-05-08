@@ -388,14 +388,11 @@ static int ad4170_debugfs_reg_access(struct iio_dev *indio_dev,
 				     unsigned int *readval)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
-	int ret;
 
 	if (readval)
-		ret = regmap_read(st->regmap, reg, readval);
+		return regmap_read(st->regmap, reg, readval);
 	else
-		ret = regmap_write(st->regmap, reg, writeval);
-
-	return ret;
+		return regmap_write(st->regmap, reg, writeval);
 }
 
 static int ad4170_get_reg_size(struct ad4170_state *st, unsigned int reg,
