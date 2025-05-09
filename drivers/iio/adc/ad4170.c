@@ -332,17 +332,17 @@ static const char * const ad4170_filt_names[] = {
 };
 
 struct ad4170_state {
-	struct regmap *regmap;
-	struct spi_device *spi;
-	int vrefs_uv[AD4170_MAX_SUP];
-	u32 int_pin_sel;
 	struct mutex lock; /* Protect read-modify-write and multi write sequences */
+	int vrefs_uv[AD4170_MAX_SUP];
+	u32 mclk_hz;
+	struct ad4170_setup_info setup_infos[AD4170_MAX_SETUPS];
 	struct iio_chan_spec chans[AD4170_MAX_CHANNELS];
 	struct ad4170_chan_info chan_infos[AD4170_MAX_CHANNELS];
-	struct ad4170_setup_info setup_infos[AD4170_MAX_SETUPS];
-	int pins_fn[AD4170_NUM_ANALOG_PINS];
+	struct spi_device *spi;
+	struct regmap *regmap;
 	int sps_tbl[ARRAY_SIZE(ad4170_filt_names)][AD4170_MAX_FS_TBL_SIZE][2];
-	u32 mclk_hz;
+	int pins_fn[AD4170_NUM_ANALOG_PINS];
+	u32 int_pin_sel;
 	struct completion completion;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
