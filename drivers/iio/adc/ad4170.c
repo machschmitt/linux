@@ -373,9 +373,9 @@ struct ad4170_state {
 	struct completion completion;
 	int pins_fn[AD4170_NUM_ANALOG_PINS];
 	u32 int_pin_sel;
-	unsigned int clock_ctrl;
-	struct clk *ext_clk;
 	struct clk_hw int_clk_hw;
+	struct clk *ext_clk;
+	unsigned int clock_ctrl;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
