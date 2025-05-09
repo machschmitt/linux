@@ -381,8 +381,8 @@ struct ad4170_state {
 	unsigned int pins_fn[AD4170_NUM_ANALOG_PINS];
 	u32 int_pin_sel;
 	struct clk_hw int_clk_hw;
-	unsigned int clock_ctrl;
 	struct gpio_chip gpiochip;
+	unsigned int clock_ctrl;
 	int gpio_fn[AD4170_NUM_GPIO_PINS];
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
