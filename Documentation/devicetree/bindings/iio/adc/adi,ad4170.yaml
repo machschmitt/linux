@@ -19,9 +19,28 @@ description: |
 $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 $defs:
-  sensor-node:
+  ad4170-channel:
     type: object
     $ref: /schemas/iio/adc/adc.yaml#
+    description:
+      Common properties for configuring AD4170 channels.
+
+    properties:
+      adi,reference-select:
+        description: |
+          Selects the reference source to use when converting on the specific
+          channel. Valid values are:
+          0: Differential reference voltage REFIN+ - REFIN−.
+          1: Differential reference voltage REFIN2+ - REFIN2−.
+          2: Internal 2.5V referece (REFOUT) relative to AVSS.
+          3: Analog supply voltage (AVDD) relative AVSS.
+        $ref: /schemas/types.yaml#/definitions/uint8
+        enum: [0, 1, 2, 3]
+
+
+  sensor-node:
+    type: object
+    $ref: '#/$defs/ad4170-channel'
     description:
       The AD4170 and similar designs have features to aid interfacing with weigh
       scale, RTD, and thermocouple sensors. Each of those sensor types requires
@@ -61,17 +80,6 @@ $defs:
           1: RTD;
           2: thermocouple.
         $ref: /schemas/types.yaml#/definitions/uint8
-
-      adi,reference-select:
-        description: |
-          Selects the reference source to use when converting on the specific
-          channel. Valid values are:
-          0: Differential reference voltage REFIN+ - REFIN−.
-          1: Differential reference voltage REFIN2+ - REFIN2−.
-          2: Internal 2.5V referece (REFOUT) relative to AVSS.
-          3: Analog supply voltage (AVDD) relative AVSS.
-        $ref: /schemas/types.yaml#/definitions/uint8
-        enum: [0, 1, 2, 3]
 
       adi,excitation-ac:
         type: boolean
@@ -219,8 +227,7 @@ properties:
 
 patternProperties:
   "^channel@[0-9a-f]$":
-    $ref: adc.yaml
-    type: object
+    $ref: '#/$defs/ad4170-channel'
     unevaluatedProperties: false
     description:
       Represents the external channels which are connected to the ADC.
@@ -302,19 +309,6 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint8
         enum: [0, 1, 2]
         default: 1
-
-      adi,reference-select:
-        description: |
-          Select the reference source to use when converting on the specific
-          channel. Valid values are:
-          0: Differential reference voltage REFIN+ - REFIN−.
-          1: Differential reference voltage REFIN2+ - REFIN2−.
-          2: Internal 2.5V referece (REFOUT) relative to AVSS.
-          3: Analog supply voltage (AVDD) relative AVSS.
-          If this field is left empty, the internal reference is selected.
-        $ref: /schemas/types.yaml#/definitions/uint8
-        enum: [0, 1, 2, 3]
-        default: 2
 
     required:
       - reg
