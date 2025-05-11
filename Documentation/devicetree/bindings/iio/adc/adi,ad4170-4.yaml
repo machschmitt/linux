@@ -339,7 +339,6 @@ patternProperties:
 
       adi,sensor-type:
         description: Weigh scale sensor.
-        $ref: /schemas/types.yaml#/definitions/uint8
         const: 0
 
       adi,excitation-pins: true
@@ -354,7 +353,6 @@ patternProperties:
 
       adi,sensor-type:
         description: RTD sensor.
-        $ref: /schemas/types.yaml#/definitions/uint8
         const: 1
 
       adi,excitation-pins: true
@@ -375,7 +373,6 @@ patternProperties:
 
       adi,sensor-type:
         description: Thermocouple sensor.
-        $ref: /schemas/types.yaml#/definitions/uint8
         const: 2
 
     required:
