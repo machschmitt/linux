@@ -1852,7 +1852,7 @@ static irqreturn_t ad4170_trigger_handler(int irq, void *p)
 		if (ret)
 			goto err_out;
 
-		st->bounce_buffer[i] = get_unaligned_be32(st->rx_buf);
+		memcpy(&st->bounce_buffer[i], st->rx_buf, ARRAY_SIZE(st->rx_buf));
 	}
 
 	iio_push_to_buffers(indio_dev, st->bounce_buffer);
