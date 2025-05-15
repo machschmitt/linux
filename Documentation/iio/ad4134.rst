@@ -1,0 +1,75 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+
+=============
+AD4134 driver
+=============
+
+Device driver for Analog Devices Inc. AD4134 and similar ADCs.
+
+Supported devices
+=================
+
+* `AD4134 <https://www.analog.com/AD4134>`_
+* `AD7134 <https://www.analog.com/AD7134>`_
+
+Wiring connections
+------------------
+
+Devices of the AD4000 series can be connected to the SPI host controller in a
+few different modes.
+
+CS mode, 3-wire turbo mode
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Datasheet "3-wire" mode is what most resembles standard SPI connection which,
+for these devices, comprises of connecting the controller CS line to device CNV
+pin and other SPI lines as usual. This configuration is (misleadingly) called
+"CS Mode, 3-Wire Turbo Mode" connection in datasheets.
+NOTE: The datasheet definition of 3-wire mode for the AD4000 series is NOT the
+same of standard spi-3wire mode.
+This is the only connection mode that allows configuration register access but
+it requires the SPI controller to support the ``SPI_MOSI_IDLE_HIGH`` feature.
+
+Omit the ``adi,sdi-pin`` property in device tree to select this mode.
+
+::
+
+                                         +-------------+
+     + ----------------------------------| SDO         |
+     |                                   |             |
+     |               +-------------------| CS          |
+     |               v                   |             |
+     |    +--------------------+         |     HOST    |
+     |    |        CNV         |         |             |
+     +--->| SDI   AD4000   SDO |-------->| SDI         |
+          |        SCK         |         |             |
+          +--------------------+         |             |
+                    ^                    |             |
+                    +--------------------| SCLK        |
+                                         +-------------+
+
+
+
+
+Table 22. Configuration 2 Hardware Settings
++---------------------------------------------------+--------------------+
+| Pin Function             |  Supply/Level          | Description        |
++===================================================+====================+
+| AVDD5, DVDD5               |       5V             |  Supply            |
++----------------------------+----------------------+--------------------+
+| IOVDD, CLKVDD, AVDD1V8,    |       1.8 V          |  Supply            |
+| LDOIN, DVDD1V8             |                      |                    |
++----------------------------+----------------------+--------------------+
+| PIN/SPI                    |       High           |  SPI control mode  |
++----------------------------+----------------------+--------------------+
+| CLKSEL                     |       High           |  Crystal input     |
++----------------------------+----------------------+--------------------+
+| MODE                       |       Low            |  ASRC slave        |
++----------------------------+----------------------+--------------------+
+| DCLKMODE                   |       Low            |  Gated DCLK        |
++----------------------------+----------------------+--------------------+
+| DCLKIO                     |       Low            |  DCLK input        |
++----------------------------+----------------------+--------------------+
+
+
+
