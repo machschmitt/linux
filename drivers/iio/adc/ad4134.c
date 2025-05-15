@@ -21,8 +21,6 @@
 
 #include <linux/iio/iio.h>
 
-#define AD4134_NAME				"ad4134"
-
 #define AD4134_DEVICE_CONFIG_REG		0x02
 #define AD4134_DEVICE_CONFIG_POWER_MODE_MASK	BIT(0)
 #define AD4134_POWER_MODE_HIGH_PERF		0b1
@@ -450,7 +448,7 @@ MODULE_DEVICE_TABLE(of, ad4134_of_match);
 
 static struct spi_driver ad4134_driver = {
 	.driver = {
-		.name = AD4134_NAME,
+		.name = "ad4134",
 		.of_match_table = ad4134_of_match,
 	},
 	.probe = ad4134_probe,
