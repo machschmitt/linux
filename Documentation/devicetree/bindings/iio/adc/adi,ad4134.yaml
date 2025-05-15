@@ -87,6 +87,13 @@ properties:
       GPIO connected to ODR pin. Used to sample ADC data in minimum I/O mode.
     maxItems: 1
 
+  adi,spi-control-mode:
+    description:
+      Describes whether the PIN/SPI pin is set high, implying the SPI interface
+      is enabled. When absent, it means the PIN/SPI pin is at a low level,
+      in which case the device operates in pin control mode and the SPI
+      interface pins take on different functions.
+
   adi,adc-frame:
     $ref: /schemas/types.yaml#/definitions/string
     enum: [ 16-bit, 16-bit+CRC, 24-bit, 24-bit+CRC ]
@@ -146,6 +153,7 @@ examples:
         dvdd1v8-supply = <&dvdd1v8>;
         clkvdd-supply = <&clkvdd>;
 
+        adi,spi-control-mode;
         adi,adc-frame = "24-bit";
       };
     };
