@@ -18,8 +18,8 @@ Wiring connections
 Devices of the AD4000 series can be connected to the SPI host controller in a
 few different modes.
 
-CS mode, 3-wire turbo mode
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+SPI control mode
+^^^^^^^^^^^^^^^^
 
 Datasheet "3-wire" mode is what most resembles standard SPI connection which,
 for these devices, comprises of connecting the controller CS line to device CNV
@@ -35,25 +35,27 @@ Omit the ``adi,sdi-pin`` property in device tree to select this mode.
 ::
 
                                          +-------------+
-     + ----------------------------------| SDO         |
-     |                                   |             |
-     |               +-------------------| CS          |
-     |               v                   |             |
-     |    +--------------------+         |     HOST    |
-     |    |        CNV         |         |             |
-     +--->| SDI   AD4000   SDO |-------->| SDI         |
-          |        SCK         |         |             |
-          +--------------------+         |             |
-                    ^                    |             |
-                    +--------------------| SCLK        |
-                                         +-------------+
-
+                                 IOVDD   |     HOST    |
+      +------------------------+   |     |             |
+      |                PIN/SPI |<--+     |             |
+      |                        |         |             |
+      |                   DCLK |<--+     |             |
+      |           FORMAT1/SCLK |<--+---- | SCLK        |
+      |   AD4134      DEC2/SDI |<--------| SDI         |
+      |               DEC3/SDO |<--------| SDO         |
+      |                    ODR |<--------| GPIO        |
+      |             FORMAT0/CS |<--+     |             |
+      |                   MODE |<--+
+      |            DEC0/DCLKIO |<--+     |             |
+      |          DEC1/DCLKMODE |<--+     |             |
+      +------------------------+   |     +-------------+
+                                  GND
 
 
 
 Table 22. Configuration 2 Hardware Settings
 +---------------------------------------------------+--------------------+
-| Pin Function             |  Supply/Level          | Description        |
+| Pin Function               |  Supply/Level        | Description        |
 +===================================================+====================+
 | AVDD5, DVDD5               |       5V             |  Supply            |
 +----------------------------+----------------------+--------------------+
