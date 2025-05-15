@@ -279,9 +279,10 @@ static int ad4134_setup(struct ad4134_state *st)
 		return dev_err_probe(dev, PTR_ERR(reset_gpio),
 				     "Failed to find reset GPIO\n");
 
-	fsleep(AD4134_RESET_TIME_US);
-
-	gpiod_set_value_cansleep(reset_gpio, 0);
+	if (reset_gpio) {
+		fsleep(AD4134_RESET_TIME_US);
+		gpiod_set_value_cansleep(reset_gpio, 0);
+	}
 
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
