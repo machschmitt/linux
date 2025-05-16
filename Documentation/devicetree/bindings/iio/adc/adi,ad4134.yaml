@@ -40,7 +40,9 @@ properties:
     maxItems: 1
     description:
       Required external clock source. Can specify either an external clock or
-      external crystal.
+      external crystal. If an external crystal is set, connect the CLKSEL pin to
+      IOVDD. When the clock signal is provided on the XTAL2/CLKIN pin, connect
+      the CLKSEL pin to IOGND.
 
   clock-names:
     enum:
