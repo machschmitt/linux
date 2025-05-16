@@ -25,6 +25,9 @@
 #define AD4134_DEVICE_CONFIG_POWER_MODE_MASK	BIT(0)
 #define AD4134_POWER_MODE_HIGH_PERF		0b1
 
+#define AD4134_SDO_PIN_SRC_SEL_REG		0x10
+#define AD4134_SDO_PIN_SRC_SEL_SDO_SEL_MASK	BIT(2)
+
 #define AD4134_DATA_PACKET_CONFIG_REG		0x11
 #define AD4134_DATA_PACKET_CONFIG_FRAME_MASK	GENMASK(5, 4)
 #define AD4134_DATA_PACKET_16BIT_FRAME		0x0
@@ -34,6 +37,7 @@
 
 #define AD4134_DIG_IF_CFG_REG			0x12
 #define AD4134_DIF_IF_CFG_FORMAT_MASK		GENMASK(1, 0)
+#define AD4134_DATA_FORMAT_SINGLE_CH_MODE	0b00
 #define AD4134_DATA_FORMAT_QUAD_CH_PARALLEL	0b10
 
 #define AD4134_RESET_TIME_US			10000000
@@ -118,6 +122,7 @@ struct ad4134_state {
 	unsigned long			sys_clk_rate;
 	int				refin_mv;
 	int				output_frame;
+	struct gpio_desc *odr_gpio;
 };
 
 static int ad4134_read_raw(struct iio_dev *indio_dev,
@@ -181,15 +186,32 @@ static int ad4134_clock_select(struct ad4134_state *st)
 	return 0;
 }
 
+static int ad4134_min_io_mode_setup(struct ad4134_state *st)
+{
+	struct device *dev = &st->spi->dev;
+	int ret;
+
+	st->odr_gpio = devm_gpiod_get(dev, "odr", GPIOD_OUT_HIGH);
+	if (IS_ERR(st->odr_gpio))
+		return dev_err_probe(dev, PTR_ERR(st->odr_gpio),
+				     "Failed to get ODR GPIO\n");
+
+	ret = regmap_update_bits(st->regmap, AD4134_DIG_IF_CFG_REG,
+				 AD4134_DIF_IF_CFG_FORMAT_MASK,
+				 FIELD_PREP(AD4134_DIF_IF_CFG_FORMAT_MASK,
+					    AD4134_DATA_FORMAT_SINGLE_CH_MODE));
+	if (ret)
+		return ret;
+
+	return regmap_set_bits(st->regmap, AD4134_SDO_PIN_SRC_SEL_REG,
+			       AD4134_SDO_PIN_SRC_SEL_SDO_SEL_MASK);
+}
+
 static int ad4134_setup(struct ad4134_state *st)
 {
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *reset_gpio;
 	int ret;
-
-	ret = ad4134_clock_select(st);
-	if (ret)
-		return ret;
 
 	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(reset_gpio))
@@ -201,17 +223,14 @@ static int ad4134_setup(struct ad4134_state *st)
 		gpiod_set_value_cansleep(reset_gpio, 0);
 	}
 
+	ret = ad4134_min_io_mode_setup(st);
+	if (ret)
+		return ret;
+
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 					    st->output_frame));
-	if (ret)
-		return ret;
-
-	ret = regmap_update_bits(st->regmap, AD4134_DIG_IF_CFG_REG,
-				 AD4134_DIF_IF_CFG_FORMAT_MASK,
-				 FIELD_PREP(AD4134_DIF_IF_CFG_FORMAT_MASK,
-					    AD4134_DATA_FORMAT_QUAD_CH_PARALLEL));
 	if (ret)
 		return ret;
 
@@ -295,6 +314,10 @@ static int ad4134_probe(struct spi_device *spi)
 			return dev_err_probe(dev, ret,
 					     "Failed to enable clkvdd supply\n");
 	}
+
+	ret = ad4134_clock_select(st);
+	if (ret)
+		return ret;
 
 	st->output_frame = AD4134_DATA_PACKET_24BIT_FRAME;
 	ret = device_property_match_property_string(dev, "adi,adc-frame",
