@@ -87,12 +87,42 @@ properties:
       GPIO connected to ODR pin. Used to sample ADC data in minimum I/O mode.
     maxItems: 1
 
-  adi,spi-control-mode:
+  adi,control-mode:
+    $ref: /schemas/types.yaml#/definitions/string
     description:
       Describes whether the PIN/SPI pin is set high, implying the SPI interface
-      is enabled. When absent, it means the PIN/SPI pin is at a low level,
-      in which case the device operates in pin control mode and the SPI
-      interface pins take on different functions.
+      is enabled (SPI Control Mode). When absent, it means the PIN/SPI pin is at
+      a low level, in which case the device operates in Pin Control Mode and the
+      SPI interface pins take on different functions.
+    enum: [ spi-control-mode, pin-control-mode ]
+    default: spi-control-mode
+
+  adi,asrc-mode:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      Asynchronous Sample Rate Converter (ASRC) operation mode control input.
+      Describes whether the MODE pin is set to a high level (for master mode
+      operation) or to a low level (for slave mode operation).
+    enum: [ high, low ]
+    default: low
+
+  adi,dclkio:
+    description:
+      DCLK pin I/O direction control for when the device operates in Pin Control
+      Slave Mode or in SPI Control Mode. Describes if DEC0/DCLKIO pin is at a
+      high level (which configures DCLK as an output) or to set to a low level
+      (configuring DCLK for input).
+    enum: [ out, in ]
+    default: in
+
+  adi,dclkmode:
+    description:
+      DCLK mode control for when the device operates in Pin Control Slave Mode
+      or in SPI Control Mode. Describes whether the DEC1/DCLKMODE pin is set to
+      a high level (configuring the DCLK to operate in free running mode) or
+      to a low level (to configure DCLK to operate in gated mode).
+    enum: [ free-running, gated ]
+    default: gated
 
   adi,adc-frame:
     $ref: /schemas/types.yaml#/definitions/string
@@ -154,7 +184,10 @@ examples:
         dvdd1v8-supply = <&dvdd1v8>;
         clkvdd-supply = <&clkvdd>;
 
-        adi,spi-control-mode;
+        adi,control-mode = "spi-control-mode";
+        adi,asrc-mode = "low";
+        adi,dclkio = "in";
+        adi,dclkmode = "gated";
         adi,adc-frame = "24-bit";
       };
     };
