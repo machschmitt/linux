@@ -45,7 +45,8 @@
 #define AD4134_EXT_CLOCK_MHZ			(48 * MEGA)
 
 static const char * const ad4143_regulator_names[] = {
-	"avdd5", "dvdd5", "iovdd", "refin", "avdd1v8", "dvdd1v8", "clkvdd",
+	"avdd5", "dvdd5", "iovdd", "refin",	/* Required supplies */
+	"avdd1v8", "dvdd1v8", "clkvdd",		/* Required if ldoin not provided */
 	"ldoin",
 };
 
