@@ -252,6 +252,28 @@ properties:
   '#size-cells':
     const: 0
 
+allOf:
+  # Some devices don't have integrated DAC
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad4190
+              - adi,ad4195
+    then:
+      properties:
+        ldac-gpios: false
+
+  # If an external clock is set, the internal clock cannot go out and vice versa
+  - oneOf:
+      - required: [clocks]
+        properties:
+          '#clock-cells': false
+      - required: ['#clock-cells']
+        properties:
+          clocks: false
+
 patternProperties:
   "^channel@[0-9a-f]$":
     $ref: '#/$defs/ad4170-channel'
@@ -365,28 +387,6 @@ required:
   - iovdd-supply
   - spi-cpol
   - spi-cpha
-
-allOf:
-  # Some devices don't have integrated DAC
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - adi,ad4190
-              - adi,ad4195
-    then:
-      properties:
-        ldac-gpios: false
-
-  # If an external clock is set, the internal clock cannot go out and vice versa
-  - oneOf:
-      - required: [clocks]
-        properties:
-          '#clock-cells': false
-      - required: ['#clock-cells']
-        properties:
-          clocks: false
 
 unevaluatedProperties: false
 
