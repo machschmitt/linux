@@ -116,6 +116,8 @@ $defs:
       adi,power-down-switch-pin:
         description:
           Number of the GPIO used as power-down switch for the bridge circuit.
+          Omit this when there isn't a bridge circuit wired up or the bridge
+          doesn't use a power-dwon switch.
         $ref: /schemas/types.yaml#/definitions/uint8
         enum: [0, 1]
 
