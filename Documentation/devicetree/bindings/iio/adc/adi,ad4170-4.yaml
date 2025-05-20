@@ -379,6 +379,15 @@ allOf:
       properties:
         ldac-gpios: false
 
+  # If an external clock is set, the internal clock cannot go out and vice versa
+  - oneOf:
+      - required: [clocks]
+        properties:
+          '#clock-cells': false
+      - required: ['#clock-cells']
+        properties:
+          clocks: false
+
 unevaluatedProperties: false
 
 examples:
