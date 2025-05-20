@@ -365,7 +365,6 @@ struct ad4170_state {
 	struct clk_hw int_clk_hw;
 	unsigned int clock_ctrl;
 	unsigned int pins_fn[AD4170_NUM_ANALOG_PINS];
-	struct clk *ext_clk;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
@@ -1746,14 +1745,15 @@ static int ad4170_clock_select(struct iio_dev *indio_dev)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
+	struct clk *ext_clk;
 	int ret;
 
-	st->ext_clk = devm_clk_get_optional_enabled(dev, NULL);
-	if (IS_ERR(st->ext_clk))
-		return dev_err_probe(dev, PTR_ERR(st->ext_clk),
+	ext_clk = devm_clk_get_optional_enabled(dev, NULL);
+	if (IS_ERR(ext_clk))
+		return dev_err_probe(dev, PTR_ERR(ext_clk),
 				     "Failed to get external clock\n");
 
-	if (!st->ext_clk) {
+	if (!ext_clk) {
 		/* Use internal clock reference */
 		st->mclk_hz = AD4170_INT_CLOCK_16MHZ;
 		st->clock_ctrl |= FIELD_PREP(AD4170_CLOCK_CTRL_CLOCKSEL_MSK,
@@ -1770,7 +1770,7 @@ static int ad4170_clock_select(struct iio_dev *indio_dev)
 	st->clock_ctrl |= FIELD_PREP(AD4170_CLOCK_CTRL_CLOCKSEL_MSK,
 				     AD4170_CLOCK_CTRL_CLOCKSEL_EXT + ret);
 
-	st->mclk_hz = clk_get_rate(st->ext_clk);
+	st->mclk_hz = clk_get_rate(ext_clk);
 	if (st->mclk_hz < AD4170_EXT_CLOCK_MHZ_MIN ||
 	    st->mclk_hz > AD4170_EXT_CLOCK_MHZ_MAX) {
 		return dev_err_probe(dev, -EINVAL,
