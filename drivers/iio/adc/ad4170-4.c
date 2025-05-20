@@ -1751,23 +1751,25 @@ static int ad4170_clock_select(struct iio_dev *indio_dev)
 	struct device *dev = &st->spi->dev;
 	int ret;
 
-	st->mclk_hz = AD4170_INT_CLOCK_16MHZ;
-	ret = device_property_match_property_string(dev, "clock-names",
-						    ad4170_clk_sel,
-						    ARRAY_SIZE(ad4170_clk_sel));
-	if (ret < 0) {
+	st->ext_clk = devm_clk_get_optional_enabled(dev, NULL);
+	if (IS_ERR(st->ext_clk))
+		return dev_err_probe(dev, PTR_ERR(st->ext_clk),
+				     "Failed to get external clock\n");
+
+	if (!st->ext_clk) {
 		/* Use internal clock reference */
+		st->mclk_hz = AD4170_INT_CLOCK_16MHZ;
 		st->clock_ctrl |= FIELD_PREP(AD4170_CLOCK_CTRL_CLOCKSEL_MSK,
 					     AD4170_CLOCK_CTRL_CLOCKSEL_INT_OUT);
 		return ad4170_register_clk_provider(indio_dev);
 	}
 
-	/* Use external clock reference */
-	st->ext_clk = devm_clk_get_enabled(dev, ad4170_clk_sel[ret]);
-	if (IS_ERR(st->ext_clk))
-		return dev_err_probe(dev, PTR_ERR(st->ext_clk),
-				     "Failed to get external clock\n");
+	/* Read optional clock-names prop to specify the external clock type */
+	ret = device_property_match_property_string(dev, "clock-names",
+						    ad4170_clk_sel,
+						    ARRAY_SIZE(ad4170_clk_sel));
 
+	ret = ret < 0 ? 0 : ret; /* Default to external clock if no clock-names */
 	st->clock_ctrl |= FIELD_PREP(AD4170_CLOCK_CTRL_CLOCKSEL_MSK,
 				     AD4170_CLOCK_CTRL_CLOCKSEL_EXT + ret);
 
