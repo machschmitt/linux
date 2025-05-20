@@ -299,9 +299,6 @@ patternProperties:
 
       bipolar: true
 
-    required:
-      - reg
-
     oneOf:
       - required: [single-channel]
         properties:
