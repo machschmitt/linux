@@ -144,7 +144,7 @@ properties:
 
   avss-supply:
     description:
-      Referece voltage supply for AVSS. If provided, describes the magnitude
+      Reference voltage supply for AVSS. If provided, describes the magnitude
       (absolute value) of the negative voltage supplied to the AVSS pin. Since
       AVSS must be −2.625V minimum and 0V maximum, the declared supply voltage
       must be between 0 and 2.65V. If not provided, AVSS is assumed to be at
