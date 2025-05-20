@@ -300,7 +300,7 @@ patternProperties:
       bipolar: true
 
     oneOf:
-      - required: [single-channel]
+      - required: [single-channel, common-mode-channel]
         properties:
           diff-channels: false
       - required: [diff-channels]
