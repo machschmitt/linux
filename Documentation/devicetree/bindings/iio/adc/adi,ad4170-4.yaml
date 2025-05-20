@@ -396,6 +396,8 @@ examples:
             spi-cpha;
             avdd-supply = <&avdd>;
             iovdd-supply = <&iovdd>;
+            clocks = <&clk>;
+            clock-names = "xtal";
             interrupt-parent = <&gpio_in>;
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
             #address-cells = <1>;
@@ -460,6 +462,8 @@ examples:
             spi-cpha;
             avdd-supply = <&avdd>;
             iovdd-supply = <&iovdd>;
+            #clock-cells = <0>;
+            clock-output-names = "ad4170-clk16mhz";
             interrupt-parent = <&gpio_in>;
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
             #address-cells = <1>;
