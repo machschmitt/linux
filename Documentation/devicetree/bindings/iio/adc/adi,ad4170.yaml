@@ -160,7 +160,6 @@ $defs:
       - adi,sensor-type
       - adi,reference-select
 
-
 properties:
   compatible:
     enum:
