@@ -328,30 +328,18 @@ patternProperties:
     unevaluatedProperties: false
 
     properties:
-      diff-channels: true
-      bipolar: true
-
       adi,sensor-type:
         description: Weigh scale sensor.
         const: 0
-
-      adi,excitation-pins: true
 
   "^rtd@":
     $ref: '#/$defs/sensor-node'
     unevaluatedProperties: false
 
     properties:
-      diff-channels: true
-      bipolar: true
-
       adi,sensor-type:
         description: RTD sensor.
         const: 1
-
-      adi,excitation-pins: true
-
-      adi,excitation-current-microamp: true
 
     required:
       - adi,excitation-pins
@@ -362,9 +350,6 @@ patternProperties:
     unevaluatedProperties: false
 
     properties:
-      diff-channels: true
-      bipolar: true
-
       adi,sensor-type:
         description: Thermocouple sensor.
         const: 2
