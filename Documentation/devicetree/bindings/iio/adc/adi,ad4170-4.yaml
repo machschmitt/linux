@@ -154,7 +154,6 @@ $defs:
           common-mode voltage for the sensor.
 
     required:
-      - reg
       - diff-channels
       - bipolar
       - adi,sensor-type
