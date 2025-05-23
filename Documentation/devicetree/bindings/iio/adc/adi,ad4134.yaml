@@ -33,36 +33,6 @@ properties:
   spi-max-frequency:
     maximum: 1000000
 
-  reset-gpios:
-    maxItems: 1
-
-  powerdown-gpios:
-    description:
-      Active low GPIO connected to the /PDN pin. Forces the device into full
-      power-down mode when broght low. Pull this input to IOVDD for normal
-      operation.
-    maxItems: 1
-
-  clocks:
-    maxItems: 1
-    description:
-      Required external clock source. Can specify either an external clock or
-      external crystal. If an external crystal is set, connect the CLKSEL pin to
-      IOVDD. When the clock signal is provided on the XTAL2/CLKIN pin, connect
-      the CLKSEL pin to IOGND.
-
-  clock-names:
-    enum:
-      - xtal1-xtal2
-      - clkin
-    default: clkin
-
-  '#clock-cells':
-    const: 0
-
-  clock-output-names:
-    maxItems: 1
-
   avdd5-supply:
     description: A 5V supply that powers the chip's analog circuitry.
 
@@ -90,6 +60,36 @@ properties:
     description:
       A 2.6V to 5.5V supply that generates 1.8V for AVDD1V8, DVDD1V8, and CLKVDD
       pins.
+
+  clocks:
+    maxItems: 1
+    description:
+      Required external clock source. Can specify either an external clock or
+      external crystal. If an external crystal is set, connect the CLKSEL pin to
+      IOVDD. When the clock signal is provided on the XTAL2/CLKIN pin, connect
+      the CLKSEL pin to IOGND.
+
+  clock-names:
+    enum:
+      - xtal1-xtal2
+      - clkin
+    default: clkin
+
+  '#clock-cells':
+    const: 0
+
+  clock-output-names:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  powerdown-gpios:
+    description:
+      Active low GPIO connected to the /PDN pin. Forces the device into full
+      power-down mode when broght low. Pull this input to IOVDD for normal
+      operation.
+    maxItems: 1
 
   odr-gpios:
     description:
