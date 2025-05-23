@@ -36,6 +36,13 @@ properties:
   reset-gpios:
     maxItems: 1
 
+  powerdown-gpios:
+    description:
+      Active low GPIO connected to the /PDN pin. Forces the device into full
+      power-down mode when broght low. Pull this input to IOVDD for normal
+      operation.
+    maxItems: 1
+
   clocks:
     maxItems: 1
     description:
@@ -174,6 +181,7 @@ examples:
 
         reset-gpios = <&gpio0 86 GPIO_ACTIVE_LOW>;
         odr-gpios = <&gpio0 87 GPIO_ACTIVE_LOW>;
+        powerdown-gpios = <&gpio0 88 GPIO_ACTIVE_LOW>;
 
         clocks = <&sys_clk>;
         clock-names = "clkin";
