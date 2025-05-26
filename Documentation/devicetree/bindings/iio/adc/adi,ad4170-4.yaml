@@ -146,15 +146,6 @@ properties:
       minimum: 0
       maximum: 8
 
-  adi,power-down-switch-gpio:
-    description:
-      Number of the GPIO used as power-down switch for the bridge circuit.
-      Omit this when there isn't a bridge circuit wired up or the bridge
-      doesn't use a power-down switch.
-    $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [0, 1]
-
-
 allOf:
   # Some devices don't have integrated DAC
   - if:
@@ -361,7 +352,6 @@ examples:
                 adi,excitation-ac;
                 adi,excitation-pin-0 = <19>;
                 adi,excitation-pin-1 = <20>;
-                adi,power-down-switch-gpio = <0>;
             };
             // RTD sensor
             channel@2 {
