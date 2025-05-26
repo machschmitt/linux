@@ -46,13 +46,6 @@ $defs:
     minimum: 0
     maximum: 20
 
-  excitation-current-microamp:
-    description:
-      Excitation current in microamperes to be applied to pin specified in
-      adi,excitation-pin-n while this channel is active.
-    enum: [0, 10, 50, 100, 250, 500, 1000, 1500]
-    default: 0
-
 properties:
   compatible:
     enum:
@@ -272,17 +265,33 @@ patternProperties:
       adi,excitation-pin-3:
         $ref: '#/$defs/excitation-pin'
 
-      adi,excitation-current-microamp-0:
-        $ref: '#/$defs/excitation-current-microamp'
+      adi,excitation-current-0-microamp:
+        description:
+          Excitation current in microamperes to be applied to pin specified in
+          adi,excitation-pin-0 while this channel is active.
+        enum: [0, 10, 50, 100, 250, 500, 1000, 1500]
+        default: 0
 
-      adi,excitation-current-microamp-1:
-        $ref: '#/$defs/excitation-current-microamp'
+      adi,excitation-current-1-microamp:
+        description:
+          Excitation current in microamperes to be applied to pin specified in
+          adi,excitation-pin-1 while this channel is active.
+        enum: [0, 10, 50, 100, 250, 500, 1000, 1500]
+        default: 0
 
-      adi,excitation-current-microamp-2:
-        $ref: '#/$defs/excitation-current-microamp'
+      adi,excitation-current-2-microamp:
+        description:
+          Excitation current in microamperes to be applied to pin specified in
+          adi,excitation-pin-2 while this channel is active.
+        enum: [0, 10, 50, 100, 250, 500, 1000, 1500]
+        default: 0
 
-      adi,excitation-current-microamp-3:
-        $ref: '#/$defs/excitation-current-microamp'
+      adi,excitation-current-3-microamp:
+        description:
+          Excitation current in microamperes to be applied to pin specified in
+          adi,excitation-pin-3 while this channel is active.
+        enum: [0, 10, 50, 100, 250, 500, 1000, 1500]
+        default: 0
 
       adi,excitation-ac:
         type: boolean
@@ -364,8 +373,8 @@ examples:
                 adi,excitation-ac;
                 adi,excitation-pin-0 = <5>;
                 adi,excitation-pin-1 = <6>;
-                adi,excitation-current-microamp-0 = <500>;
-                adi,excitation-current-microamp-1 = <500>;
+                adi,excitation-current-0-microamp = <500>;
+                adi,excitation-current-1-microamp = <500>;
             };
             // Thermocouple sensor
             channel@3 {
@@ -375,7 +384,7 @@ examples:
                 adi,sensor-type = "thermocouple";
                 adi,reference-select = <0>;
                 adi,excitation-pin-0 = <18>;
-                adi,excitation-current-microamp-0 = <500>;
+                adi,excitation-current-0-microamp = <500>;
             };
         };
     };
