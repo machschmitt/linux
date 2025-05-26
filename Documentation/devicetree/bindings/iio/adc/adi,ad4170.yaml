@@ -290,14 +290,31 @@ patternProperties:
           Whether the external sensor has to be AC or DC excited. When omitted,
           it is DC excited.
 
-    oneOf:
-      - required: [single-channel, common-mode-channel]
-        properties:
-          diff-channels: false
-      - required: [diff-channels]
-        properties:
-          single-channel: false
-          common-mode-channel: false
+    allOf:
+      - oneOf:
+          - required: [single-channel, common-mode-channel]
+            properties:
+              diff-channels: false
+          - required: [diff-channels]
+            properties:
+              single-channel: false
+              common-mode-channel: false
+      # Usual ADC channels don't need external circuitry excitation.
+      - if:
+          not:
+            required:
+              - adi,sensor-type
+        then:
+          properties:
+            adi,excitation-pin-0: false
+            adi,excitation-pin-1: false
+            adi,excitation-pin-2: false
+            adi,excitation-pin-3: false
+            adi,excitation-current-0-microamp: false
+            adi,excitation-current-1-microamp: false
+            adi,excitation-current-2-microamp: false
+            adi,excitation-current-3-microamp: false
+            adi,excitation-ac: false
 
 required:
   - compatible
