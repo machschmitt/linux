@@ -315,6 +315,56 @@ patternProperties:
             adi,excitation-current-2-microamp: false
             adi,excitation-current-3-microamp: false
             adi,excitation-ac: false
+      # Weigh scale bridge AC excited with one pair of predefined signals.
+      - if:
+          allOf:
+            - properties:
+                adi,sensor-type:
+                  contains:
+                    const: weighscale
+            - required:
+                - adi,excitation-ac
+                - adi,excitation-pin-2
+                - adi,excitation-pin-3
+            - not:
+                required:
+                  - adi,excitation-current-2-microamp
+                  - adi,excitation-current-3-microamp
+        then:
+          properties:
+            adi,excitation-pin-2:
+              const: 19
+            adi,excitation-pin-3:
+              const: 20
+      # Weigh scale bridge AC excited with two pairs of predefined signals.
+      - if:
+          allOf:
+            - properties:
+                adi,sensor-type:
+                  contains:
+                    const: weighscale
+            - required:
+                - adi,excitation-ac
+                - adi,excitation-pin-0
+                - adi,excitation-pin-1
+                - adi,excitation-pin-2
+                - adi,excitation-pin-3
+            - not:
+                required:
+                  - adi,excitation-current-0-microamp
+                  - adi,excitation-current-1-microamp
+                  - adi,excitation-current-2-microamp
+                  - adi,excitation-current-3-microamp
+        then:
+          properties:
+            adi,excitation-pin-0:
+              const: 17
+            adi,excitation-pin-1:
+              const: 18
+            adi,excitation-pin-2:
+              const: 19
+            adi,excitation-pin-3:
+              const: 20
 
 required:
   - compatible
@@ -366,8 +416,8 @@ examples:
                 adi,reference-buffered-positive = <0>;
                 adi,reference-buffered-negative = <0>;
                 adi,sensor-type = "weighscale";
-                adi,excitation-pin-0 = <19>;
-                adi,excitation-pin-1 = <20>;
+                adi,excitation-pin-2 = <19>;
+                adi,excitation-pin-3 = <20>;
                 adi,excitation-ac;
             };
             // RTD sensor
