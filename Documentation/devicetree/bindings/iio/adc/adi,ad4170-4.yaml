@@ -19,7 +19,7 @@ description: |
 $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 $defs:
-  precharge-buffer:
+  reference-buffer:
     description: |
       Enable precharge buffer, full buffer, or skip reference buffering of
       the positive/negative voltage reference. Because the output impedance
@@ -32,132 +32,26 @@ $defs:
       but narrows to AVSS to AVDD when reference buffering is enabled or in
       precharge mode. The valid options for this property are:
       0: Reference precharge buffer.
-      1: Full Buffer.
+      1: Full reference buffering.
       2: Bypass reference buffers (buffering disabled).
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2]
     default: 1
 
-  ad4170-channel:
-    type: object
-    $ref: /schemas/iio/adc/adc.yaml#
+  excitation-pin:
+    description: |
+      Analog input to apply excitation current to while the channel
+      is active.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 20
+
+  excitation-current-microamp:
     description:
-      Common properties for configuring AD4170 channels.
-
-    properties:
-      adi,reference-select:
-        description: |
-          Selects the reference source to use when converting on the specific
-          channel. Valid values are:
-          0: Differential reference voltage REFIN+ - REFIN−.
-          1: Differential reference voltage REFIN2+ - REFIN2−.
-          2: Internal 2.5V referece (REFOUT) relative to AVSS.
-          3: Analog supply voltage (AVDD) relative AVSS.
-        $ref: /schemas/types.yaml#/definitions/uint8
-        enum: [0, 1, 2, 3]
-
-      adi,buffered-positive:
-        $ref: '#/$defs/precharge-buffer'
-
-      adi,buffered-negative:
-        $ref: '#/$defs/precharge-buffer'
-
-  sensor-node:
-    type: object
-    $ref: '#/$defs/ad4170-channel'
-    description:
-      The AD4170 and similar designs have features to aid interfacing with weigh
-      scale, RTD, and thermocouple sensors. Each of those sensor types requires
-      either distinct wiring configuration or external circuitry for proper
-      sensor operation and can use different AD4170 functionality on their
-      setups. A key characteristic of those external sensors is that they must
-      be excited either by voltage supply or by AD4170 excitation signals. The
-      sensor can then be read through a pair of analog inputs. These properties
-      describe external sensor circuitry connected to the ADC.
-
-    properties:
-      reg:
-        description:
-          Channel number. Connects the sensor to the channel with this number
-          of the device.
-        minimum: 1
-        maximum: 16
-
-      diff-channels:
-        description:
-          Defines the ADC input pins used to read sensor data. Only regular
-          analog input pins can be used.
-        items:
-          enum: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-
-      bipolar: true
-
-      adi,sensor-type:
-        description: |
-          Type of sensor connected to the device. Depending on the sensor type
-          (weigh scale, RTD, or thermocouple) the values of sensor-node
-          properties have slightly different constraints. This property
-          specifies which particular external sensor is connected to the ADC so
-          the sensor-node properties can be properly parsed and verified. The
-          possible sensor types are:
-          0: weigh scale;
-          1: RTD;
-          2: thermocouple.
-        $ref: /schemas/types.yaml#/definitions/uint8
-
-      adi,excitation-ac:
-        type: boolean
-        description:
-          Whether the external sensor has to be AC or DC excited. When omitted,
-          it is DC excited.
-
-      adi,excitation-pins:
-        $ref: /schemas/types.yaml#/definitions/uint32-array
-        description:
-          Pins used to excite the sensor or external circuit that contains the
-          sensor. Thermocouples and RTD sensors are excited either with one
-          current source or with a pair of current sources to minimize the
-          excitation current mismatch and the excitation current drift matching
-          on the ADC. E.g. <0>; <1>; <0 1>. Load cell weigh scales may be
-          excited with one current source, a pair of excitation currents, or two
-          pairs of excitation currents. When four pins are defined, the first
-          two values specify the first pair and the last ones specify the second
-          pair of excitation currents. E.g. <0>; <0 1>; <0 1 2 3>.
-        items:
-          minimum: 0
-          maximum: 20
-
-      adi,excitation-current-microamp:
-        description:
-          Excitation current in microamperes to be output to each excitation pin
-          specified by adi,excitation-pins property. If not provided and
-          adi,excitation-ac is true, use predefined ACX1, ACX1 negated, ACX2,
-          and ACX2 negated signals to AC excite the bridge circuit. Those
-          singals are output on GPIO2, GPIO0, GPIO3, and GPIO1, respectively.
-        enum: [0, 10, 50, 100, 250, 500, 1000, 1500]
-        default: 0
-
-      adi,power-down-switch-pin:
-        description:
-          Number of the GPIO used as power-down switch for the bridge circuit.
-          Omit this when there isn't a bridge circuit wired up or the bridge
-          doesn't use a power-down switch.
-        $ref: /schemas/types.yaml#/definitions/uint8
-        enum: [0, 1]
-
-      adi,vbias:
-        type: boolean
-        description:
-          For unbiased thermocouple applications, the voltage generated by the
-          thermocouple must be biased around some DC voltage. When present, this
-          property specifies a bias voltage of (AVDD + AVSS)/2 to be applied as
-          common-mode voltage for the sensor.
-
-    required:
-      - diff-channels
-      - bipolar
-      - adi,sensor-type
-      - adi,reference-select
+      Excitation current in microamperes to be applied to pin specified in
+      adi,excitation-pin-n while this channel is active.
+    enum: [0, 10, 50, 100, 250, 500, 1000, 1500]
+    default: 0
 
 properties:
   compatible:
@@ -250,6 +144,24 @@ properties:
   '#size-cells':
     const: 0
 
+  adi,vbias-pins:
+    description: Analog inputs to apply a voltage bias of (AVDD − AVSS) / 2 to.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 9
+    items:
+      minimum: 0
+      maximum: 8
+
+  adi,power-down-switch-gpio:
+    description:
+      Number of the GPIO used as power-down switch for the bridge circuit.
+      Omit this when there isn't a bridge circuit wired up or the bridge
+      doesn't use a power-down switch.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+
+
 allOf:
   # Some devices don't have integrated DAC
   - if:
@@ -274,7 +186,7 @@ allOf:
 
 patternProperties:
   "^channel@[0-9a-f]$":
-    $ref: '#/$defs/ad4170-channel'
+    $ref: /schemas/iio/adc/adc.yaml#
     unevaluatedProperties: false
     description:
       Represents the external channels which are connected to the ADC.
@@ -313,6 +225,71 @@ patternProperties:
           enum: [0, 1, 2, 3, 4, 5, 6, 7, 8, 17, 18, 19, 20, 21, 22, 23, 24, 25,
                  26, 27, 28, 29]
 
+      adi,sensor-type:
+        description:
+          The AD4170 and similar designs have features to aid interfacing with
+          load cell weigh scale, RTD, and thermocouple sensors. Each of those
+          sensor types requires either distinct wiring configuration or
+          external circuitry for proper sensor operation and can use different
+          ADC chip functionality on their setups. A key characteristic of those
+          external sensors is that they must be excited either by voltage supply
+          or by ADC chip excitation signals. The sensor can then be read through
+          a pair of analog inputs. This property specifies which particular
+          sensor type is connected to the ADC so it can be properly setup and
+          handled. Omit this property for conventional (not weigh scale, RTD, or
+          thermocouple) ADC channel setups.
+        $ref: /schemas/types.yaml#/definitions/string
+        enum: [ weighscale, rtd, thermocouple ]
+
+      adi,reference-select:
+        description: |
+          Select the reference source to use when converting on the
+          specific channel. Valid values are:
+          0: REFIN+/REFIN-
+          1: REFIN2+/REFIN2−
+          2: REFOUT/AVSS (internal reference)
+          3: AVDD/AVSS
+          If not specified, REFOUT/AVSS is used.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2, 3]
+        default: 1
+
+      adi,reference-buffered-positive:
+        $ref: '#/$defs/reference-buffer'
+
+      adi,reference-buffered-negative:
+        $ref: '#/$defs/reference-buffer'
+
+      adi,excitation-pin-0:
+        $ref: '#/$defs/excitation-pin'
+
+      adi,excitation-pin-1:
+        $ref: '#/$defs/excitation-pin'
+
+      adi,excitation-pin-2:
+        $ref: '#/$defs/excitation-pin'
+
+      adi,excitation-pin-3:
+        $ref: '#/$defs/excitation-pin'
+
+      adi,excitation-current-microamp-0:
+        $ref: '#/$defs/excitation-current-microamp'
+
+      adi,excitation-current-microamp-1:
+        $ref: '#/$defs/excitation-current-microamp'
+
+      adi,excitation-current-microamp-2:
+        $ref: '#/$defs/excitation-current-microamp'
+
+      adi,excitation-current-microamp-3:
+        $ref: '#/$defs/excitation-current-microamp'
+
+      adi,excitation-ac:
+        type: boolean
+        description:
+          Whether the external sensor has to be AC or DC excited. When omitted,
+          it is DC excited.
+
     oneOf:
       - required: [single-channel, common-mode-channel]
         properties:
@@ -321,41 +298,6 @@ patternProperties:
         properties:
           single-channel: false
           common-mode-channel: false
-
-  "^weighscale@":
-    $ref: '#/$defs/sensor-node'
-    unevaluatedProperties: false
-
-    properties:
-      adi,sensor-type:
-        description: Weigh scale sensor.
-        const: 0
-
-  "^rtd@":
-    $ref: '#/$defs/sensor-node'
-    unevaluatedProperties: false
-
-    properties:
-      adi,sensor-type:
-        description: RTD sensor.
-        const: 1
-
-    required:
-      - adi,excitation-pins
-      - adi,excitation-current-microamp
-
-  "^thermocouple@":
-    $ref: '#/$defs/sensor-node'
-    unevaluatedProperties: false
-
-    properties:
-      adi,sensor-type:
-        description: Thermocouple sensor.
-        const: 2
-
-    required:
-      - adi,excitation-pins
-      - adi,excitation-current-microamp
 
 required:
   - compatible
@@ -386,6 +328,7 @@ examples:
             clock-names = "xtal";
             interrupt-parent = <&gpio_in>;
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+            adi,vbias-pins = <7>;
             #address-cells = <1>;
             #size-cells = <0>;
 
@@ -395,42 +338,44 @@ examples:
                 reg = <0>;
                 single-channel = <0>;
                 common-mode-channel = <24>;
-                adi,reference-select = /bits/ 8 <3>;
+                adi,reference-select = <3>;
             };
             // Weigh scale sensor
-            weighscale@1 {
+            channel@1 {
                 reg = <1>;
                 bipolar;
                 diff-channels = <1 2>;
-                adi,sensor-type = /bits/ 8 <0>;
-                adi,reference-select = /bits/ 8 <0>;
-                adi,buffered-positive = <0>;
-                adi,buffered-negative = <0>;
+                adi,sensor-type = "weighscale";
+                adi,reference-select = <0>;
+                adi,reference-buffered-positive = <0>;
+                adi,reference-buffered-negative = <0>;
                 adi,excitation-ac;
-                adi,excitation-pins = <19 20>;
-                adi,power-down-switch-pin = /bits/ 8 <0>;
+                adi,excitation-pin-0 = <19>;
+                adi,excitation-pin-1 = <20>;
+                adi,power-down-switch-gpio = <0>;
             };
             // RTD sensor
-            rtd@2 {
+            channel@2 {
                 reg = <2>;
                 bipolar;
                 diff-channels = <3 4>;
-                adi,sensor-type = /bits/ 8 <1>;
-                adi,reference-select = /bits/ 8 <0>;
+                adi,sensor-type = "rtd";
+                adi,reference-select = <0>;
                 adi,excitation-ac;
-                adi,excitation-pins = <5 6>;
-                adi,excitation-current-microamp = <500>;
+                adi,excitation-pin-0 = <5>;
+                adi,excitation-pin-1 = <6>;
+                adi,excitation-current-microamp-0 = <500>;
+                adi,excitation-current-microamp-1 = <500>;
             };
             // Thermocouple sensor
-            thermocouple@3 {
+            channel@3 {
                 reg = <3>;
                 bipolar;
                 diff-channels = <7 8>;
-                adi,sensor-type = /bits/ 8 <2>;
-                adi,reference-select = /bits/ 8 <0>;
-                adi,excitation-pins = <18>;
-                adi,excitation-current-microamp = <500>;
-                adi,vbias;
+                adi,sensor-type = "thermocouple";
+                adi,reference-select = <0>;
+                adi,excitation-pin-0 = <18>;
+                adi,excitation-current-microamp-0 = <500>;
             };
         };
     };
@@ -461,7 +406,7 @@ examples:
                 reg = <0>;
                 bipolar;
                 diff-channels = <0 1>;
-                adi,reference-select = /bits/ 8 <3>;
+                adi,reference-select = <3>;
             };
             // Sample AIN2 with respect to DGND throughout AVDD/DGND input range
             // Pseudo-differential unipolar
@@ -469,7 +414,7 @@ examples:
                 reg = <1>;
                 single-channel = <2>;
                 common-mode-channel = <24>;
-                adi,reference-select = /bits/ 8 <3>;
+                adi,reference-select = <3>;
             };
             // Sample AIN3 with respect to 2.5V throughout AVDD/AVSS input range
             // Pseudo-differential bipolar
@@ -478,7 +423,7 @@ examples:
                 bipolar;
                 single-channel = <3>;
                 common-mode-channel = <29>;
-                adi,reference-select = /bits/ 8 <3>;
+                adi,reference-select = <3>;
             };
             // Sample AIN4 with respect to DGND throughout AVDD/AVSS input range
             // Pseudo-differential bipolar
@@ -487,7 +432,7 @@ examples:
                 bipolar;
                 single-channel = <4>;
                 common-mode-channel = <24>;
-                adi,reference-select = /bits/ 8 <3>;
+                adi,reference-select = <3>;
             };
             // Sample AIN5 with respect to 2.5V throughout AVDD/AVSS input range
             // Pseudo-differential unipolar (AD4170 datasheet page 46 example)
@@ -495,7 +440,7 @@ examples:
                 reg = <4>;
                 single-channel = <5>;
                 common-mode-channel = <29>;
-                adi,reference-select = /bits/ 8 <3>;
+                adi,reference-select = <3>;
             };
             // Sample AIN6 with respect to 2.5V throughout REFIN+/REFIN- input range
             // Pseudo-differential bipolar
@@ -504,17 +449,20 @@ examples:
                 bipolar;
                 single-channel = <6>;
                 common-mode-channel = <29>;
-                adi,reference-select = /bits/ 8 <0>;
+                adi,reference-select = <0>;
             };
             // Weigh scale sensor
-            weighscale@6 {
+            channel@6 {
                 reg = <6>;
                 bipolar;
                 diff-channels = <7 8>;
-                adi,reference-select = /bits/ 8 <0>;
-                adi,sensor-type = /bits/ 8 <0>;
+                adi,reference-select = <0>;
+                adi,sensor-type = "weighscale";
                 adi,excitation-ac;
-                adi,excitation-pins = <17 18 19 20>;
+                adi,excitation-pin-0 = <17>;
+                adi,excitation-pin-1 = <18>;
+                adi,excitation-pin-2 = <19>;
+                adi,excitation-pin-3 = <20>;
             };
         };
     };
