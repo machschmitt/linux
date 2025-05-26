@@ -209,22 +209,6 @@ patternProperties:
           enum: [0, 1, 2, 3, 4, 5, 6, 7, 8, 17, 18, 19, 20, 21, 22, 23, 24, 25,
                  26, 27, 28, 29]
 
-      adi,sensor-type:
-        description:
-          The AD4170 and similar designs have features to aid interfacing with
-          load cell weigh scale, RTD, and thermocouple sensors. Each of those
-          sensor types requires either distinct wiring configuration or
-          external circuitry for proper sensor operation and can use different
-          ADC chip functionality on their setups. A key characteristic of those
-          external sensors is that they must be excited either by voltage supply
-          or by ADC chip excitation signals. The sensor can then be read through
-          a pair of analog inputs. This property specifies which particular
-          sensor type is connected to the ADC so it can be properly setup and
-          handled. Omit this property for conventional (not weigh scale, RTD, or
-          thermocouple) ADC channel setups.
-        $ref: /schemas/types.yaml#/definitions/string
-        enum: [ weighscale, rtd, thermocouple ]
-
       adi,reference-select:
         description: |
           Select the reference source to use when converting on the
@@ -243,6 +227,22 @@ patternProperties:
 
       adi,reference-buffered-negative:
         $ref: '#/$defs/reference-buffer'
+
+      adi,sensor-type:
+        description:
+          The AD4170 and similar designs have features to aid interfacing with
+          load cell weigh scale, RTD, and thermocouple sensors. Each of those
+          sensor types requires either distinct wiring configuration or
+          external circuitry for proper sensor operation and can use different
+          ADC chip functionality on their setups. A key characteristic of those
+          external sensors is that they must be excited either by voltage supply
+          or by ADC chip excitation signals. The sensor can then be read through
+          a pair of analog inputs. This property specifies which particular
+          sensor type is connected to the ADC so it can be properly setup and
+          handled. Omit this property for conventional (not weigh scale, RTD, or
+          thermocouple) ADC channel setups.
+        $ref: /schemas/types.yaml#/definitions/string
+        enum: [ weighscale, rtd, thermocouple ]
 
       adi,excitation-pin-0:
         $ref: '#/$defs/excitation-pin'
@@ -345,34 +345,34 @@ examples:
                 reg = <1>;
                 bipolar;
                 diff-channels = <1 2>;
-                adi,sensor-type = "weighscale";
                 adi,reference-select = <0>;
                 adi,reference-buffered-positive = <0>;
                 adi,reference-buffered-negative = <0>;
-                adi,excitation-ac;
+                adi,sensor-type = "weighscale";
                 adi,excitation-pin-0 = <19>;
                 adi,excitation-pin-1 = <20>;
+                adi,excitation-ac;
             };
             // RTD sensor
             channel@2 {
                 reg = <2>;
                 bipolar;
                 diff-channels = <3 4>;
-                adi,sensor-type = "rtd";
                 adi,reference-select = <0>;
-                adi,excitation-ac;
+                adi,sensor-type = "rtd";
                 adi,excitation-pin-0 = <5>;
                 adi,excitation-pin-1 = <6>;
                 adi,excitation-current-0-microamp = <500>;
                 adi,excitation-current-1-microamp = <500>;
+                adi,excitation-ac;
             };
             // Thermocouple sensor
             channel@3 {
                 reg = <3>;
                 bipolar;
                 diff-channels = <7 8>;
-                adi,sensor-type = "thermocouple";
                 adi,reference-select = <0>;
+                adi,sensor-type = "thermocouple";
                 adi,excitation-pin-0 = <18>;
                 adi,excitation-current-0-microamp = <500>;
             };
@@ -457,11 +457,11 @@ examples:
                 diff-channels = <7 8>;
                 adi,reference-select = <0>;
                 adi,sensor-type = "weighscale";
-                adi,excitation-ac;
                 adi,excitation-pin-0 = <17>;
                 adi,excitation-pin-1 = <18>;
                 adi,excitation-pin-2 = <19>;
                 adi,excitation-pin-3 = <20>;
+                adi,excitation-ac;
             };
         };
     };
