@@ -1075,18 +1075,11 @@ static int ad4170_set_calib_offset(struct ad4170_state *st,
 {
 	struct ad4170_chan_info *chan_info = &st->chan_infos[chan->address];
 	struct ad4170_setup *setup = &chan_info->setup;
-	u32 old_offset;
-	int ret;
 
 	guard(mutex)(&st->lock);
-	old_offset = setup->offset;
 	setup->offset = val;
 
-	ret = ad4170_write_channel_setup(st, chan->address, false);
-	if (ret)
-		setup->offset = old_offset;
-
-	return ret;
+	return ad4170_write_channel_setup(st, chan->address, false);
 }
 
 static int ad4170_set_calib_gain(struct ad4170_state *st,
