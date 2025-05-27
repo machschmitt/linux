@@ -468,18 +468,6 @@ static int ad4170_link_channel_setup(struct ad4170_state *st,
 	return 0;
 }
 
-/*
- * Sets the ADC operating mode. Supported modes are
- * - Single conversion mode
- * - Idle mode
- */
-static int ad4170_set_mode(struct ad4170_state *st, unsigned int mode)
-{
-	return regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
-				  AD4170_ADC_CTRL_MODE_MSK,
-				  FIELD_PREP(AD4170_ADC_CTRL_MODE_MSK, mode));
-}
-
 static int ad4170_write_setup(struct ad4170_state *st, unsigned int setup_num,
 			      struct ad4170_setup *setup)
 {
@@ -489,7 +477,10 @@ static int ad4170_write_setup(struct ad4170_state *st, unsigned int setup_num,
 	 * It is recommended to place the ADC in standby mode or idle mode to
 	 * write to OFFSET and GAIN registers.
 	 */
-	ret = ad4170_set_mode(st, AD4170_ADC_CTRL_MODE_IDLE);
+	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
+				 AD4170_ADC_CTRL_MODE_MSK,
+				 FIELD_PREP(AD4170_ADC_CTRL_MODE_MSK,
+					    AD4170_ADC_CTRL_MODE_IDLE));
 	if (ret)
 		return ret;
 
@@ -851,7 +842,10 @@ static int __ad4170_read_sample(struct iio_dev *indio_dev,
 	int ret;
 
 	reinit_completion(&st->completion);
-	ret = ad4170_set_mode(st, AD4170_ADC_CTRL_MODE_SINGLE);
+	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
+				 AD4170_ADC_CTRL_MODE_MSK,
+				 FIELD_PREP(AD4170_ADC_CTRL_MODE_MSK,
+					    AD4170_ADC_CTRL_MODE_SINGLE));
 	if (ret)
 		return ret;
 
@@ -1336,7 +1330,10 @@ static int ad4170_initial_config(struct iio_dev *indio_dev)
 	unsigned int i;
 	int ret;
 
-	ret = ad4170_set_mode(st, AD4170_ADC_CTRL_MODE_IDLE);
+	ret = regmap_update_bits(st->regmap, AD4170_ADC_CTRL_REG,
+				 AD4170_ADC_CTRL_MODE_MSK,
+				 FIELD_PREP(AD4170_ADC_CTRL_MODE_MSK,
+					    AD4170_ADC_CTRL_MODE_IDLE));
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to set ADC mode to idle\n");
