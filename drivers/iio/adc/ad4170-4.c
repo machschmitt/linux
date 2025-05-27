@@ -736,7 +736,6 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
-	guard(mutex)(&st->lock);
 	/*
 	 * The filters provide the same ODR for a given filter_fs value but
 	 * there are different minimum and maximum filter_fs limits for each
@@ -745,23 +744,25 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 	 * filter_fs value affects the ODR (sampling_frequency), changing the
 	 * filter may lead to a change in the sampling frequency.
 	 */
-	old_filter = setup->filter;
-	old_filter_fs = setup->filter_fs;
-	if (val == AD4170_SINC5_AVG || val == AD4170_SINC3)
-		setup->filter_fs = clamp(val, AD4170_SINC3_MIN_FS,
-					 AD4170_SINC3_MAX_FS);
-	else
-		setup->filter_fs = clamp(val, AD4170_SINC5_MIN_FS,
-					 AD4170_SINC5_MAX_FS);
+	scoped_guard(mutex, &st->lock) {
+		old_filter = setup->filter;
+		old_filter_fs = setup->filter_fs;
+		if (val == AD4170_SINC5_AVG || val == AD4170_SINC3)
+			setup->filter_fs = clamp(val, AD4170_SINC3_MIN_FS,
+						 AD4170_SINC3_MAX_FS);
+		else
+			setup->filter_fs = clamp(val, AD4170_SINC5_MIN_FS,
+						 AD4170_SINC5_MAX_FS);
 
-	setup->filter &= ~AD4170_FILTER_FILTER_TYPE_MSK;
-	setup->filter |= FIELD_PREP(AD4170_FILTER_FILTER_TYPE_MSK,
-				    filter_type_conf);
+		setup->filter &= ~AD4170_FILTER_FILTER_TYPE_MSK;
+		setup->filter |= FIELD_PREP(AD4170_FILTER_FILTER_TYPE_MSK,
+					    filter_type_conf);
 
-	ret = ad4170_write_channel_setup(st, chan->address, false);
-	if (ret) {
-		setup->filter = old_filter;
-		setup->filter_fs = old_filter_fs;
+		ret = ad4170_write_channel_setup(st, chan->address, false);
+		if (ret) {
+			setup->filter = old_filter;
+			setup->filter_fs = old_filter_fs;
+		}
 	}
 
 	iio_device_release_direct(indio_dev);
