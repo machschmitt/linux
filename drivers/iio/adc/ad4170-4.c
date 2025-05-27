@@ -1071,18 +1071,11 @@ static int ad4170_set_calib_gain(struct ad4170_state *st,
 {
 	struct ad4170_chan_info *chan_info = &st->chan_infos[chan->address];
 	struct ad4170_setup *setup = &chan_info->setup;
-	u32 old_gain;
-	int ret;
 
 	guard(mutex)(&st->lock);
-	old_gain = setup->gain;
 	setup->gain = val;
 
-	ret = ad4170_write_channel_setup(st, chan->address, false);
-	if (ret)
-		setup->gain = old_gain;
-
-	return ret;
+	return ad4170_write_channel_setup(st, chan->address, false);
 }
 
 static int __ad4170_write_raw(struct iio_dev *indio_dev,
