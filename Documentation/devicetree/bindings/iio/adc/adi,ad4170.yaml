@@ -228,10 +228,10 @@ patternProperties:
         enum: [0, 1, 2, 3]
         default: 1
 
-      adi,reference-buffered-positive:
+      adi,positive-reference-buffer:
         $ref: '#/$defs/reference-buffer'
 
-      adi,reference-buffered-negative:
+      adi,negative-reference-buffer:
         $ref: '#/$defs/reference-buffer'
 
       adi,sensor-type:
@@ -419,8 +419,8 @@ examples:
                 bipolar;
                 diff-channels = <1 2>;
                 adi,reference-select = <0>;
-                adi,reference-buffered-positive = <0>;
-                adi,reference-buffered-negative = <0>;
+                adi,positive-reference-buffer = <0>;
+                adi,negative-reference-buffer = <0>;
                 adi,sensor-type = "weighscale";
                 adi,excitation-pin-2 = <19>;
                 adi,excitation-pin-3 = <20>;
