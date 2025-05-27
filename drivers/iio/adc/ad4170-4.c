@@ -1142,40 +1142,36 @@ static int ad4170_parse_reference(struct ad4170_state *st,
 				  struct ad4170_setup *setup)
 {
 	struct device *dev = &st->spi->dev;
-	int ret;
 	u32 aux;
 
-	/* Optional positive reference buffering, if omitted we use the default */
+	/* Optional positive reference buffering */
 	aux = AD4170_REF_BUF_FULL; /* Default to full precharge buffer enabled. */
-	ret = fwnode_property_read_u32(child, "adi,positive-reference-buffer", &aux);
-	if (!ret) {
-		if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
-			return dev_err_probe(dev, -EINVAL,
-					     "Invalid adi,positive-reference-buffer: %u\n",
-					     aux);
-	}
+	fwnode_property_read_u32(child, "adi,positive-reference-buffer", &aux);
+	if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid adi,positive-reference-buffer: %u\n",
+				     aux);
+
 	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_P_MSK, aux);
 
-	/* Optional negative reference buffering, if omitted we use the default */
+	/* Optional negative reference buffering */
 	aux = AD4170_REF_BUF_FULL; /* Default to full precharge buffer enabled. */
-	ret = fwnode_property_read_u32(child, "adi,negative-reference-buffer", &aux);
-	if (!ret) {
-		if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
-			return dev_err_probe(dev, -EINVAL,
-					     "Invalid adi,negative-reference-buffer: %u\n",
-					     aux);
-	}
+	fwnode_property_read_u32(child, "adi,negative-reference-buffer", &aux);
+	if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid adi,negative-reference-buffer: %u\n",
+				     aux);
+
 	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_M_MSK, aux);
 
-	/* Optional voltage reference selection, if omitted we use the default */
+	/* Optional voltage reference selection */
 	aux = AD4170_REF_REFOUT; /* Default reference selection. */
-	ret = fwnode_property_read_u32(child, "adi,reference-select", &aux);
-	if (!ret) {
-		if (aux > AD4170_REF_AVDD)
-			return dev_err_probe(dev, -EINVAL,
-					     "Invalid reference selected %u\n",
-					     aux);
-	}
+	fwnode_property_read_u32(child, "adi,reference-select", &aux);
+	if (aux > AD4170_REF_AVDD)
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid reference selected %u\n",
+				     aux);
+
 	setup->afe |= FIELD_PREP(AD4170_AFE_REF_SELECT_MSK, aux);
 
 	return 0;
