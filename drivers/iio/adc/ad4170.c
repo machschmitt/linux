@@ -353,11 +353,19 @@ static const unsigned int ad4170_iout_current_ua_tbl[] = {
 	0, 10, 50, 100, 250, 500, 1000, 1500,
 };
 
-enum ad4170_sensor_type {
-	AD4170_WEIGH_SCALE_SENSOR = 0,
-	AD4170_RTD_SENSOR = 1,
-	AD4170_THERMOCOUPLE_SENSOR = 2,
-	AD4170_ADC_SENSOR = 3,
+enum ad4170_sensor_enum {
+	AD4170_ADC_SENSOR = 0,
+	AD4170_WEIGH_SCALE_SENSOR = 1,
+	AD4170_RTD_SENSOR = 2,
+	AD4170_THERMOCOUPLE_SENSOR = 3,
+};
+
+/* maps adi,sensor-type property value to enum */
+static const char * const ad4170_sensor_type[] = {
+	[AD4170_ADC_SENSOR] = "adc",
+	[AD4170_WEIGH_SCALE_SENSOR] = "weighscale",
+	[AD4170_RTD_SENSOR] = "rtd",
+	[AD4170_THERMOCOUPLE_SENSOR] = "thermocouple",
 };
 
 struct ad4170_chip_info {
@@ -2197,10 +2205,10 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
 	struct ad4170_chan_info *chan_info;
-	u8 s_type = AD4170_ADC_SENSOR;
 	struct ad4170_setup *setup;
 	struct iio_chan_spec *chan;
 	unsigned int ref_select;
+	unsigned int s_type;
 	unsigned int ch_reg;
 	bool bipolar;
 	int ret;
@@ -2228,13 +2236,12 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_u8(child, "adi,sensor-type", &s_type);
-	if (!ret) {
-		if (s_type > AD4170_THERMOCOUPLE_SENSOR)
-			return dev_err_probe(dev, ret,
-					     "Invalid adi,sensor-type: %u\n",
-					     s_type);
-	}
+	ret = device_property_match_property_string(dev, "adi,sensor-type",
+						    ad4170_sensor_type,
+						    ARRAY_SIZE(ad4170_sensor_type));
+
+	/* Default to conventional ADC channel if sensor type not present */
+	s_type = ret < 0 ? AD4170_ADC_SENSOR : ret;
 	switch (s_type) {
 	case AD4170_ADC_SENSOR:
 		ret = ad4170_parse_adc_channel_type(dev, child, chan);
@@ -2245,14 +2252,11 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	case AD4170_WEIGH_SCALE_SENSOR:
 	case AD4170_THERMOCOUPLE_SENSOR:
 	case AD4170_RTD_SENSOR:
-		ret = ad4170_parse_external_sensor(st, child, setup, chan,
-						   s_type);
+		ret = ad4170_parse_external_sensor(st, child, setup, chan, s_type);
 		if (ret)
 			return ret;
 
 		break;
-	default:
-		return -EINVAL;
 	}
 	bipolar = fwnode_property_read_bool(child, "bipolar");
 	setup->afe |= FIELD_PREP(AD4170_AFE_BIPOLAR_MSK, bipolar);
