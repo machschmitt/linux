@@ -1181,8 +1181,8 @@ static int ad4170_parse_adc_channel_type(struct device *dev,
 					 struct fwnode_handle *child,
 					 struct iio_chan_spec *chan)
 {
-	u32 pins[2];
 	int ret, ret2;
+	u32 pins[2];
 
 	/* Parse pseudo-differential channel configuration */
 	ret = fwnode_property_read_u32(child, "single-channel", &pins[0]);
@@ -1190,12 +1190,14 @@ static int ad4170_parse_adc_channel_type(struct device *dev,
 	if (!ret && ret2)
 		return dev_err_probe(dev, ret,
 			"single-ended channels must define common-mode-channel\n");
-	if (!ret) {
+
+	if (!ret && !ret2) {
 		chan->differential = false;
 		chan->channel = pins[0];
 		chan->channel2 = pins[1];
 		return 0;
 	}
+	/* Failed to parse pseudo-diff chan props so try diff chan */
 
 	/* Parse differential channel configuration */
 	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
