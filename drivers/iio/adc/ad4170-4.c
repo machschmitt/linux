@@ -2088,13 +2088,13 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 					    reg_val);
 		}
 	}
-	if (s_type == AD4170_WEIGH_SCALE_SENSOR) {
+	if (s_type == AD4170_WEIGH_SCALE_SENSOR)
 		ret = ad4170_setup_bridge(st, child, setup, exc_pins,
 					  num_exc_pins, exc_cur, ac_excited);
-	} else {
+	else
 		ret = ad4170_setup_rtd(st, child, setup, exc_pins, num_exc_pins,
 				       exc_cur, ac_excited);
-	}
+
 	return ret;
 }
 
