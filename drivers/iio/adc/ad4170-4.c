@@ -1517,9 +1517,8 @@ static int ad4170_probe(struct spi_device *spi)
 	init_completion(&st->completion);
 
 	if (spi->irq) {
-		ret = devm_request_irq(&st->spi->dev, st->spi->irq,
-				       &ad4170_irq_handler, IRQF_ONESHOT,
-				       indio_dev->name, indio_dev);
+		ret = devm_request_irq(dev, spi->irq, &ad4170_irq_handler,
+				       IRQF_ONESHOT, indio_dev->name, indio_dev);
 		if (ret)
 			return ret;
 	}
