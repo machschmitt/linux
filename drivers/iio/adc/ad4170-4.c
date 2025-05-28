@@ -1861,20 +1861,83 @@ static int ad4170_validate_excitation_pins(struct ad4170_state *st,
 	return 0;
 }
 
+static const char *const ad4170_i_out_pin_dt_props[] = {
+	"adi,excitation-pin-0",
+	"adi,excitation-pin-1",
+	"adi,excitation-pin-2",
+	"adi,excitation-pin-3",
+};
+
+static const char *const ad4170_i_out_val_dt_props[] = {
+	"adi,excitation-current-0-microamp",
+	"adi,excitation-current-1-microamp",
+	"adi,excitation-current-2-microamp",
+	"adi,excitation-current-3-microamp",
+};
+
+/*
+ * Parses firmware data describing output current source setup. There are 4
+ * excitation currents (IOUT0 to IOUT3) that can be configured independently.
+ * Excitation currents are added if they are output on the same pin.
+ */
+static int ad4170_parse_exc_current(struct ad4170_state *st,
+				    struct fwnode_handle *child,
+				    unsigned int *exc_pins,
+				    unsigned int *exc_curs,
+				    unsigned int *num_exc_pins)
+{
+	struct device *dev = &st->spi->dev;
+	unsigned int num_pins, i, j;
+	u32 pin, val;
+	int ret;
+
+	num_pins = 0;
+	for (i = 0; i < AD4170_NUM_CURRENT_SRC; i++) {
+		/* Parse excitation current output pin properties. */
+		pin = AD4170_CURRENT_SRC_I_OUT_PIN_AIN(0);
+		ret = fwnode_property_read_u32(child, ad4170_i_out_pin_dt_props[i],
+					       &pin);
+		if (ret)
+			continue;
+
+		exc_pins[num_pins] = pin;
+
+		/* Parse excitation current value properties. */
+		val = ad4170_iout_current_ua_tbl[0];
+		fwnode_property_read_u32(child,
+					 ad4170_i_out_val_dt_props[i], &val);
+
+		for (j = 0; j < ARRAY_SIZE(ad4170_iout_current_ua_tbl); j++)
+			if (ad4170_iout_current_ua_tbl[j] == val)
+				break;
+
+		if (j == ARRAY_SIZE(ad4170_iout_current_ua_tbl))
+			return dev_err_probe(dev, -EINVAL, "Invalid %s: %uuA\n",
+					     ad4170_i_out_val_dt_props[i], val);
+
+		exc_curs[num_pins] = ad4170_iout_current_ua_tbl[j];
+		num_pins++;
+	}
+	*num_exc_pins = num_pins;
+
+	return 0;
+}
+
 static int ad4170_setup_current_src(struct ad4170_state *st,
 				    struct fwnode_handle *child,
 				    struct ad4170_setup *setup, u32 *exc_pins,
-				    int num_exc_pins, int exc_cur, bool ac_excited)
+				    unsigned int *exc_curs, int num_exc_pins,
+				    bool ac_excited)
 {
 	unsigned int exc_cur_pair, i;
-	unsigned int current_src = 0;
 	int ret;
 
 	for (i = 0; i < num_exc_pins; i++) {
 		unsigned int pin = exc_pins[i];
+		unsigned int current_src = 0;
 
 		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
+		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_curs[i]);
 
 		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(i),
 				   current_src);
@@ -1945,20 +2008,23 @@ static int ad4170_setup_current_src(struct ad4170_state *st,
 static int ad4170_setup_bridge(struct ad4170_state *st,
 			       struct fwnode_handle *child,
 			       struct ad4170_setup *setup, u32 *exc_pins,
-			       int num_exc_pins, int exc_cur, bool ac_excited)
+			       unsigned int *exc_curs, int num_exc_pins,
+			       bool ac_excited)
 {
 	unsigned long gpio_mask;
+	unsigned int i;
 	int ret;
 
 	/*
 	 * If a specific current is provided through
-	 * adi,excitation-current-microamp, set excitation pins provided through
-	 * adi,excitation-pins to excite the bridge circuit.
+	 * adi,excitation-current-n-microamp, set excitation pins provided
+	 * through adi,excitation-pin-n to excite the bridge circuit.
 	 */
-	if (exc_cur > 0)
-		return ad4170_setup_current_src(st, child, setup, exc_pins,
-						num_exc_pins, exc_cur,
-						ac_excited);
+	for (i = 0; i < num_exc_pins; i++)
+		if (exc_curs[i] > 0)
+			return ad4170_setup_current_src(st, child, setup, exc_pins,
+							exc_curs, num_exc_pins,
+							ac_excited);
 
 	/*
 	 * Else, use predefined ACX1, ACX1 negated, ACX2, ACX2 negated signals
@@ -2023,10 +2089,10 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 static int ad4170_setup_rtd(struct ad4170_state *st,
 			    struct fwnode_handle *child,
 			    struct ad4170_setup *setup, u32 *exc_pins,
-			    int num_exc_pins, int exc_cur, bool ac_excited)
+			    unsigned int *exc_curs, int num_exc_pins, bool ac_excited)
 {
 	return ad4170_setup_current_src(st, child, setup, exc_pins,
-					num_exc_pins, exc_cur, ac_excited);
+					exc_curs, num_exc_pins, ac_excited);
 }
 
 static int ad4170_parse_external_sensor(struct ad4170_state *st,
@@ -2035,11 +2101,10 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 					struct iio_chan_spec *chan,
 					unsigned int s_type)
 {
-	unsigned int num_exc_pins, exc_cur, reg_val;
+	unsigned int num_exc_pins, reg_val;
 	struct device *dev = &st->spi->dev;
-	u32 pins[2], exc_pins[4];
+	u32 pins[2], exc_pins[4], exc_curs[4];
 	bool ac_excited, vbias;
-	unsigned int i;
 	int ret;
 
 	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
@@ -2052,41 +2117,19 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 	chan->channel = pins[0];
 	chan->channel2 = pins[1];
 
-	ac_excited = fwnode_property_read_bool(child, "adi,excitation-ac");
-
-	num_exc_pins = fwnode_property_count_u32(child, "adi,excitation-pins");
-	if (num_exc_pins != 1 && num_exc_pins != 2 && num_exc_pins != 4)
-		return dev_err_probe(dev, -EINVAL,
-				     "Invalid number of excitation pins\n");
-
-	ret = fwnode_property_read_u32_array(child, "adi,excitation-pins",
-					     exc_pins, num_exc_pins);
+	ret = ad4170_parse_exc_current(st, child, exc_pins, exc_curs, &num_exc_pins);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to read adi,excitation-pins\n");
+		return ret;
+
+	/* The external sensor may not need excitation from the ADC chip. */
+	if (num_exc_pins == 0)
+		return 0;
 
 	ret = ad4170_validate_excitation_pins(st, exc_pins, num_exc_pins);
 	if (ret)
 		return ret;
 
-	exc_cur = 0;
-	ret = fwnode_property_read_u32(child, "adi,excitation-current-microamp",
-				       &exc_cur);
-	if (ret && s_type == AD4170_RTD_SENSOR)
-		return dev_err_probe(dev, ret,
-				     "Failed to read adi,excitation-current-microamp\n");
-
-	for (i = 0; i < ARRAY_SIZE(ad4170_iout_current_ua_tbl); i++)
-		if (ad4170_iout_current_ua_tbl[i] == exc_cur)
-			break;
-
-	if (i == ARRAY_SIZE(ad4170_iout_current_ua_tbl))
-		return dev_err_probe(dev, ret,
-				     "Invalid excitation current: %uuA\n",
-				     exc_cur);
-
-	/* Get the excitation current configuration value */
-	exc_cur = ret;
+	ac_excited = fwnode_property_read_bool(child, "adi,excitation-ac");
 
 	if (s_type == AD4170_THERMOCOUPLE_SENSOR) {
 		vbias = fwnode_property_read_bool(child, "adi,vbias");
@@ -2098,11 +2141,11 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 		}
 	}
 	if (s_type == AD4170_WEIGH_SCALE_SENSOR)
-		ret = ad4170_setup_bridge(st, child, setup, exc_pins,
-					  num_exc_pins, exc_cur, ac_excited);
+		ret = ad4170_setup_bridge(st, child, setup, exc_pins, exc_curs,
+					  num_exc_pins, ac_excited);
 	else
-		ret = ad4170_setup_rtd(st, child, setup, exc_pins, num_exc_pins,
-				       exc_cur, ac_excited);
+		ret = ad4170_setup_rtd(st, child, setup, exc_pins, exc_curs,
+				       num_exc_pins, ac_excited);
 
 	return ret;
 }
@@ -2236,7 +2279,7 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	ret = device_property_match_property_string(dev, "adi,sensor-type",
+	ret = fwnode_property_match_property_string(child, "adi,sensor-type",
 						    ad4170_sensor_type,
 						    ARRAY_SIZE(ad4170_sensor_type));
 
