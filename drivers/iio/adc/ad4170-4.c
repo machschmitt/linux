@@ -1929,17 +1929,26 @@ static int ad4170_setup_current_src(struct ad4170_state *st,
 				    unsigned int *exc_curs, int num_exc_pins,
 				    bool ac_excited)
 {
-	unsigned int exc_cur_pair, i;
+	unsigned int exc_cur_pair, i, j;
 	int ret;
 
 	for (i = 0; i < num_exc_pins; i++) {
+		unsigned int exc_cur = exc_curs[i];
 		unsigned int pin = exc_pins[i];
 		unsigned int current_src = 0;
 
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
-		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_curs[i]);
+		for (j = 0; j < AD4170_NUM_CURRENT_SRC; j++)
+			if (st->cur_src_pins[j] == AD4170_CURRENT_SRC_DISABLED)
+				break;
 
-		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(i),
+		if (j == AD4170_NUM_CURRENT_SRC)
+			return dev_err_probe(&st->spi->dev, -EINVAL,
+					     "Too many excitation current sources\n");
+
+		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_PIN_MSK, pin);
+		current_src |= FIELD_PREP(AD4170_CURRENT_SRC_I_OUT_VAL_MSK, exc_cur);
+		st->cur_src_pins[j] = pin;
+		ret = regmap_write(st->regmap, AD4170_CURRENT_SRC_REG(j),
 				   current_src);
 		if (ret)
 			return ret;
@@ -1959,15 +1968,10 @@ static int ad4170_setup_current_src(struct ad4170_state *st,
 	 * - 1 pair of excitation currents.
 	 */
 	if (num_exc_pins == 4) {
-		for (i = 0; i < AD4170_NUM_CURRENT_SRC; i++) {
-			unsigned int pin = exc_pins[i];
-
-			if (st->cur_src_pins[i] != AD4170_CURRENT_SRC_DISABLED)
+		for (i = 0; i < AD4170_NUM_CURRENT_SRC; i++)
+			if (st->cur_src_pins[i] != exc_pins[i])
 				return dev_err_probe(&st->spi->dev, -EINVAL,
 						     "Unable to use 4 exc pins\n");
-
-			st->cur_src_pins[i] = pin;
-		}
 	} else {
 		/*
 		 * Excitation current chopping is configured in pairs. Current
@@ -1977,10 +1981,10 @@ static int ad4170_setup_current_src(struct ad4170_state *st,
 		 * available. Try the next pair if IOUT0 has already been
 		 * configured for another channel.
 		 */
-		i = st->cur_src_pins[0] == AD4170_CURRENT_SRC_DISABLED ? 0 : 2;
+		i = st->cur_src_pins[0] == exc_pins[0] ? 0 : 2;
 
-		if (st->cur_src_pins[i] != AD4170_CURRENT_SRC_DISABLED ||
-		    st->cur_src_pins[i + 1] != AD4170_CURRENT_SRC_DISABLED)
+		if (st->cur_src_pins[i] != exc_pins[0] ||
+		    st->cur_src_pins[i + 1] != exc_pins[1])
 			return dev_err_probe(&st->spi->dev, -EINVAL,
 					     "Failed to setup current chopping\n");
 
