@@ -126,6 +126,9 @@
 #define AD4170_GPIO_MODE_GPIO2_MSK			GENMASK(5, 4)
 #define AD4170_GPIO_MODE_GPIO3_MSK			GENMASK(7, 6)
 
+/* AD4170_GPIO_OUTPUT_REG */
+#define AD4170_GPIO_OUTPUT_GPIO_MSK(x)			BIT(x)
+
 /* AD4170 register constants */
 
 /* AD4170_CLOCK_CTRL_REG constants */
@@ -2042,21 +2045,29 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 	 * selected. That is needed because GPIO pins are controlled by the next
 	 * highest priority GPIO function when a channel doesn't enable AC
 	 * excitation. See datasheet Figure 113 Weigh Scale (AC Excitation) for
-	 * an example circuit diagram.
+	 * the reference circuit diagram.
 	 */
 	if (num_exc_pins == 2) {
 		setup->misc |= FIELD_PREP(AD4170_MISC_CHOP_ADC_MSK, 0x3);
 
 		gpio_mask = AD4170_GPIO_MODE_GPIO3_MSK | AD4170_GPIO_MODE_GPIO2_MSK;
 		ret = regmap_update_bits(st->regmap, AD4170_GPIO_MODE_REG, gpio_mask,
-					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 3) |
-					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 2));
+					 FIELD_PREP(AD4170_GPIO_MODE_GPIO3_MSK,
+						    AD4170_GPIO_MODE_GPIO_OUTPUT) |
+					 FIELD_PREP(AD4170_GPIO_MODE_GPIO2_MSK,
+						    AD4170_GPIO_MODE_GPIO_OUTPUT));
 		if (ret)
 			return ret;
 
-		ret = regmap_set_bits(st->regmap,
-				      AD4170_GPIO_OUTPUT_REG,
-				      BIT(3) | BIT(2));
+		/*
+		 * Set GPIO2 high and GPIO3 low to DC excite the bridge when
+		 * a different channel is selected.
+		 */
+		gpio_mask = AD4170_GPIO_OUTPUT_GPIO_MSK(3) |
+			    AD4170_GPIO_OUTPUT_GPIO_MSK(2);
+		ret = regmap_update_bits(st->regmap, AD4170_GPIO_OUTPUT_REG, gpio_mask,
+					 FIELD_PREP(AD4170_GPIO_OUTPUT_GPIO_MSK(3), 0) |
+					 FIELD_PREP(AD4170_GPIO_OUTPUT_GPIO_MSK(2), 1));
 		if (ret)
 			return ret;
 
@@ -2068,16 +2079,30 @@ static int ad4170_setup_bridge(struct ad4170_state *st,
 		gpio_mask = AD4170_GPIO_MODE_GPIO3_MSK | AD4170_GPIO_MODE_GPIO2_MSK |
 			    AD4170_GPIO_MODE_GPIO1_MSK | AD4170_GPIO_MODE_GPIO0_MSK;
 		ret = regmap_update_bits(st->regmap, AD4170_GPIO_MODE_REG, gpio_mask,
-					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 3) |
-					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 2) |
-					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 1) |
-					 AD4170_GPIO_MODE_GPIO_OUTPUT << (2 * 0));
+					 FIELD_PREP(AD4170_GPIO_MODE_GPIO3_MSK,
+						    AD4170_GPIO_MODE_GPIO_OUTPUT) |
+					 FIELD_PREP(AD4170_GPIO_MODE_GPIO2_MSK,
+						    AD4170_GPIO_MODE_GPIO_OUTPUT) |
+					 FIELD_PREP(AD4170_GPIO_MODE_GPIO1_MSK,
+						    AD4170_GPIO_MODE_GPIO_OUTPUT) |
+					 FIELD_PREP(AD4170_GPIO_MODE_GPIO0_MSK,
+						    AD4170_GPIO_MODE_GPIO_OUTPUT));
 		if (ret)
 			return ret;
 
-		ret = regmap_set_bits(st->regmap,
-				      AD4170_GPIO_OUTPUT_REG,
-				      BIT(3) | BIT(2) | BIT(1) | BIT(0));
+		/*
+		 * Set GPIO2 and GPIO0 high, and set GPIO1 and GPIO3 low to DC
+		 * excite the bridge when a different channel is selected.
+		 */
+		gpio_mask = AD4170_GPIO_OUTPUT_GPIO_MSK(3) |
+			    AD4170_GPIO_OUTPUT_GPIO_MSK(2) |
+			    AD4170_GPIO_OUTPUT_GPIO_MSK(1) |
+			    AD4170_GPIO_OUTPUT_GPIO_MSK(0);
+		ret = regmap_update_bits(st->regmap, AD4170_GPIO_OUTPUT_REG, gpio_mask,
+					 FIELD_PREP(AD4170_GPIO_OUTPUT_GPIO_MSK(3), 0) |
+					 FIELD_PREP(AD4170_GPIO_OUTPUT_GPIO_MSK(2), 1) |
+					 FIELD_PREP(AD4170_GPIO_OUTPUT_GPIO_MSK(1), 0) |
+					 FIELD_PREP(AD4170_GPIO_OUTPUT_GPIO_MSK(0), 1));
 		if (ret)
 			return ret;
 
