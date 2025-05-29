@@ -1915,7 +1915,7 @@ static int ad4170_parse_exc_current(struct ad4170_state *st,
 			return dev_err_probe(dev, -EINVAL, "Invalid %s: %uuA\n",
 					     ad4170_i_out_val_dt_props[i], val);
 
-		exc_curs[num_pins] = ad4170_iout_current_ua_tbl[j];
+		exc_curs[num_pins] = j;
 		num_pins++;
 	}
 	*num_exc_pins = num_pins;
