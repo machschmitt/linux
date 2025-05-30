@@ -1038,9 +1038,7 @@ static int ad4170_set_pga(struct ad4170_state *st,
 {
 	struct ad4170_chan_info *chan_info = &st->chan_infos[chan->address];
 	struct ad4170_setup *setup = &chan_info->setup;
-	unsigned int old_pga = FIELD_GET(AD4170_AFE_PGA_GAIN_MSK, setup->afe);
 	unsigned int pga;
-	int ret;
 
 	for (pga = 0; pga < AD4170_NUM_PGA_OPTIONS; pga++) {
 		if (val == chan_info->scale_tbl[pga][0] &&
@@ -1051,21 +1049,11 @@ static int ad4170_set_pga(struct ad4170_state *st,
 	if (pga == AD4170_NUM_PGA_OPTIONS)
 		return -EINVAL;
 
-	if (pga == old_pga)
-		return 0;
-
 	guard(mutex)(&st->lock);
 	setup->afe &= ~AD4170_AFE_PGA_GAIN_MSK;
 	setup->afe |= FIELD_PREP(AD4170_AFE_PGA_GAIN_MSK, pga);
 
-	ret = ad4170_write_channel_setup(st, chan->address, false);
-	if (ret) {
-		setup->afe &= ~AD4170_AFE_PGA_GAIN_MSK;
-		setup->afe |= FIELD_PREP(AD4170_AFE_PGA_GAIN_MSK, old_pga);
-		return ret;
-	}
-
-	return 0;
+	return ad4170_write_channel_setup(st, chan->address, false);
 }
 
 static int __ad4170_write_raw(struct iio_dev *indio_dev,
