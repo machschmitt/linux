@@ -881,7 +881,6 @@ static int ad4170_read_sample(struct iio_dev *indio_dev,
 	struct device *dev = &st->spi->dev;
 	int ret, ret2;
 
-	guard(mutex)(&st->lock);
 	/*
 	 * The ADC sequences through all enabled channels. That can lead to
 	 * incorrect channel being sampled if a previous read would have left a
@@ -920,6 +919,7 @@ static int ad4170_read_raw(struct iio_dev *indio_dev,
 	unsigned int pga;
 	int ret;
 
+	guard(mutex)(&st->lock);
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
 		if (!iio_device_claim_direct(indio_dev))
