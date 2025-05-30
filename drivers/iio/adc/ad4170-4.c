@@ -716,7 +716,7 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct ad4170_chan_info *chan_info = &st->chan_infos[chan->address];
 	struct ad4170_setup *setup = &chan_info->setup;
-	unsigned int old_filter_fs, old_filter, filter_type_conf;
+	unsigned int filter_type_conf;
 	int ret;
 
 	switch (val) {
@@ -733,9 +733,6 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	if (!iio_device_claim_direct(indio_dev))
-		return -EBUSY;
-
 	/*
 	 * The filters provide the same ODR for a given filter_fs value but
 	 * there are different minimum and maximum filter_fs limits for each
@@ -745,8 +742,9 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 	 * filter may lead to a change in the sampling frequency.
 	 */
 	scoped_guard(mutex, &st->lock) {
-		old_filter = setup->filter;
-		old_filter_fs = setup->filter_fs;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
 		if (val == AD4170_SINC5_AVG || val == AD4170_SINC3)
 			setup->filter_fs = clamp(val, AD4170_SINC3_MIN_FS,
 						 AD4170_SINC3_MAX_FS);
@@ -759,13 +757,9 @@ static int ad4170_set_filter_type(struct iio_dev *indio_dev,
 					    filter_type_conf);
 
 		ret = ad4170_write_channel_setup(st, chan->address, false);
-		if (ret) {
-			setup->filter = old_filter;
-			setup->filter_fs = old_filter_fs;
-		}
+		iio_device_release_direct(indio_dev);
 	}
 
-	iio_device_release_direct(indio_dev);
 	return ret;
 }
 
@@ -1291,8 +1285,7 @@ static int ad4170_set_channel_freq(struct ad4170_state *st,
 	struct ad4170_chan_info *chan_info = &st->chan_infos[chan->address];
 	struct ad4170_setup *setup = &chan_info->setup;
 	enum ad4170_filter_type f_type = __ad4170_get_filter_type(setup->filter);
-	unsigned int old_filter_fs, i;
-	int filt_fs_tbl_size, ret;
+	unsigned int filt_fs_tbl_size, i;
 
 	switch (f_type) {
 	case AD4170_SINC5_AVG:
@@ -1313,17 +1306,12 @@ static int ad4170_set_channel_freq(struct ad4170_state *st,
 		return -EINVAL;
 
 	guard(mutex)(&st->lock);
-	old_filter_fs = setup->filter_fs;
 	if (f_type == AD4170_SINC5)
 		setup->filter_fs = ad4170_sinc5_filt_fs_tbl[i];
 	else
 		setup->filter_fs = ad4170_sinc3_filt_fs_tbl[i];
 
-	ret = ad4170_write_channel_setup(st, chan->address, false);
-	if (ret)
-		setup->filter_fs = old_filter_fs;
-
-	return ret;
+	return ad4170_write_channel_setup(st, chan->address, false);
 }
 
 static int ad4170_set_calib_offset(struct ad4170_state *st,
