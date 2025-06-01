@@ -1851,15 +1851,16 @@ static irqreturn_t ad4170_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad4170_state *st = iio_priv(indio_dev);
-	unsigned int i;
+	unsigned int chan_index;
+	unsigned int i = 0;
 	int ret;
 
-	iio_for_each_active_channel(indio_dev, i) {
+	iio_for_each_active_channel(indio_dev, chan_index) {
 		ret = spi_sync(st->spi, &st->msg);
 		if (ret)
 			goto err_out;
 
-		memcpy(&st->bounce_buffer[i], st->rx_buf, ARRAY_SIZE(st->rx_buf));
+		memcpy(&st->bounce_buffer[i++], st->rx_buf, ARRAY_SIZE(st->rx_buf));
 	}
 
 	iio_push_to_buffers(indio_dev, st->bounce_buffer);
