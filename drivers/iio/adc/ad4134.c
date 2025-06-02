@@ -9,6 +9,7 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/crc8.h>
 #include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <linux/kernel.h>
@@ -42,7 +43,13 @@
 
 #define AD4134_RESET_TIME_US			10000000
 
+#define AD4134_SPI_MAX_XFER_LEN			3
+
 #define AD4134_EXT_CLOCK_MHZ			(48 * MEGA)
+
+#define AD4134_SPI_CRC_POLYNOM			0x07
+#define AD4134_SPI_CRC_INIT_VALUE		0xA5
+DECLARE_CRC8_TABLE(ad4134_spi_crc_table);
 
 static const char * const ad4143_regulator_names[] = {
 	"avdd5", "dvdd5", "iovdd", "refin",	/* Required supplies */
@@ -124,6 +131,79 @@ struct ad4134_state {
 	int				refin_mv;
 	int				output_frame;
 	struct gpio_desc *odr_gpio;
+	u8 reg_tx_buf[AD4134_SPI_MAX_XFER_LEN];
+	u8 reg_rx_buf[AD4134_SPI_MAX_XFER_LEN];
+};
+
+static int ad4134_calc_spi_crc(u8 *pdata)
+{
+	return crc8(ad4134_spi_crc_table, pdata, 2, AD4134_SPI_CRC_INIT_VALUE);
+}
+
+static void ad4134_format_reg_write(u8 reg, u8 val, u8 *buf)
+{
+	u8 inst_buf[2] = {reg, val};
+
+	buf[0] = reg;
+	buf[1] = val;
+	buf[3] = ad4134_calc_spi_crc(inst_buf);
+}
+
+static int ad4134_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct ad4134_state *st = context;
+
+	ad4134_format_reg_write(reg, val, st->reg_tx_buf);
+
+	return spi_write(st->spi, st->reg_tx_buf, 3);
+}
+
+static int ad4134_crc_check(struct ad4134_state *st, u8 *buf)
+{
+	u8 inst_buf[2] = {buf[0], buf[1]};
+	u8 expected_crc = ad4134_calc_spi_crc(inst_buf);
+
+	if (buf[2] != expected_crc) {
+		dev_err(&st->spi->dev, "Bad CRC %02x for 0x%02X%02X\n",
+			expected_crc, buf[1], buf[0]);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ad4134_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct ad4134_state *st = context;
+	struct spi_transfer reg_read_xfer[] = {
+		{
+			.tx_buf = st->reg_tx_buf,
+			.rx_buf = st->reg_rx_buf,
+			.len = 3,
+		},
+	};
+	int ret;
+
+	ad4134_format_reg_write(reg, *val, st->reg_tx_buf);
+
+	ret = spi_sync_transfer(st->spi, reg_read_xfer, ARRAY_SIZE(reg_read_xfer));
+	if (ret)
+		return ret;
+
+	ret = ad4134_crc_check(st, st->reg_rx_buf);
+	if (ret)
+		return ret;
+
+	*val = st->reg_rx_buf[1];
+
+	return 0;
+}
+
+static const struct regmap_config ad4134_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.reg_read = ad4134_reg_read,
+	.reg_write = ad4134_reg_write,
 };
 
 static int ad4134_read_raw(struct iio_dev *indio_dev,
@@ -245,11 +325,6 @@ static int ad4134_setup(struct ad4134_state *st)
 	return 0;
 }
 
-static const struct regmap_config ad4134_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-};
-
 static int ad4134_probe(struct spi_device *spi)
 {
 	const struct ad4134_chip_info *chip;
@@ -358,6 +433,8 @@ static int ad4134_probe(struct spi_device *spi)
 	indio_dev->available_scan_masks = ad4134_channel_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4134_info;
+
+	crc8_populate_msb(ad4134_spi_crc_table, AD4134_SPI_CRC_POLYNOM);
 
 	ret = ad4134_setup(st);
 	if (ret)
