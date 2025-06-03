@@ -7,6 +7,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/crc8.h>
@@ -17,6 +18,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/unaligned.h>
 #include <linux/units.h>
 #include <linux/err.h>
 
@@ -40,6 +42,8 @@
 #define AD4134_DIF_IF_CFG_FORMAT_MASK		GENMASK(1, 0)
 #define AD4134_DATA_FORMAT_SINGLE_CH_MODE	0b00
 #define AD4134_DATA_FORMAT_QUAD_CH_PARALLEL	0b10
+
+#define AD4134_DATA_FROM_SDO_VREG		0x50 /* virtual register */
 
 #define AD4134_RESET_TIME_US			10000000
 
@@ -73,6 +77,7 @@ static const char * const ad4134_frame_config[] = {
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
 	.channel = (_index),							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),				\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) |		\
 				    BIT(IIO_CHAN_INFO_SCALE),			\
 	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
@@ -133,6 +138,12 @@ struct ad4134_state {
 	struct gpio_desc *odr_gpio;
 	u8 reg_tx_buf[AD4134_SPI_MAX_XFER_LEN];
 	u8 reg_rx_buf[AD4134_SPI_MAX_XFER_LEN];
+	/*
+	 * DMA (thus cache coherency maintenance) requires the transfer buffers
+	 * to live in their own cache lines.
+	 */
+	u8 data_tx_buf[AD4134_SPI_MAX_XFER_LEN] __aligned(IIO_DMA_MINALIGN);
+	u8 data_rx_buf[AD4134_SPI_MAX_XFER_LEN];
 };
 
 static int ad4134_calc_spi_crc(u8 *pdata)
@@ -172,6 +183,33 @@ static int ad4134_crc_check(struct ad4134_state *st, u8 *buf)
 	return 0;
 }
 
+static int ad4134_data_read(struct ad4134_state *st, unsigned int *val)
+{
+	struct device *dev = container_of(&st->spi->dev, struct device, parent);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	const struct iio_scan_type *scan_type = &indio_dev->channels[0].scan_type;
+	struct spi_transfer data_read_xfer[] = {
+		{
+			.rx_buf = st->data_rx_buf,
+			.len = BITS_TO_BYTES(scan_type->storagebits),
+		},
+	};
+	int ret;
+
+	ret = spi_sync_transfer(st->spi, data_read_xfer, ARRAY_SIZE(data_read_xfer));
+	if (ret)
+		return ret;
+
+	if (scan_type->realbits == 16)
+		*val = get_unaligned_be16(st->data_rx_buf);
+	else
+		*val = get_unaligned_be24(st->data_rx_buf);
+
+	*val >>= scan_type->shift;
+
+	return 0;
+}
+
 static int ad4134_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct ad4134_state *st = context;
@@ -183,6 +221,9 @@ static int ad4134_reg_read(void *context, unsigned int reg, unsigned int *val)
 		},
 	};
 	int ret;
+
+	if (reg == AD4134_DATA_FROM_SDO_VREG)
+		return ad4134_data_read(st, val);
 
 	ad4134_format_reg_write(reg, *val, st->reg_tx_buf);
 
@@ -211,8 +252,18 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long info)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
+	int ret;
 
 	switch (info) {
+	case IIO_CHAN_INFO_RAW:
+		gpiod_set_value_cansleep(st->odr_gpio, 1);
+		// TODO check timing
+		gpiod_set_value_cansleep(st->odr_gpio, 0);
+		ret = regmap_read(st->regmap, AD4134_DATA_FROM_SDO_VREG, val);
+		if (ret)
+			return ret;
+
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->refin_mv;
 		*val2 = chan->scan_type.realbits - 1;
