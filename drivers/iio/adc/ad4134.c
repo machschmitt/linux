@@ -136,6 +136,7 @@ struct ad4134_state {
 	int				refin_mv;
 	int				output_frame;
 	struct gpio_desc *odr_gpio;
+	const struct iio_scan_type *scan_type;
 	u8 reg_tx_buf[AD4134_SPI_MAX_XFER_LEN];
 	u8 reg_rx_buf[AD4134_SPI_MAX_XFER_LEN];
 	/*
@@ -185,13 +186,10 @@ static int ad4134_crc_check(struct ad4134_state *st, u8 *buf)
 
 static int ad4134_data_read(struct ad4134_state *st, unsigned int *val)
 {
-	struct device *dev = container_of(&st->spi->dev, struct device, parent);
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	const struct iio_scan_type *scan_type = &indio_dev->channels[0].scan_type;
 	struct spi_transfer data_read_xfer[] = {
 		{
 			.rx_buf = st->data_rx_buf,
-			.len = BITS_TO_BYTES(scan_type->storagebits),
+			.len = BITS_TO_BYTES(st->scan_type->storagebits),
 		},
 	};
 	int ret;
@@ -200,12 +198,12 @@ static int ad4134_data_read(struct ad4134_state *st, unsigned int *val)
 	if (ret)
 		return ret;
 
-	if (scan_type->realbits == 16)
+	if (st->scan_type->realbits == 16)
 		*val = get_unaligned_be16(st->data_rx_buf);
 	else
 		*val = get_unaligned_be24(st->data_rx_buf);
 
-	*val >>= scan_type->shift;
+	*val >>= st->scan_type->shift;
 
 	return 0;
 }
@@ -477,6 +475,7 @@ static int ad4134_probe(struct spi_device *spi)
 				     "Failed to config ADC frame\n");
 	}
 
+	st->scan_type = &indio_dev->channels[0].scan_type;
 	st->regmap = devm_regmap_init_spi(spi, &ad4134_regmap_config);
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
