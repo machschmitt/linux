@@ -120,21 +120,11 @@ static const struct ad4134_chip_info ad7134_chip_info = {
 };
 
 struct ad4134_state {
-	struct regmap			*regmap;
-	struct spi_device		*spi;
-
-	/*
-	 * Synchronize access to members the of driver state, and ensure
-	 * atomicity of consecutive regmap operations.
-	 */
-	struct mutex			lock;
-
-	struct spi_message		buf_read_msg;
-	struct spi_transfer		buf_read_xfer;
-
-	unsigned long			sys_clk_rate;
-	int				refin_mv;
-	int				output_frame;
+	struct regmap *regmap;
+	struct spi_device *spi;
+	unsigned long sys_clk_rate;
+	int refin_mv;
+	int output_frame;
 	struct gpio_desc *odr_gpio;
 	const struct iio_scan_type *scan_type;
 	u8 reg_tx_buf[AD4134_SPI_MAX_XFER_LEN];
@@ -388,10 +378,6 @@ static int ad4134_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-
-	ret = devm_mutex_init(dev, &st->lock);
-	if (ret)
-		return ret;
 
 	st->spi = spi;
 
