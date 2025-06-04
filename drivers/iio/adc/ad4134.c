@@ -246,14 +246,6 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
 		gpiod_set_value_cansleep(st->odr_gpio, 1);
-		/*
-		 * minum ODR high time = 3 * tDIGCLK
-		 * (tDIGCLK) = 1/fDIGCLK
-		 * fDIGCLK = fSYSCLK/2
-		 * fSYSCLK = 48 MHz (typically)
-		 * minum ODR high time = 3 * 2/(48 * 10^6) = 125 ns
-		 */
-		fsleep(1);
 		gpiod_set_value_cansleep(st->odr_gpio, 0);
 		ret = regmap_read(st->regmap, AD4134_DATA_FROM_SDO_VREG, val);
 		if (ret)
