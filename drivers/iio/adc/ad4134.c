@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2022 Analog Devices, Inc.
+ * Copyright (C) 2025 Analog Devices, Inc.
  * Author: Cosmin Tanislav <cosmin.tanislav@analog.com>
  * Author: Ioan-daniel Pop <Pop.Ioan-daniel@analog.com>
  * Author: Marcelo Schmitt <marcelo.schmitt@analog.com>
