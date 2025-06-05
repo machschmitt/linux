@@ -74,7 +74,7 @@ static const char *const ad4134_clk_sel[] = {
 	.endianness = IIO_BE							\
 }
 
-struct iio_scan_type ad4134_scan_types[] = {
+static struct iio_scan_type ad4134_scan_types[] = {
 	AD4134_SCAN_TYPE(16, 16),
 	AD4134_SCAN_TYPE(16, 24),
 	AD4134_SCAN_TYPE(24, 24),
@@ -124,9 +124,8 @@ struct ad4134_state {
 	struct spi_device *spi;
 	unsigned long sys_clk_rate;
 	int refin_mv;
-	int output_frame;
 	struct gpio_desc *odr_gpio;
-	const struct iio_scan_type *scan_type;
+	unsigned int current_scan_type;
 	u8 reg_tx_buf[AD4134_SPI_MAX_XFER_LEN];
 	u8 reg_rx_buf[AD4134_SPI_MAX_XFER_LEN];
 	/*
@@ -176,10 +175,11 @@ static int ad4134_crc_check(struct ad4134_state *st, u8 *buf)
 
 static int ad4134_data_read(struct ad4134_state *st, unsigned int *val)
 {
+	struct iio_scan_type *scan_type = &ad4134_scan_types[st->current_scan_type];
 	struct spi_transfer data_read_xfer[] = {
 		{
 			.rx_buf = st->data_rx_buf,
-			.len = BITS_TO_BYTES(st->scan_type->storagebits),
+			.len = BITS_TO_BYTES(scan_type->storagebits),
 		},
 	};
 	int ret;
@@ -188,12 +188,12 @@ static int ad4134_data_read(struct ad4134_state *st, unsigned int *val)
 	if (ret)
 		return ret;
 
-	if (st->scan_type->realbits == 16)
+	if (scan_type->realbits == 16)
 		*val = get_unaligned_be16(st->data_rx_buf);
 	else
 		*val = get_unaligned_be24(st->data_rx_buf);
 
-	*val >>= st->scan_type->shift;
+	*val >>= scan_type->shift;
 
 	return 0;
 }
@@ -272,8 +272,17 @@ static int ad4134_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 	return regmap_write(st->regmap, reg, writeval);
 }
 
+static int ad4134_get_current_scan_type(const struct iio_dev *indio_dev,
+					const struct iio_chan_spec *chan)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+
+	return st->current_scan_type;
+}
+
 static const struct iio_info ad4134_info = {
 	.read_raw = ad4134_read_raw,
+	.get_current_scan_type = ad4134_get_current_scan_type,
 	.debugfs_reg_access = ad4134_reg_access,
 };
 
@@ -346,10 +355,11 @@ static int ad4134_setup(struct ad4134_state *st)
 	if (ret)
 		return ret;
 
+	st->current_scan_type = AD4134_DATA_PACKET_24BIT_FRAME;
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
-					    AD4134_DATA_PACKET_24BIT_FRAME));
+					    st->current_scan_type));
 	if (ret)
 		return ret;
 
@@ -432,7 +442,6 @@ static int ad4134_probe(struct spi_device *spi)
 	indio_dev->channels = ad4134_chan_set;
 	indio_dev->num_channels = ARRAY_SIZE(ad4134_chan_set);
 
-	st->scan_type = &indio_dev->channels[0].scan_type;
 	st->regmap = devm_regmap_init_spi(spi, &ad4134_regmap_config);
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
