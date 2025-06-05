@@ -240,7 +240,12 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long info)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
+	const struct iio_scan_type *scan_type;
 	int ret;
+
+	scan_type = iio_get_current_scan_type(indio_dev, chan);
+	if (IS_ERR(scan_type))
+		return PTR_ERR(scan_type);
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
@@ -253,7 +258,7 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->refin_mv;
-		*val2 = chan->scan_type.realbits - 1;
+		*val2 = scan_type->realbits - 1;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
 	default:
