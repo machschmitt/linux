@@ -66,15 +66,22 @@ static const char *const ad4134_clk_sel[] = {
 	"xtal1-xtal2", "clkin"
 };
 
-/* maps adi,adc-frame property value to enum */
-static const char * const ad4134_frame_config[] = {
-	[AD4134_DATA_PACKET_16BIT_FRAME] = "16-bit",
-	[AD4134_DATA_PACKET_16BIT_CRC6_FRAME] = "16-bit+CRC",
-	[AD4134_DATA_PACKET_24BIT_FRAME] = "24-bit",
-	[AD4134_DATA_PACKET_24BIT_CRC6_FRAME] = "24-bit+CRC",
+#define AD4134_SCAN_TYPE(_realbits, _storebits) {				\
+	.sign = 's',								\
+	.realbits = (_realbits),						\
+	.storagebits = (_storebits),						\
+	.shift = ((_storebits) - (_realbits)),					\
+	.endianness = IIO_BE							\
+}
+
+struct iio_scan_type ad4134_scan_types[] = {
+	AD4134_SCAN_TYPE(16, 16),
+	AD4134_SCAN_TYPE(16, 24),
+	AD4134_SCAN_TYPE(24, 24),
+	AD4134_SCAN_TYPE(24, 32),
 };
 
-#define AD4134_CHANNEL(_index, _realbits, _storebits) {				\
+#define AD4134_CHANNEL(_index) {						\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
 	.channel = (_index),							\
@@ -83,28 +90,20 @@ static const char * const ad4134_frame_config[] = {
 				    BIT(IIO_CHAN_INFO_SCALE),			\
 	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
 	.scan_index = (_index),							\
-	.scan_type = {								\
-		.sign = 's',							\
-		.realbits = (_realbits),					\
-		.storagebits = (_storebits),					\
-		.shift = ((_storebits) - (_realbits))				\
-	},									\
+	.has_ext_scan_type = 1,							\
+	.ext_scan_type = ad4134_scan_types,					\
+	.num_ext_scan_type = ARRAY_SIZE(ad4134_scan_types)			\
 }
 
-#define AD4134_CHAN_SET(_realbits, _storebits) {				\
-	AD4134_CHANNEL(0, _realbits, _storebits),				\
-	AD4134_CHANNEL(1, _realbits, _storebits),				\
-	AD4134_CHANNEL(2, _realbits, _storebits),				\
-	AD4134_CHANNEL(3, _realbits, _storebits),				\
-}
-
-static const struct iio_chan_spec ad4134_16_chan_set[] = AD4134_CHAN_SET(16, 16);
-static const struct iio_chan_spec ad4134_16CRC_chan_set[] = AD4134_CHAN_SET(16, 24);
-static const struct iio_chan_spec ad4134_24_chan_set[] = AD4134_CHAN_SET(24, 24);
-static const struct iio_chan_spec ad4134_24CRC_chan_set[] = AD4134_CHAN_SET(24, 32);
+static const struct iio_chan_spec ad4134_chan_set[] = {
+	AD4134_CHANNEL(0),
+	AD4134_CHANNEL(1),
+	AD4134_CHANNEL(2),
+	AD4134_CHANNEL(3),
+};
 
 static const unsigned long ad4134_channel_masks[] = {
-	GENMASK(ARRAY_SIZE(ad4134_16_chan_set) - 1, 0),
+	GENMASK(ARRAY_SIZE(ad4134_chan_set) - 1, 0),
 	0,
 };
 
@@ -350,7 +349,7 @@ static int ad4134_setup(struct ad4134_state *st)
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
 				 AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
 				 FIELD_PREP(AD4134_DATA_PACKET_CONFIG_FRAME_MASK,
-					    st->output_frame));
+					    AD4134_DATA_PACKET_24BIT_FRAME));
 	if (ret)
 		return ret;
 
@@ -430,36 +429,8 @@ static int ad4134_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	st->output_frame = AD4134_DATA_PACKET_24BIT_FRAME;
-	ret = device_property_match_property_string(dev, "adi,adc-frame",
-						    ad4134_frame_config,
-						    ARRAY_SIZE(ad4134_frame_config));
-	if (ret < 0)
-		dev_warn(dev, "Failed to get adi,adc-frame property: %d\n", ret);
-	else
-		st->output_frame = ret;
-
-	switch (st->output_frame) {
-	case AD4134_DATA_PACKET_16BIT_FRAME:
-		indio_dev->channels = ad4134_16_chan_set;
-		indio_dev->num_channels = ARRAY_SIZE(ad4134_16_chan_set);
-		break;
-	case AD4134_DATA_PACKET_16BIT_CRC6_FRAME:
-		indio_dev->channels = ad4134_16CRC_chan_set;
-		indio_dev->num_channels = ARRAY_SIZE(ad4134_16CRC_chan_set);
-		break;
-	case AD4134_DATA_PACKET_24BIT_FRAME:
-		indio_dev->channels = ad4134_24_chan_set;
-		indio_dev->num_channels = ARRAY_SIZE(ad4134_24_chan_set);
-		break;
-	case AD4134_DATA_PACKET_24BIT_CRC6_FRAME:
-		indio_dev->channels = ad4134_24CRC_chan_set;
-		indio_dev->num_channels = ARRAY_SIZE(ad4134_24CRC_chan_set);
-		break;
-	default:
-		return dev_err_probe(dev, -EINVAL,
-				     "Failed to config ADC frame\n");
-	}
+	indio_dev->channels = ad4134_chan_set;
+	indio_dev->num_channels = ARRAY_SIZE(ad4134_chan_set);
 
 	st->scan_type = &indio_dev->channels[0].scan_type;
 	st->regmap = devm_regmap_init_spi(spi, &ad4134_regmap_config);
