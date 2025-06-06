@@ -368,14 +368,11 @@ static int ad4134_setup(struct ad4134_state *st)
 	if (ret)
 		return ret;
 
-	 ret = regmap_update_bits(st->regmap, AD4134_DEVICE_CONFIG_REG,
+	/* Set high performance power mode */
+	return regmap_update_bits(st->regmap, AD4134_DEVICE_CONFIG_REG,
 				  AD4134_DEVICE_CONFIG_POWER_MODE_MASK,
 				  FIELD_PREP(AD4134_DEVICE_CONFIG_POWER_MODE_MASK,
 					     AD4134_POWER_MODE_HIGH_PERF));
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static int ad4134_probe(struct spi_device *spi)
