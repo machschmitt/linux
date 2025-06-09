@@ -38,14 +38,6 @@ $defs:
     enum: [0, 1, 2]
     default: 1
 
-  excitation-pin:
-    description: |
-      Analog input to apply excitation current to while the channel
-      is active.
-    $ref: /schemas/types.yaml#/definitions/uint32
-    minimum: 0
-    maximum: 20
-
 properties:
   compatible:
     enum:
@@ -257,16 +249,40 @@ patternProperties:
         enum: [ weighscale, rtd, thermocouple ]
 
       adi,excitation-pin-0:
-        $ref: '#/$defs/excitation-pin'
+        description:
+          Analog input to apply excitation current to while the channel
+          is active.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 20
+        default: 0
 
       adi,excitation-pin-1:
-        $ref: '#/$defs/excitation-pin'
+        description:
+          Analog input to apply excitation current to while the channel
+          is active.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 20
+        default: 0
 
       adi,excitation-pin-2:
-        $ref: '#/$defs/excitation-pin'
+        description:
+          Analog input to apply excitation current to while the channel
+          is active.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 20
+        default: 0
 
       adi,excitation-pin-3:
-        $ref: '#/$defs/excitation-pin'
+        description:
+          Analog input to apply excitation current to while the channel
+          is active.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 20
+        default: 0
 
       adi,excitation-current-0-microamp:
         description:
