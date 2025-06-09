@@ -421,7 +421,6 @@ examples:
             iovdd-supply = <&iovdd>;
             clocks = <&clk>;
             clock-names = "xtal";
-            interrupt-parent = <&gpio_in>;
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
             interrupt-names = "dig_aux1";
             adi,vbias-pins = <7>;
@@ -490,7 +489,6 @@ examples:
             iovdd-supply = <&iovdd>;
             #clock-cells = <0>;
             clock-output-names = "ad4170-clk16mhz";
-            interrupt-parent = <&gpio_in>;
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
             interrupt-names = "dig_aux1";
             #address-cells = <1>;
