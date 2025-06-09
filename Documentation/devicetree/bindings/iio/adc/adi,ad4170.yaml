@@ -23,14 +23,14 @@ $defs:
     description: |
       Enable precharge buffer, full buffer, or skip reference buffering of
       the positive/negative voltage reference. Because the output impedance
-      of the source driving the voltage reference inputs may be dynamic, RC
-      combinations of those inputs can cause DC gain errors if the reference
-      inputs go unbuffered into the ADC. Enable reference buffering if the
-      provided reference source has dynamic high impedance output. Note the
-      absolute voltage allowed on REFINn+ and REFINn- inputs is from
-      AVSS - 50 mV to AVDD + 50 mV when the reference buffers are disabled
-      but narrows to AVSS to AVDD when reference buffering is enabled or in
-      precharge mode. The valid options for this property are:
+      of the source driving the voltage reference inputs may be dynamic,
+      resistive/capacitive combinations of those inputs can cause DC gain
+      errors if the reference inputs go unbuffered into the ADC. Enable
+      reference buffering if the provided reference source has dynamic high
+      impedance output. Note the absolute voltage allowed on REFINn+ and REFINn-
+      inputs is from AVSS - 50 mV to AVDD + 50 mV when the reference buffers are
+      disabled but narrows to AVSS to AVDD when reference buffering is enabled
+      or in precharge mode. The valid options for this property are:
       0: Reference precharge buffer.
       1: Full reference buffering.
       2: Bypass reference buffers (buffering disabled).
