@@ -102,7 +102,6 @@ properties:
     enum:
       - sdo
       - dig_aux1
-    default: sdo
 
   clocks:
     maxItems: 1
@@ -163,6 +162,14 @@ allOf:
     then:
       properties:
         ldac-gpios: false
+
+  # Require to specify the interrupt pin when using interrupts
+  - if:
+      required:
+        - interrupts
+    then:
+      required:
+        - interrupt-names
 
   # If an external clock is set, the internal clock cannot go out and vice versa
   - oneOf:
@@ -400,6 +407,7 @@ examples:
             clock-names = "xtal";
             interrupt-parent = <&gpio_in>;
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-names = "dig_aux1";
             adi,vbias-pins = <7>;
             #address-cells = <1>;
             #size-cells = <0>;
@@ -468,6 +476,7 @@ examples:
             clock-output-names = "ad4170-clk16mhz";
             interrupt-parent = <&gpio_in>;
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-names = "dig_aux1";
             #address-cells = <1>;
             #size-cells = <0>;
 
