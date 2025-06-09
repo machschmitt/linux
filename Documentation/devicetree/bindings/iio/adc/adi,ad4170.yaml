@@ -95,7 +95,6 @@ properties:
       pin. Alternatively, it can be provided on the DIG_AUX1 pin in which case
       the chip disables the RDY function on SDO. Thus, there can be only one
       data ready interrupt enabled at a time.
-    maxItems: 1
 
   interrupt-names:
     description:
