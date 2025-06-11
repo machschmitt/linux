@@ -1126,35 +1126,36 @@ static int ad4170_parse_reference(struct ad4170_state *st,
 				  struct ad4170_setup *setup)
 {
 	struct device *dev = &st->spi->dev;
+	const char *propname;
 	u32 aux;
 
 	/* Optional positive reference buffering */
+	propname = "adi,positive-reference-buffer";
 	aux = AD4170_REF_BUF_FULL; /* Default to full precharge buffer enabled. */
-	fwnode_property_read_u32(child, "adi,positive-reference-buffer", &aux);
+	fwnode_property_read_u32(child, propname, &aux);
 	if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
-		return dev_err_probe(dev, -EINVAL,
-				     "Invalid adi,positive-reference-buffer: %u\n",
-				     aux);
+		return dev_err_probe(dev, -EINVAL, "Invalid %s: %u\n",
+				     propname, aux);
 
 	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_P_MSK, aux);
 
 	/* Optional negative reference buffering */
+	propname = "adi,negative-reference-buffer";
 	aux = AD4170_REF_BUF_FULL; /* Default to full precharge buffer enabled. */
-	fwnode_property_read_u32(child, "adi,negative-reference-buffer", &aux);
+	fwnode_property_read_u32(child, propname, &aux);
 	if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
-		return dev_err_probe(dev, -EINVAL,
-				     "Invalid adi,negative-reference-buffer: %u\n",
-				     aux);
+		return dev_err_probe(dev, -EINVAL, "Invalid %s: %u\n",
+				     propname, aux);
 
 	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_M_MSK, aux);
 
 	/* Optional voltage reference selection */
+	propname = "adi,reference-select";
 	aux = AD4170_REF_REFOUT; /* Default reference selection. */
-	fwnode_property_read_u32(child, "adi,reference-select", &aux);
+	fwnode_property_read_u32(child, propname, &aux);
 	if (aux > AD4170_REF_AVDD)
-		return dev_err_probe(dev, -EINVAL,
-				     "Invalid reference selected %u\n",
-				     aux);
+		return dev_err_probe(dev, -EINVAL, "Invalid %s: %u\n",
+				     propname, aux);
 
 	setup->afe |= FIELD_PREP(AD4170_AFE_REF_SELECT_MSK, aux);
 
