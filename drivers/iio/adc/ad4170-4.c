@@ -1174,15 +1174,19 @@ static int ad4170_parse_adc_channel_type(struct device *dev,
 					 struct fwnode_handle *child,
 					 struct iio_chan_spec *chan)
 {
+	const char *propname, *propname2;
 	int ret, ret2;
 	u32 pins[2];
 
 	/* Parse pseudo-differential channel configuration */
-	ret = fwnode_property_read_u32(child, "single-channel", &pins[0]);
-	ret2 = fwnode_property_read_u32(child, "common-mode-channel", &pins[1]);
+	propname = "single-channel";
+	propname2 = "common-mode-channel";
+	ret = fwnode_property_read_u32(child, propname, &pins[0]);
+	ret2 = fwnode_property_read_u32(child, propname2, &pins[1]);
 	if (!ret && ret2)
 		return dev_err_probe(dev, ret,
-			"single-ended channels must define common-mode-channel\n");
+				     "When %s is defined, %s must be defined too\n",
+				     propname, propname2);
 
 	if (!ret && !ret2) {
 		chan->differential = false;
@@ -1193,7 +1197,8 @@ static int ad4170_parse_adc_channel_type(struct device *dev,
 	/* Failed to parse pseudo-diff chan props so try diff chan */
 
 	/* Parse differential channel configuration */
-	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
+	propname2 = "diff-channels";
+	ret = fwnode_property_read_u32_array(child, propname2, pins,
 					     ARRAY_SIZE(pins));
 	if (!ret) {
 		chan->differential = true;
@@ -1201,8 +1206,8 @@ static int ad4170_parse_adc_channel_type(struct device *dev,
 		chan->channel2 = pins[1];
 		return 0;
 	}
-	return dev_err_probe(dev, ret,
-		"Channel must define one of diff-channels or single-channel.\n");
+	return dev_err_probe(dev, ret, "Channel must define one of %s or %s.\n",
+			     propname, propname2);
 }
 
 static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
