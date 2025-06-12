@@ -1422,7 +1422,14 @@ static int ad4170_regulator_setup(struct ad4170_state *st)
 	if (ret < 0 && ret != -ENODEV)
 		return dev_err_probe(dev, ret, "Failed to get AVSS voltage.\n");
 
-	/* Assume AVSS at GND (0V) if not provided */
+	/*
+	 * Assume AVSS at GND (0V) if not provided.
+	 * REVISIT: AVSS is never above system ground level (i.e. AVSS is either
+	 * GND or a negative voltage). But we currently don't have support for
+	 * reading negative voltages with the regulator framework. So, the
+	 * current AD4170 support reads a positive value from the regulator,
+	 * then inverts sign to make that negative.
+	 */
 	st->vrefs_uv[AD4170_AVSS_SUP] = ret == -ENODEV ? 0 : -ret;
 
 	ret = devm_regulator_get_enable_read_voltage(dev, "refin1p");
@@ -1435,7 +1442,11 @@ static int ad4170_regulator_setup(struct ad4170_state *st)
 	if (ret < 0 && ret != -ENODEV)
 		return dev_err_probe(dev, ret, "Failed to get REFIN- voltage.\n");
 
-	/* Negative supplies are assumed to provide negative voltage */
+	/*
+	 * Negative supplies are assumed to provide negative voltage.
+	 * REVISIT when support for negative regulator voltage read be available
+	 * in the regulator framework.
+	 */
 	st->vrefs_uv[AD4170_REFIN1N_SUP] = ret == -ENODEV ? -ENODEV : -ret;
 
 	ret = devm_regulator_get_enable_read_voltage(dev, "refin2p");
@@ -1448,7 +1459,11 @@ static int ad4170_regulator_setup(struct ad4170_state *st)
 	if (ret < 0 && ret != -ENODEV)
 		return dev_err_probe(dev, ret, "Failed to get REFIN2- voltage.\n");
 
-	/* Negative supplies are assumed to provide negative voltage */
+	/*
+	 * Negative supplies are assumed to provide negative voltage.
+	 * REVISIT when support for negative regulator voltage read be available
+	 * in the regulator framework.
+	 */
 	st->vrefs_uv[AD4170_REFIN2N_SUP] = ret == -ENODEV ? -ENODEV : -ret;
 
 	return 0;
