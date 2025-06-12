@@ -21,7 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
-#include <linux/unaligned.h>
+#include <asm/unaligned.h>
 #include <linux/units.h>
 
 #define AD4030_REG_INTERFACE_CONFIG_A			0x00
