@@ -1824,6 +1824,7 @@ static bool ad4170_validate_scan_mask(struct iio_dev *indio_dev,
 				      const unsigned long *scan_mask)
 {
 	unsigned int masklength = iio_get_masklength(indio_dev);
+	unsigned int enabled;
 
 	/*
 	 * The channel sequencer cycles through the enabled channels in
@@ -1832,10 +1833,11 @@ static bool ad4170_validate_scan_mask(struct iio_dev *indio_dev,
 	 * always be enabled. See datasheet channel_en register description at
 	 * page 95.
 	 */
-	if (bitmap_weight(scan_mask, masklength) > 1)
+	enabled = bitmap_weight(scan_mask, masklength);
+	if (enabled > 1)
 		return test_bit(0, scan_mask);
 
-	return bitmap_weight(scan_mask, masklength) == 1;
+	return enabled == 1;
 }
 
 static const struct iio_buffer_setup_ops ad4170_buffer_ops = {
