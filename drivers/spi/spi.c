@@ -2461,8 +2461,8 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 		for (idx = 0; idx < rc; idx++) {
 			if (buses[idx] >= ctlr->num_buses) {
 				dev_err(&ctlr->dev,
-					"%pOF has out of range 'spi-buses' property (%d)\n",
-					nc, buses[idx]);
+					"%pOF has out of range 'spi-buses' property (%d/%d)\n",
+					nc, buses[idx], ctlr->num_buses);
 				return -EINVAL;
 			}
 			spi->buses |= BIT(buses[idx]);
