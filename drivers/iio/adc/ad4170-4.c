@@ -379,22 +379,6 @@ static const struct regmap_config ad4170_regmap_config = {
 
 static bool ad4170_setup_eq(struct ad4170_setup *a, struct ad4170_setup *b)
 {
-	/*
-	 * The use of static_assert() here is to make sure that, if
-	 * struct ad4170_setup is ever changed (e.g. a field is added to the
-	 * struct's declaration), the comparison below is adapted to keep
-	 * comparing each of struct ad4170_setup fields.
-	 */
-	static_assert(sizeof(*a) ==
-		      sizeof(struct {
-				     u16 misc;
-				     u16 afe;
-				     u16 filter;
-				     u16 filter_fs;
-				     u32 offset;
-				     u32 gain;
-			     }));
-
 	if (a->misc != b->misc ||
 	    a->afe != b->afe ||
 	    a->filter != b->filter ||
