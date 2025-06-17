@@ -178,6 +178,13 @@ enum ad4170_ref_buf {
 	AD4170_REF_BUF_BYPASS,	/* Bypass referrence buffering */
 };
 
+/* maps adi,positive/negative-reference-buffer property values to enum */
+static const char * const ad4170_ref_buf_str[] = {
+	[AD4170_REF_BUF_PRE] = "precharge",
+	[AD4170_REF_BUF_FULL] = "full",
+	[AD4170_REF_BUF_BYPASS] = "disabled",
+};
+
 enum ad4170_ref_select {
 	AD4170_REF_REFIN1,
 	AD4170_REF_REFIN2,
@@ -1128,26 +1135,27 @@ static int ad4170_parse_reference(struct ad4170_state *st,
 	struct device *dev = &st->spi->dev;
 	const char *propname;
 	u32 aux;
+	int ret;
 
 	/* Optional positive reference buffering */
 	propname = "adi,positive-reference-buffer";
-	aux = AD4170_REF_BUF_FULL; /* Default to full precharge buffer enabled. */
-	fwnode_property_read_u32(child, propname, &aux);
-	if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
-		return dev_err_probe(dev, -EINVAL, "Invalid %s: %u\n",
-				     propname, aux);
+	ret = device_property_match_property_string(dev, propname,
+						    ad4170_ref_buf_str,
+						    ARRAY_SIZE(ad4170_ref_buf_str));
 
-	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_P_MSK, aux);
+	/* Default to full precharge buffer enabled. */
+	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_P_MSK,
+				 ret >= 0 ? ret : AD4170_REF_BUF_FULL);
 
 	/* Optional negative reference buffering */
 	propname = "adi,negative-reference-buffer";
-	aux = AD4170_REF_BUF_FULL; /* Default to full precharge buffer enabled. */
-	fwnode_property_read_u32(child, propname, &aux);
-	if (aux < AD4170_REF_BUF_PRE || aux > AD4170_REF_BUF_BYPASS)
-		return dev_err_probe(dev, -EINVAL, "Invalid %s: %u\n",
-				     propname, aux);
+	ret = device_property_match_property_string(dev, propname,
+						    ad4170_ref_buf_str,
+						    ARRAY_SIZE(ad4170_ref_buf_str));
 
-	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_M_MSK, aux);
+	/* Default to full precharge buffer enabled. */
+	setup->afe |= FIELD_PREP(AD4170_AFE_REF_BUF_M_MSK,
+				 ret >= 0 ? ret : AD4170_REF_BUF_FULL);
 
 	/* Optional voltage reference selection */
 	propname = "adi,reference-select";
