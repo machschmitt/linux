@@ -172,6 +172,16 @@ allOf:
         properties:
           clocks: false
 
+required:
+  - compatible
+  - reg
+  - avdd-supply
+  - iovdd-supply
+  - spi-cpol
+  - spi-cpha
+
+unevaluatedProperties: false
+
 patternProperties:
   "^channel@[0-9a-f]$":
     $ref: /schemas/iio/adc/adc.yaml#
@@ -393,16 +403,6 @@ patternProperties:
               const: 19
             adi,excitation-pin-3:
               const: 20
-
-required:
-  - compatible
-  - reg
-  - avdd-supply
-  - iovdd-supply
-  - spi-cpol
-  - spi-cpha
-
-unevaluatedProperties: false
 
 examples:
   - |
