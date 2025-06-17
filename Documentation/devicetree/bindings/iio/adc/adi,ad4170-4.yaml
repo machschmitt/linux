@@ -34,9 +34,9 @@ $defs:
       0: Reference precharge buffer.
       1: Full reference buffering.
       2: Bypass reference buffers (buffering disabled).
-    $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [0, 1, 2]
-    default: 1
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [ precharge, full, disabled ]
+    default: full
 
 properties:
   compatible:
@@ -441,8 +441,8 @@ examples:
                 bipolar;
                 diff-channels = <1 2>;
                 adi,reference-select = <0>;
-                adi,positive-reference-buffer = <0>;
-                adi,negative-reference-buffer = <0>;
+                adi,positive-reference-buffer = "precharge";
+                adi,negative-reference-buffer = "precharge";
                 adi,sensor-type = "weighscale";
                 adi,excitation-pin-2 = <19>;
                 adi,excitation-pin-3 = <20>;
