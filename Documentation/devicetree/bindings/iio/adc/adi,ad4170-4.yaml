@@ -47,11 +47,9 @@ properties:
 
   avss-supply:
     description:
-      Reference voltage supply for AVSS. If provided, describes the magnitude
-      (absolute value) of the negative voltage supplied to the AVSS pin. Since
-      AVSS must be −2.625V minimum and 0V maximum, the declared supply voltage
-      must be between 0 and 2.65V. If not provided, AVSS is assumed to be at
-      system ground (0V).
+      Reference voltage supply for AVSS. A −2.625V minimum and 0V maximum supply
+      that powers the chip. If not provided, AVSS is assumed to be at system
+      ground (0V).
 
   avdd-supply:
     description:
@@ -64,17 +62,13 @@ properties:
     description: REFIN+ supply that can be used as reference for conversion.
 
   refin1n-supply:
-    description: REFIN- supply that can be used as reference for conversion. If
-      provided, describes the magnitude (absolute value) of the negative voltage
-      supplied to the REFIN- pin.
+    description: REFIN- supply that can be used as reference for conversion.
 
   refin2p-supply:
     description: REFIN2+ supply that can be used as reference for conversion.
 
   refin2n-supply:
-    description: REFIN2- supply that can be used as reference for conversion. If
-      provided, describes the magnitude (absolute value) of the negative voltage
-      supplied to the REFIN2- pin.
+    description: REFIN2- supply that can be used as reference for conversion.
 
   spi-cpol: true
 
