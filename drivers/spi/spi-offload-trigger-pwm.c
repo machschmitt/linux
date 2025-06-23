@@ -100,6 +100,8 @@ static void spi_offload_trigger_pwm_disable(struct spi_offload_trigger *trigger)
 	ret = pwm_set_waveform_might_sleep(st->pwm, &wf, false);
 	if (ret < 0)
 		dev_err(st->dev, "failed to disable PWM: %d\n", ret);
+
+	pwm_disable(st->pwm);
 }
 
 static const struct spi_offload_trigger_ops spi_offload_trigger_pwm_ops = {
