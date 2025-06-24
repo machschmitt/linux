@@ -30,10 +30,7 @@ $defs:
       impedance output. Note the absolute voltage allowed on REFINn+ and REFINn-
       inputs is from AVSS - 50 mV to AVDD + 50 mV when the reference buffers are
       disabled but narrows to AVSS to AVDD when reference buffering is enabled
-      or in precharge mode. The valid options for this property are:
-      0: Reference precharge buffer.
-      1: Full reference buffering.
-      2: Bypass reference buffers (buffering disabled).
+      or in precharge mode.
     $ref: /schemas/types.yaml#/definitions/string
     enum: [ precharge, full, disabled ]
     default: full
