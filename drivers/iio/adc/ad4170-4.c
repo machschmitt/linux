@@ -1178,26 +1178,15 @@ static int ad4170_parse_adc_channel_type(struct device *dev,
 	int ret, ret2;
 	u32 pins[2];
 
-	/* Parse pseudo-differential channel configuration */
 	propname = "single-channel";
-	propname2 = "common-mode-channel";
-	ret = fwnode_property_read_u32(child, propname, &pins[0]);
-	ret2 = fwnode_property_read_u32(child, propname2, &pins[1]);
-	if (!ret && ret2)
-		return dev_err_probe(dev, ret,
-				     "When %s is defined, %s must be defined too\n",
+	propname2 = "diff-channels";
+	if (!fwnode_property_present(child, propname) &&
+	    !fwnode_property_present(child, propname2))
+		return dev_err_probe(dev, -EINVAL,
+				     "Channel must define one of %s or %s.\n",
 				     propname, propname2);
 
-	if (!ret && !ret2) {
-		chan->differential = false;
-		chan->channel = pins[0];
-		chan->channel2 = pins[1];
-		return 0;
-	}
-	/* Failed to parse pseudo-diff chan props so try diff chan */
-
 	/* Parse differential channel configuration */
-	propname2 = "diff-channels";
 	ret = fwnode_property_read_u32_array(child, propname2, pins,
 					     ARRAY_SIZE(pins));
 	if (!ret) {
@@ -1206,8 +1195,28 @@ static int ad4170_parse_adc_channel_type(struct device *dev,
 		chan->channel2 = pins[1];
 		return 0;
 	}
-	return dev_err_probe(dev, ret, "Channel must define one of %s or %s.\n",
-			     propname, propname2);
+	/* Failed to parse diff chan so try pseudo-diff chan props */
+
+	propname2 = "common-mode-channel";
+	if (fwnode_property_present(child, propname) &&
+	    !fwnode_property_present(child, propname2))
+		return dev_err_probe(dev, -EINVAL,
+				     "When %s is defined, %s must be defined too\n",
+				     propname, propname2);
+
+	/* Parse pseudo-differential channel configuration */
+	ret = fwnode_property_read_u32(child, propname, &pins[0]);
+	ret2 = fwnode_property_read_u32(child, propname2, &pins[1]);
+
+	if (!ret && !ret2) {
+		chan->differential = false;
+		chan->channel = pins[0];
+		chan->channel2 = pins[1];
+		return 0;
+	}
+	return dev_err_probe(dev, -EINVAL,
+			     "Failed to parse channel %lu input. %d, %d\n",
+			     chan->address, ret, ret2);
 }
 
 static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
