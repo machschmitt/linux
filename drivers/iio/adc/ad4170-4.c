@@ -1236,15 +1236,18 @@ static int ad4170_read_avail(struct iio_dev *indio_dev,
 		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		f_type = ad4170_get_filter_type(indio_dev, chan);
-		*vals = (int *)st->sps_tbl[f_type];
 		*type = IIO_VAL_INT_PLUS_MICRO;
+		f_type = ad4170_get_filter_type(indio_dev, chan);
 		switch (f_type) {
 		case AD4170_SINC5_AVG:
 		case AD4170_SINC3:
+			/* Read sps_tbl here to ensure in bounds array access */
+			*vals = (int *)st->sps_tbl[f_type];
 			*length = ARRAY_SIZE(ad4170_sinc3_filt_fs_tbl) * 2;
 			return IIO_AVAIL_LIST;
 		case AD4170_SINC5:
+			/* Read sps_tbl here to ensure in bounds array access */
+			*vals = (int *)st->sps_tbl[f_type];
 			*length = ARRAY_SIZE(ad4170_sinc5_filt_fs_tbl) * 2;
 			return IIO_AVAIL_LIST;
 		default:
