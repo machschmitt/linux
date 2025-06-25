@@ -37,11 +37,11 @@
  * address to use to get the most significant byte first (address accessed is
  * decremented by one for each data byte)
  *
- * Each register address define follows the AD4170_<REG_NAME>_REG form.
- * Each mask follows the AD4170_<REG_NAME>_<FIELD_NAME> form.
+ * Each register address define follows the AD4170_<REG_NAME>_REG format.
+ * Each mask follows the AD4170_<REG_NAME>_<FIELD_NAME> format.
  * E.g. AD4170_PIN_MUXING_DIG_AUX1_CTRL_MSK is for accessing DIG_AUX1_CTRL field
  * of PIN_MUXING_REG.
- * Each constant follows the AD4170_<REG_NAME>_<FIELD_NAME>_<FUNCTION> form.
+ * Each constant follows the AD4170_<REG_NAME>_<FIELD_NAME>_<FUNCTION> format.
  * E.g. AD4170_PIN_MUXING_DIG_AUX1_DISABLED is the value written to
  * DIG_AUX1_CTRL field of PIN_MUXING register to disable DIG_AUX1 pin.
  * Some register names and register field names are shortened versions of
