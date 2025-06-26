@@ -2133,7 +2133,7 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 	unsigned int num_exc_pins, reg_val;
 	struct device *dev = &st->spi->dev;
 	u32 pins[2], exc_pins[4], exc_curs[4];
-	bool ac_excited, vbias;
+	bool ac_excited;
 	int ret;
 
 	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
@@ -2161,12 +2161,11 @@ static int ad4170_parse_external_sensor(struct ad4170_state *st,
 	ac_excited = fwnode_property_read_bool(child, "adi,excitation-ac");
 
 	if (s_type == AD4170_THERMOCOUPLE_SENSOR) {
-		vbias = fwnode_property_read_bool(child, "adi,vbias");
-		if (vbias) {
-			st->pins_fn[chan->channel2] |= AD4170_PIN_VBIAS;
+		if (st->pins_fn[chan->channel2] & AD4170_PIN_VBIAS) {
 			reg_val = BIT(chan->channel2);
-			return regmap_write(st->regmap, AD4170_V_BIAS_REG,
-					    reg_val);
+			ret = regmap_write(st->regmap, AD4170_V_BIAS_REG, reg_val);
+			if (ret)
+				dev_err_probe(dev, ret, "Failed to set vbias\n");
 		}
 	}
 	if (s_type == AD4170_WEIGH_SCALE_SENSOR)
@@ -2534,8 +2533,10 @@ static int ad4170_clock_select(struct iio_dev *indio_dev)
 
 static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 {
+	unsigned int vbias_pins[AD4170_MAX_ANALOG_PINS];
 	struct ad4170_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
+	unsigned int num_vbias_pins;
 	int reg_data, ret;
 	u32 int_pin_sel;
 	unsigned int i;
@@ -2568,6 +2569,25 @@ static int ad4170_parse_firmware(struct iio_dev *indio_dev)
 				 AD4170_PIN_MUXING_DIG_AUX1_CTRL_MSK, reg_data);
 	if (ret)
 		return ret;
+
+	ret = device_property_count_u32(dev, "adi,vbias-pins");
+	if (ret > 0) {
+		if (ret > AD4170_MAX_ANALOG_PINS)
+			return dev_err_probe(dev, -EINVAL,
+					     "Too many vbias pins %u\n", ret);
+
+		num_vbias_pins = ret;
+
+		ret = device_property_read_u32_array(dev, "adi,vbias-pins",
+						     vbias_pins,
+						     num_vbias_pins);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to read vbias pins\n");
+
+		for (i = 0; i < num_vbias_pins; i++)
+			st->pins_fn[vbias_pins[i]] |= AD4170_PIN_VBIAS;
+	}
 
 	ret = ad4170_parse_channels(indio_dev);
 	if (ret)
