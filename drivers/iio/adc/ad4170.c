@@ -344,8 +344,7 @@ struct ad4170_state {
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
 	 */
-	u8 tx_buf[AD4170_SPI_MAX_XFER_LEN] __aligned(IIO_DMA_MINALIGN);
-	u8 rx_buf[4];
+	u8 rx_buf[4] __aligned(IIO_DMA_MINALIGN);
 };
 
 static void ad4170_fill_sps_tbl(struct ad4170_state *st)
