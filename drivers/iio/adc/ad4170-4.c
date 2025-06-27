@@ -285,8 +285,7 @@ struct ad4170_state {
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
 	 */
-	u8 tx_buf[AD4170_SPI_MAX_XFER_LEN] __aligned(IIO_DMA_MINALIGN);
-	u8 rx_buf[4];
+	u8 rx_buf[4] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad4170_debugfs_reg_access(struct iio_dev *indio_dev,
@@ -315,6 +314,7 @@ static int ad4170_get_reg_size(struct ad4170_state *st, unsigned int reg,
 static int ad4170_reg_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct ad4170_state *st = context;
+	u8 tx_buf[AD4170_SPI_MAX_XFER_LEN];
 	unsigned int size;
 	int ret;
 
@@ -322,47 +322,40 @@ static int ad4170_reg_write(void *context, unsigned int reg, unsigned int val)
 	if (ret)
 		return ret;
 
-	put_unaligned_be16(reg, st->tx_buf);
+	put_unaligned_be16(reg, tx_buf);
 	switch (size) {
 	case 3:
-		put_unaligned_be24(val, &st->tx_buf[AD4170_SPI_INST_PHASE_LEN]);
+		put_unaligned_be24(val, &tx_buf[AD4170_SPI_INST_PHASE_LEN]);
 		break;
 	case 2:
-		put_unaligned_be16(val, &st->tx_buf[AD4170_SPI_INST_PHASE_LEN]);
+		put_unaligned_be16(val, &tx_buf[AD4170_SPI_INST_PHASE_LEN]);
 		break;
 	case 1:
-		st->tx_buf[AD4170_SPI_INST_PHASE_LEN] = val;
+		tx_buf[AD4170_SPI_INST_PHASE_LEN] = val;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return spi_write(st->spi, st->tx_buf, AD4170_SPI_INST_PHASE_LEN + size);
+	return spi_write_then_read(st->spi, tx_buf,
+				   AD4170_SPI_INST_PHASE_LEN + size, NULL, 0);
 }
 
 static int ad4170_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct ad4170_state *st = context;
-	struct spi_transfer t[] = {
-		{
-			.tx_buf = st->tx_buf,
-			.len = AD4170_SPI_INST_PHASE_LEN,
-		},
-		{
-			.rx_buf = st->rx_buf,
-		},
-	};
+	u8 tx_buf[AD4170_SPI_INST_PHASE_LEN];
 	unsigned int size;
 	int ret;
+
+	put_unaligned_be16(AD4170_REG_READ_MASK | reg, tx_buf);
 
 	ret = ad4170_get_reg_size(st, reg, &size);
 	if (ret)
 		return ret;
 
-	put_unaligned_be16(AD4170_REG_READ_MASK | reg, st->tx_buf);
-	t[1].len = size;
-
-	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
+	ret = spi_write_then_read(st->spi, tx_buf, ARRAY_SIZE(tx_buf),
+				  st->rx_buf, size);
 	if (ret)
 		return ret;
 
