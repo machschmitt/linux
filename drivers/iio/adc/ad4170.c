@@ -427,8 +427,8 @@ static int ad4170_reg_write(void *context, unsigned int reg, unsigned int val)
 		break;
 	case 0:
 		/* Write continuous read exit code */
-		st->tx_buf[0] = AD4170_ADC_CTRL_CONT_READ_EXIT;
-		return spi_write(st->spi, st->tx_buf, 1);
+		tx_buf[0] = AD4170_ADC_CTRL_CONT_READ_EXIT;
+		return spi_write_then_read(st->spi, tx_buf, 1, NULL, 0);
 	default:
 		return -EINVAL;
 	}
