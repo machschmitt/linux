@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
+ * Analog Devices AD4170-4 ADC driver
+ *
  * Copyright (C) 2025 Analog Devices, Inc.
  * Author: Ana-Maria Cusco <ana-maria.cusco@analog.com>
  * Author: Marcelo Schmitt <marcelo.schmitt@analog.com>
@@ -207,15 +209,15 @@ struct ad4170_chip_info {
 };
 
 static const struct ad4170_chip_info ad4170_chip_info = {
-	.name = "ad4170",
+	.name = "ad4170-4",
 };
 
 static const struct ad4170_chip_info ad4190_chip_info = {
-	.name = "ad4190",
+	.name = "ad4190-4",
 };
 
 static const struct ad4170_chip_info ad4195_chip_info = {
-	.name = "ad4195",
+	.name = "ad4195-4",
 };
 
 /*
@@ -1529,24 +1531,24 @@ static int ad4170_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad4170_id_table[] = {
-	{ "ad4170", (kernel_ulong_t)&ad4170_chip_info },
-	{ "ad4190", (kernel_ulong_t)&ad4190_chip_info },
-	{ "ad4195", (kernel_ulong_t)&ad4195_chip_info },
+	{ "ad4170-4", (kernel_ulong_t)&ad4170_chip_info },
+	{ "ad4190-4", (kernel_ulong_t)&ad4190_chip_info },
+	{ "ad4195-4", (kernel_ulong_t)&ad4195_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad4170_id_table);
 
 static const struct of_device_id ad4170_of_match[] = {
-	{ .compatible = "adi,ad4170", .data = &ad4170_chip_info },
-	{ .compatible = "adi,ad4190", .data = &ad4190_chip_info },
-	{ .compatible = "adi,ad4195", .data = &ad4195_chip_info },
+	{ .compatible = "adi,ad4170-4", .data = &ad4170_chip_info },
+	{ .compatible = "adi,ad4190-4", .data = &ad4190_chip_info },
+	{ .compatible = "adi,ad4195-4", .data = &ad4195_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad4170_of_match);
 
 static struct spi_driver ad4170_driver = {
 	.driver = {
-		.name = "ad4170",
+		.name = "ad4170-4",
 		.of_match_table = ad4170_of_match,
 	},
 	.probe = ad4170_probe,
