@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/iio/adc/adi,ad4170.yaml#
+$id: http://devicetree.org/schemas/iio/adc/adi,ad4170-4.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AD4170 and similar Analog to Digital Converters
+title: Analog Devices AD4170-4 and similar Analog to Digital Converters
 
 maintainers:
   - Marcelo Schmitt <marcelo.schmitt@analog.com>
 
 description: |
-  Analog Devices AD4170 series of Sigma-delta Analog to Digital Converters.
+  Analog Devices AD4170-4 series of Sigma-delta Analog to Digital Converters.
   Specifications can be found at:
     https://www.analog.com/media/en/technical-documentation/data-sheets/ad4170-4.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/ad4190-4.pdf
@@ -38,9 +38,9 @@ $defs:
 properties:
   compatible:
     enum:
-      - adi,ad4170
-      - adi,ad4190
-      - adi,ad4195
+      - adi,ad4170-4
+      - adi,ad4190-4
+      - adi,ad4195-4
 
   avss-supply:
     description:
@@ -140,8 +140,8 @@ allOf:
         compatible:
           contains:
             enum:
-              - adi,ad4190
-              - adi,ad4195
+              - adi,ad4190-4
+              - adi,ad4195-4
     then:
       properties:
         ldac-gpios: false
@@ -403,7 +403,7 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
-            compatible = "adi,ad4170";
+            compatible = "adi,ad4170-4";
             reg = <0>;
             spi-max-frequency = <20000000>;
             spi-cpol;
@@ -471,7 +471,7 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
-            compatible = "adi,ad4170";
+            compatible = "adi,ad4170-4";
             reg = <0>;
             spi-max-frequency = <20000000>;
             spi-cpol;
