@@ -800,8 +800,8 @@ static const struct iio_chan_spec ad4170_channel_template = {
 			      BIT(IIO_CHAN_INFO_SCALE) |
 			      BIT(IIO_CHAN_INFO_CALIBBIAS) |
 			      BIT(IIO_CHAN_INFO_CALIBSCALE) |
-			      BIT(IIO_CHAN_INFO_OFFSET) |
-			      BIT(IIO_CHAN_INFO_SAMP_FREQ),
+			      BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+			      BIT(IIO_CHAN_INFO_OFFSET),
 	.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE) |
 					BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	.ext_info = ad4170_filter_type_ext_info,
