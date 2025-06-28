@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/iio/adc/adi,ad4170-4.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AD4170 and similar Analog to Digital Converters
+title: Analog Devices AD4170-4 and similar Analog to Digital Converters
 
 maintainers:
   - Marcelo Schmitt <marcelo.schmitt@analog.com>
 
 description: |
-  Analog Devices AD4170 series of Sigma-delta Analog to Digital Converters.
+  Analog Devices AD4170-4 series of Sigma-delta Analog to Digital Converters.
   Specifications can be found at:
     https://www.analog.com/media/en/technical-documentation/data-sheets/ad4170-4.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/ad4190-4.pdf
@@ -38,9 +38,9 @@ $defs:
 properties:
   compatible:
     enum:
-      - adi,ad4170
-      - adi,ad4190
-      - adi,ad4195
+      - adi,ad4170-4
+      - adi,ad4190-4
+      - adi,ad4195-4
 
   avss-supply:
     description:
@@ -140,8 +140,8 @@ allOf:
         compatible:
           contains:
             enum:
-              - adi,ad4190
-              - adi,ad4195
+              - adi,ad4190-4
+              - adi,ad4195-4
     then:
       properties:
         ldac-gpios: false
@@ -235,7 +235,7 @@ patternProperties:
 
       adi,sensor-type:
         description:
-          The AD4170 and similar designs have features to aid interfacing with
+          The AD4170-4 and similar designs have features to aid interfacing with
           load cell weigh scale, RTD, and thermocouple sensors. Each of those
           sensor types requires either distinct wiring configuration or
           external circuitry for proper sensor operation and can use different
@@ -403,7 +403,7 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
-            compatible = "adi,ad4170";
+            compatible = "adi,ad4170-4";
             reg = <0>;
             spi-max-frequency = <20000000>;
             spi-cpol;
@@ -471,7 +471,7 @@ examples:
         #size-cells = <0>;
 
         adc@0 {
-            compatible = "adi,ad4170";
+            compatible = "adi,ad4170-4";
             reg = <0>;
             spi-max-frequency = <20000000>;
             spi-cpol;
@@ -520,7 +520,7 @@ examples:
                 adi,reference-select = <3>;
             };
             // Sample AIN5 with respect to 2.5V throughout AVDD/AVSS input range
-            // Pseudo-differential unipolar (AD4170 datasheet page 46 example)
+            // Pseudo-differential unipolar (AD4170-4 datasheet page 46 example)
             channel@4 {
                 reg = <4>;
                 single-channel = <5>;
