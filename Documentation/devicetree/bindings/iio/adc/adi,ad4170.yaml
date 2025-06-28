@@ -414,7 +414,7 @@ examples:
             clock-names = "xtal";
             interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
             interrupt-names = "dig_aux1";
-            adi,vbias-pins = <7>;
+            adi,vbias-pins = <8>;
             #address-cells = <1>;
             #size-cells = <0>;
 
