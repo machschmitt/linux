@@ -324,7 +324,7 @@ static int ad4134_min_io_mode_setup(struct ad4134_state *st)
 	struct device *dev = &st->spi->dev;
 	int ret;
 
-	st->odr_gpio = devm_gpiod_get(dev, "odr", GPIOD_OUT_HIGH);
+	st->odr_gpio = devm_gpiod_get(dev, "odr", GPIOD_OUT_LOW);
 	if (IS_ERR(st->odr_gpio))
 		return dev_err_probe(dev, PTR_ERR(st->odr_gpio),
 				     "Failed to get ODR GPIO\n");
