@@ -444,9 +444,10 @@ static int ad4134_probe(struct spi_device *spi)
 	indio_dev->channels = ad4134_chan_set;
 	indio_dev->num_channels = ARRAY_SIZE(ad4134_chan_set);
 
-	st->regmap = devm_regmap_init_spi(spi, &ad4134_regmap_config);
+	st->regmap = devm_regmap_init(dev, NULL, st, &ad4134_regmap_config);
 	if (IS_ERR(st->regmap))
-		return PTR_ERR(st->regmap);
+		return dev_err_probe(&spi->dev, PTR_ERR(st->regmap),
+				     "Failed to initialize regmap");
 
 	indio_dev->available_scan_masks = ad4134_channel_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
