@@ -172,7 +172,7 @@ examples:
         spi-max-frequency = <1000000>;
 
         reset-gpios = <&gpio0 86 GPIO_ACTIVE_LOW>;
-        odr-gpios = <&gpio0 87 GPIO_ACTIVE_LOW>;
+        odr-gpios = <&gpio0 87 GPIO_ACTIVE_HIGH>;
         powerdown-gpios = <&gpio0 88 GPIO_ACTIVE_LOW>;
 
         clocks = <&sys_clk>;
