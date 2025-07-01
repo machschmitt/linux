@@ -229,6 +229,7 @@ static int ad4134_reg_read(void *context, unsigned int reg, unsigned int *val)
 }
 
 static const struct regmap_config ad4134_regmap_config = {
+	.name = "ad4134",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.reg_read = ad4134_reg_read,
