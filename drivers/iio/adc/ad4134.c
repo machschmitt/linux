@@ -86,9 +86,7 @@ static struct iio_scan_type ad4134_scan_types[] = {
 	.indexed = 1,								\
 	.channel = (_index),							\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),				\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) |		\
-				    BIT(IIO_CHAN_INFO_SCALE),			\
-	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),			\
 	.scan_index = (_index),							\
 	.has_ext_scan_type = 1,							\
 	.ext_scan_type = ad4134_scan_types,					\
