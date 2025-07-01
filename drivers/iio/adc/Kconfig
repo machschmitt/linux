@@ -89,8 +89,8 @@ config AD4134
 	depends on SPI
 	select REGMAP_SPI
 	help
-	  Say yes here to build support for Analog Devices AD4134-8 SPI analog
-	  to digital converters (ADC).
+	  Say yes here to build support for Analog Devices AD4134 SPI analog to
+	  digital converters (ADC).
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad4134.
