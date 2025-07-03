@@ -213,6 +213,10 @@ static const char * const ad4170_int_pin_names[] = {
 	[AD4170_INT_PIN_DIG_AUX1] = "dig_aux1",
 };
 
+enum ad4170_sensor_enum {
+	AD4170_ADC_SENSOR = 0,
+};
+
 struct ad4170_chip_info {
 	const char *name;
 };
@@ -1217,6 +1221,7 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 				     unsigned int chan_num)
 {
 	struct ad4170_state *st = iio_priv(indio_dev);
+	unsigned int s_type = AD4170_ADC_SENSOR;
 	struct device *dev = &st->spi->dev;
 	struct ad4170_chan_info *chan_info;
 	struct ad4170_setup *setup;
@@ -1249,9 +1254,16 @@ static int ad4170_parse_channel_node(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	ret = ad4170_parse_adc_channel_type(dev, child, chan);
-	if (ret)
-		return ret;
+	switch (s_type) {
+	case AD4170_ADC_SENSOR:
+		ret = ad4170_parse_adc_channel_type(dev, child, chan);
+		if (ret)
+			return ret;
+
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	bipolar = fwnode_property_read_bool(child, "bipolar");
 	setup->afe |= FIELD_PREP(AD4170_AFE_BIPOLAR_MSK, bipolar);
