@@ -11,22 +11,19 @@ maintainers:
   - Marcelo Schmitt <marcelo.schmitt@analog.com>
 
 description: |
-  The AD4134 is a quad channel, low noise, simultaneous sampling,
-  precision analog-to-digital converter (ADC) that delivers on
-  functionality, performance, and ease of use.
-
-    https://www.analog.com/en/products/ad4134.html
+  The AD4134 and AD7134 are a quad channel, low noise, simultaneous sampling,
+  precision analog-to-digital converters (ADCs).
+  Specifications can be found at:
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad4134.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7134.pdf
 
 $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:
-    oneOf:
-      - const: adi,ad4134
-      - items:
-          - enum:
-              - adi,ad7134
-          - const: adi,ad4134
+    enum:
+      - adi,ad4134
+      - adi,ad7134
 
   reg:
     maxItems: 1
