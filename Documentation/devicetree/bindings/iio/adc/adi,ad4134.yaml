@@ -82,6 +82,19 @@ properties:
   clock-output-names:
     maxItems: 1
 
+  regulators:
+    type: object
+    description:
+      list of regulators provided by this controller.
+
+    properties:
+      vcm-output:
+        $ref: /schemas/regulator/regulator.yaml#
+        type: object
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
   reset-gpios:
     maxItems: 1
 
@@ -190,6 +203,13 @@ examples:
             adi,asrc-mode = "low";
             adi,dclkio = "in";
             adi,dclkmode = "gated";
+
+            regulators {
+                vcm_reg: vcm-output {
+                    regulator-name = "ad4134-vcm";
+                };
+            };
+
         };
     };
 ...
