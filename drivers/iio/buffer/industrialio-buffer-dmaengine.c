@@ -50,14 +50,43 @@ static void iio_dmaengine_buffer_block_done(void *data,
 {
 	struct iio_dma_buffer_block *block = data;
 	unsigned long flags;
+	/*
+	 * Hack to discard ADAQ4216 sencond channel data.
+	 * The ad4630_fmc HDL project was designed for ADCs with two channels
+	 * and always stream two data channels to DMA (even when the ADC has
+	 * only one physical channel). Though, if the ADC has only one physical
+	 * channel, the data that would be from the second ADC channel comes in
+	 * as noise and has to be discarded. Because of that, only half of data
+	 * comming from DMA is used for single channel ADCs such as ADAQ4216.
+	 */
+	struct iio_dma_buffer_queue *queue = block->queue;
+	unsigned int i;
+	void *addr;
+	size_t n;
+#ifdef CONFIG_IIO_DMA_BUF_MMAP_LEGACY
+	n = block->block.bytes_used - result->residue;
+#else
+	n = block->bytes_used - result->residue;
+#endif
+
+	/*
+	 * Modify the block memory to skip one value every each 2 bytes
+	 * (samples?!).
+	 */
+	addr = block->vaddr + queue->fileio.pos;
+	for (i = 0; i < n / 2; i++) {
+		memcpy((addr + i), (addr + (i * 2)), sizeof(typeof(addr)));
+	}
 
 	spin_lock_irqsave(&block->queue->list_lock, flags);
 	list_del(&block->head);
 	spin_unlock_irqrestore(&block->queue->list_lock, flags);
 #ifdef CONFIG_IIO_DMA_BUF_MMAP_LEGACY
 	block->block.bytes_used -= result->residue;
+	block->block.bytes_used /= 2;
 #else
 	block->bytes_used -= result->residue;
+	block->bytes_used /= 2;
 #endif
 	iio_dma_buffer_block_done(block);
 }
