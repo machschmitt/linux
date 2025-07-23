@@ -70,12 +70,23 @@ static void iio_dmaengine_buffer_block_done(void *data,
 #endif
 
 	/*
-	 * Modify the block memory to skip one value every each 2 bytes
-	 * (samples?!).
+	 * Modify the block memory to modify one value every each 4 bytes.
+	 * In memory, the ADC data is in:
+	 * CH1_SAMPLE1 | CH2_SAMPLE1 | CH1_SAMPLE2 | CH2_SAMPLE2 |
+	 * CH1_SAMPLE3 | CH2_SAMPLE3 | CH1_SAMPLE4 | CH2_SAMPLE4 |
+	 * ...
+	 * CH1_SAMPLEN | CH2_SAMPLEN |
+	 * Each sample in a 32-bit data element.
 	 */
 	addr = block->vaddr + queue->fileio.pos;
-	for (i = 0; i < n / 2; i++) {
-		memcpy((addr + i), (addr + (i * 2)), sizeof(typeof(addr)));
+
+	unsigned int num_bytes_per_element;
+	num_bytes_per_element = queue->buffer.bytes_per_datum;
+	unsigned int num_data_elements;
+	num_data_elements = n / num_bytes_per_element;
+
+	for (i = 0; i < n; i = i + num_bytes_per_element) {
+		memcpy((addr + i), (addr + (i * 2)), sizeof(typeof(u32)));
 	}
 
 	spin_lock_irqsave(&block->queue->list_lock, flags);
