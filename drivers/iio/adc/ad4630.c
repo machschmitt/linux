@@ -1540,8 +1540,13 @@ static int ad4630_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(rx_dma),
 			"failed to get offload RX DMA\n");
 
-	ret = devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev,
-		rx_dma, IIO_BUFFER_DIRECTION_IN);
+	dev_info(dev, "%s, \n", __func__);
+	if (indio_dev->num_channels == 1)
+		ret = devm_iio_dmaengine_filtered_buffer_setup_with_handle(dev,
+			indio_dev, rx_dma, IIO_BUFFER_DIRECTION_IN);
+	else
+		ret = devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev,
+			rx_dma, IIO_BUFFER_DIRECTION_IN);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to get DMA buffer\n");
@@ -1638,3 +1643,4 @@ MODULE_AUTHOR("Liviu Adace <liviu.adace@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD4630 and ADAQ4224 ADC family driver");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(IIO_DMAENGINE_BUFFER);
+MODULE_IMPORT_NS(IIO_DMAENGINE_FILTERED_BUFFER);
