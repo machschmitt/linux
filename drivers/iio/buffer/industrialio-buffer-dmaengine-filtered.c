@@ -284,6 +284,20 @@ static void iio_dmaengine_buffer_release(struct iio_buffer *buf)
 	kfree(dmaengine_buffer);
 }
 
+#ifdef CONFIG_IIO_DMA_BUF_MMAP_LEGACY
+static int iio_dma_filtered_buffer_alloc_blocks(struct iio_buffer *buffer,
+	struct iio_buffer_block_alloc_req *req)
+{
+	/*
+	 * Allocate blocks with two times the usual size because half of the
+	 * will be discarded so the block has to be double size to fill the
+	 * IIO buffer.
+	 */
+	req->size = req->size * 2;
+	return iio_dma_buffer_alloc_blocks(buffer, req);
+}
+#endif
+
 static const struct iio_buffer_access_funcs iio_dmaengine_buffer_ops = {
 	.read = iio_dma_buffer_read,
 	.write = iio_dma_buffer_write,
@@ -296,7 +310,7 @@ static const struct iio_buffer_access_funcs iio_dmaengine_buffer_ops = {
 	.space_available = iio_dma_buffer_usage,
 	.release = iio_dmaengine_buffer_release,
 #ifdef CONFIG_IIO_DMA_BUF_MMAP_LEGACY
-	.alloc_blocks = iio_dma_buffer_alloc_blocks,
+	.alloc_blocks = iio_dma_filtered_buffer_alloc_blocks,
 	.free_blocks = iio_dma_buffer_free_blocks,
 	.query_block = iio_dma_buffer_query_block,
 	.enqueue_block = iio_dma_buffer_enqueue_block,
