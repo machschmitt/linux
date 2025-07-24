@@ -133,8 +133,8 @@ static void iio_dmaengine_filtered_buffer_block_done(void *data,
 	//	memcpy((addr + i), (addr + (i * 2)), sizeof(typeof(u32)));
 	//}
 
-	for (i = 0; i < n; i = i + num_bytes_per_element) {
-		memcpy((addr + i), (addr + (i * 2)), sizeof(typeof(u32)));
+	for (i = 0; i < (n / 2); i = i + num_bytes_per_element) {
+		memcpy((addr + i), (addr + (i * 2)), num_bytes_per_element);
 	}
 
 	spin_lock_irqsave(&block->queue->list_lock, flags);
