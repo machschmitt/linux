@@ -489,22 +489,6 @@ struct iio_buffer *iio_dmaengine_filtered_buffer_setup_ext(struct device *dev,
 }
 EXPORT_SYMBOL_NS_GPL(iio_dmaengine_filtered_buffer_setup_ext, IIO_DMAENGINE_FILTERED_BUFFER);
 
-int devm_iio_dmaengine_buffer_filtered_setup_with_ops(struct device *dev,
-					     struct iio_dev *indio_dev,
-					     const char *channel,
-					     enum iio_buffer_direction dir,
-					     const struct iio_dma_buffer_ops *ops,
-					     void *data)
-{
-
-	return devm_iio_dmaengine_buffer_setup_with_ops(dev, indio_dev,
-					     channel,
-					     dir,
-					     ops,
-					     data);
-}
-
-
 static void devm_iio_dmaengine_buffer_free(void *buffer)
 {
 	iio_dmaengine_buffer_free(buffer);
