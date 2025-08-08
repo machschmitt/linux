@@ -45,11 +45,22 @@ struct dmaengine_buffer {
 	size_t max_size;
 };
 
-static struct dmaengine_buffer *iio_buffer_to_dmaengine_buffer(struct iio_buffer *buffer)
+struct dmaengine_buffer_filter {
+	size_t buffer_size;
+};
+
+struct dmaengine_filtering_buffer {
+	struct dmaengine_buffer *dmaengine_buf;
+	struct dmaengine_buffer_filter *filter;
+};
+
+static struct dmaengine_filtering_buffer *
+iio_buffer_to_dmaengine_filtering_buffer(struct iio_buffer *buffer)
 {
-	return container_of(buffer, struct dmaengine_buffer, queue.buffer);
+	return container_of(buffer, struct dmaengine_filtering_buffer, queue.buffer);
 }
 
+//TODO callback
 static void iio_dmaengine_filtered_buffer_block_done(void *data,
 						     const struct dmaengine_result *result)
 {
@@ -101,11 +112,13 @@ static void iio_dmaengine_filtered_buffer_block_done(void *data,
 	iio_dma_buffer_block_done(block);
 }
 
+//TODO callback
 int iio_dmaengine_filtered_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 					       struct iio_dma_buffer_block *block)
 {
-	struct dmaengine_buffer *dmaengine_buffer =
-		iio_buffer_to_dmaengine_buffer(&block->queue->buffer);
+	struct dmaengine_filtering_buffer *dmaengine_filt_buf =
+		iio_buffer_to_dmaengine_filtering_buffer(&block->queue->buffer);
+	struct dmaengine_buffer *dmaengine_buffer = dmaengine_filt_buf->dmaengine_buf;
 	struct dma_async_tx_descriptor *desc;
 	enum dma_transfer_direction dma_dir;
 #ifndef CONFIG_IIO_DMA_BUF_MMAP_LEGACY
@@ -152,7 +165,7 @@ int iio_dmaengine_filtered_buffer_submit_block(struct iio_dma_buffer_queue *queu
 		if (!desc)
 			return -ENOMEM;
 
-		desc->callback_result = iio_dmaengine_filtered_buffer_block_done;
+		desc->callback_result = iio_dmaengine_filtered_buffer_block_done; //TODO callback
 		desc->callback_param = block;
 	}
 #else
@@ -209,7 +222,7 @@ int iio_dmaengine_filtered_buffer_submit_block(struct iio_dma_buffer_queue *queu
 	if (!desc)
 		return -ENOMEM;
 
-	desc->callback_result = iio_dmaengine_filtered_buffer_block_done;
+	desc->callback_result = iio_dmaengine_filtered_buffer_block_done; //TODO callback
 	desc->callback_param = block;
 #endif
 	cookie = dmaengine_submit(desc);
@@ -228,8 +241,9 @@ EXPORT_SYMBOL_NS_GPL(iio_dmaengine_filtered_buffer_submit_block, IIO_DMAENGINE_F
 
 static void iio_dmaengine_buffer_release(struct iio_buffer *buf)
 {
-	struct dmaengine_buffer *dmaengine_buffer =
-		iio_buffer_to_dmaengine_buffer(buf);
+	struct dmaengine_filtering_buffer *dmaengine_filt_buf =
+		iio_buffer_to_dmaengine_filtering_buffer(buf);
+	struct dmaengine_buffer *dmaengine_buffer = dmaengine_filt_buf->dmaengine_buf;
 
 	iio_dma_buffer_release(&dmaengine_buffer->queue);
 	kfree(dmaengine_buffer);
@@ -244,24 +258,153 @@ static int iio_dma_filtered_buffer_alloc_blocks(struct iio_buffer *buffer,
 	 * data will be discarded so the block has to be double size to fill the
 	 * IIO buffer.
 	 */
-	req->size = req->size * 2;
+	req->size = req->size * 2; //TODO make '2', configurable
 	return iio_dma_buffer_alloc_blocks(buffer, req);
 }
+#else
+struct iio_dma_buffer_block *
+iio_dma_filtered_buffer_attach_dmabuf(struct iio_buffer *buffer,
+			     struct dma_buf_attachment *attach)
+{
+	struct iio_dma_buffer_queue *queue = iio_buffer_to_queue(buffer);
+	struct iio_dma_buffer_block *block;
+
+	guard(mutex)(&queue->lock);
+
+	/*
+	 * If the buffer is enabled and in fileio mode new blocks can't be
+	 * allocated.
+	 */
+	if (queue->fileio.enabled)
+		return ERR_PTR(-EBUSY);
+
+	block = iio_dma_buffer_alloc_block(queue, attach->dmabuf->size, false);
+	if (!block)
+		return ERR_PTR(-ENOMEM);
+
+	/* Free memory that might be in use for fileio mode */
+	iio_dma_buffer_fileio_free(queue);
+
+	return block;
+}
 #endif
+
+int iio_dma_filtered_buffer_request_update(struct iio_buffer *buffer)
+{
+	struct iio_dma_buffer_queue *queue = iio_buffer_to_queue(buffer);
+	struct iio_dma_buffer_block *block;
+	bool try_reuse = false;
+	size_t size;
+	int ret = 0;
+	int i;
+
+	/*
+	 * Split the buffer into two even parts. This is used as a double
+	 * buffering scheme with usually one block at a time being used by the
+	 * DMA and the other one by the application.
+	 */
+	size = DIV_ROUND_UP(queue->buffer.bytes_per_datum *
+		queue->buffer.length, 2);
+
+	mutex_lock(&queue->lock);
+
+#ifdef CONFIG_IIO_DMA_BUF_MMAP_LEGACY
+	if (queue->num_blocks)
+		goto out_unlock;
+#else
+	queue->fileio.enabled = iio_dma_buffer_can_use_fileio(queue);
+
+	/* If DMABUFs were created, disable fileio interface */
+	if (!queue->fileio.enabled)
+		goto out_unlock;
+#endif
+	/* Allocations are page aligned */
+	if (PAGE_ALIGN(queue->fileio.block_size) == PAGE_ALIGN(size))
+		try_reuse = true;
+
+	queue->fileio.block_size = size;
+	queue->fileio.active_block = NULL;
+
+	spin_lock_irq(&queue->list_lock);
+	for (i = 0; i < ARRAY_SIZE(queue->fileio.blocks); i++) {
+		block = queue->fileio.blocks[i];
+
+		/* If we can't re-use it free it */
+		if (block && (!iio_dma_block_reusable(block) || !try_reuse))
+			block->state = IIO_BLOCK_STATE_DEAD;
+	}
+
+	/*
+	 * At this point all blocks are either owned by the core or marked as
+	 * dead. This means we can reset the lists without having to fear
+	 * corrution.
+	 */
+	spin_unlock_irq(&queue->list_lock);
+
+	INIT_LIST_HEAD(&queue->incoming);
+
+	for (i = 0; i < ARRAY_SIZE(queue->fileio.blocks); i++) {
+		if (queue->fileio.blocks[i]) {
+			block = queue->fileio.blocks[i];
+			if (block->state == IIO_BLOCK_STATE_DEAD) {
+				/* Could not reuse it */
+				iio_buffer_block_put(block);
+				block = NULL;
+			} else {
+				block->size = size;
+			}
+		} else {
+			block = NULL;
+		}
+
+		if (!block) {
+			block = iio_dma_buffer_alloc_block(queue, size, true);
+			if (!block) {
+				ret = -ENOMEM;
+				goto out_unlock;
+			}
+			queue->fileio.blocks[i] = block;
+		}
+
+		/*
+		 * block->bytes_used may have been modified previously, e.g. by
+		 * iio_dma_buffer_block_list_abort(). Reset it here to the
+		 * block's so that iio_dma_buffer_io() will work.
+		 */
+		block->bytes_used = block->size;
+
+		/*
+		 * If it's an input buffer, mark the block as queued, and
+		 * iio_dma_buffer_enable() will submit it. Otherwise mark it as
+		 * done, which means it's ready to be dequeued.
+		 */
+		if (queue->buffer.direction == IIO_BUFFER_DIRECTION_IN) {
+			block->state = IIO_BLOCK_STATE_QUEUED;
+			list_add_tail(&block->head, &queue->incoming);
+		} else {
+			block->state = IIO_BLOCK_STATE_DONE;
+		}
+	}
+
+out_unlock:
+	mutex_unlock(&queue->lock);
+
+	return ret;
+}
 
 static const struct iio_buffer_access_funcs iio_dmaengine_buffer_ops = {
 	.read = iio_dma_buffer_read,
 	.write = iio_dma_buffer_write,
 	.set_bytes_per_datum = iio_dma_buffer_set_bytes_per_datum,
 	.set_length = iio_dma_buffer_set_length,
-	.request_update = iio_dma_buffer_request_update,
+	.request_update = iio_dma_filtered_buffer_request_update,
 	.enable = iio_dma_buffer_enable,
 	.disable = iio_dma_buffer_disable,
 	.data_available = iio_dma_buffer_usage,
 	.space_available = iio_dma_buffer_usage,
 	.release = iio_dmaengine_buffer_release,
 #ifdef CONFIG_IIO_DMA_BUF_MMAP_LEGACY
-	.alloc_blocks = iio_dma_filtered_buffer_alloc_blocks,
+	.alloc_blocks = iio_dma_filtered_buffer_alloc_blocks, //TODO callback
 	.free_blocks = iio_dma_buffer_free_blocks,
 	.query_block = iio_dma_buffer_query_block,
 	.enqueue_block = iio_dma_buffer_enqueue_block,
@@ -269,7 +412,7 @@ static const struct iio_buffer_access_funcs iio_dmaengine_buffer_ops = {
 	.mmap = iio_dma_buffer_mmap,
 #else
 	.enqueue_dmabuf = iio_dma_buffer_enqueue_dmabuf,
-	.attach_dmabuf = iio_dma_buffer_attach_dmabuf,
+	.attach_dmabuf = iio_dma_filtered_buffer_attach_dmabuf,
 	.detach_dmabuf = iio_dma_buffer_detach_dmabuf,
 
 	.lock_queue = iio_dma_buffer_lock_queue,
@@ -280,7 +423,7 @@ static const struct iio_buffer_access_funcs iio_dmaengine_buffer_ops = {
 };
 
 static const struct iio_dma_buffer_ops iio_dmaengine_filtered_default_ops = {
-	.submit = iio_dmaengine_filtered_buffer_submit_block,
+	.submit = iio_dmaengine_filtered_buffer_submit_block, //TODO callback
 	.abort = iio_dmaengine_buffer_abort,
 };
 
@@ -289,8 +432,9 @@ static ssize_t iio_dmaengine_buffer_get_length_align(struct device *dev,
 						     char *buf)
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
-	struct dmaengine_buffer *dmaengine_buffer =
-		iio_buffer_to_dmaengine_buffer(buffer);
+	struct dmaengine_filtering_buffer *dmaengine_filt_buf =
+		iio_buffer_to_dmaengine_filtering_buffer(buffer);
+	struct dmaengine_buffer *dmaengine_buffer = dmaengine_filt_buf->dmaengine_buf;
 
 	return sysfs_emit(buf, "%zu\n", dmaengine_buffer->align);
 }
@@ -317,6 +461,7 @@ static struct iio_buffer *iio_dmaengine_buffer_alloc(struct dma_chan *chan,
 						     const struct iio_dma_buffer_ops *ops,
 						     void *data)
 {
+	struct dmaengine_filtering_buffer *dmaengine_filtering_buffer;
 	struct dmaengine_buffer *dmaengine_buffer;
 	unsigned int width, src_width, dest_width;
 	struct dma_slave_caps caps;
@@ -329,6 +474,12 @@ static struct iio_buffer *iio_dmaengine_buffer_alloc(struct dma_chan *chan,
 	dmaengine_buffer = kzalloc(sizeof(*dmaengine_buffer), GFP_KERNEL);
 	if (!dmaengine_buffer)
 		return ERR_PTR(-ENOMEM);
+
+	dmaengine_filtering_buffer = kzalloc(sizeof(*dmaengine_filtering_buffer), GFP_KERNEL);
+	if (!dmaengine_filtering_buffer)
+		return ERR_PTR(-ENOMEM);
+
+	dmaengine_filtering_buffer->dmaengine_buf = dmaengine_buffer;
 
 	/* Needs to be aligned to the maximum of the minimums */
 	if (caps.src_addr_widths)
@@ -353,7 +504,7 @@ static struct iio_buffer *iio_dmaengine_buffer_alloc(struct dma_chan *chan,
 	dmaengine_buffer->max_size = dma_get_max_seg_size(chan->device->dev);
 
 	if (!ops)
-		ops = &iio_dmaengine_filtered_default_ops;
+		ops = &iio_dmaengine_filtered_default_ops; //TODO callback
 
 	iio_dma_buffer_init(&dmaengine_buffer->queue, chan->device->dev, ops, data);
 
@@ -371,8 +522,9 @@ static struct iio_buffer *iio_dmaengine_buffer_alloc(struct dma_chan *chan,
  */
 static void iio_dmaengine_buffer_free(struct iio_buffer *buffer)
 {
-	struct dmaengine_buffer *dmaengine_buffer =
-		iio_buffer_to_dmaengine_buffer(buffer);
+	struct dmaengine_filtering_buffer *dmaengine_filt_buf =
+		iio_buffer_to_dmaengine_filtering_buffer(buffer);
+	struct dmaengine_buffer *dmaengine_buffer = dmaengine_filt_buf->dmaengine_buf;
 
 	iio_dma_buffer_exit(&dmaengine_buffer->queue);
 	iio_buffer_put(buffer);
@@ -420,6 +572,7 @@ static struct iio_buffer
  * Once done using the buffer iio_dmaengine_buffer_teardown() should be used to
  * release it.
  */
+//TODO callback
 struct iio_buffer *iio_dmaengine_filtered_buffer_setup_ext(struct device *dev,
 							   struct iio_dev *indio_dev,
 							   const char *channel,
@@ -461,6 +614,7 @@ static void devm_iio_dmaengine_buffer_free(void *buffer)
  * This is the same as devm_iio_dmaengine_buffer_setup_ext() except that the
  * caller manages requesting and releasing the DMA channel handle.
  */
+//TODO callback
 int devm_iio_dmaengine_filtered_buffer_setup_with_handle(struct device *dev,
 							 struct iio_dev *indio_dev,
 							 struct dma_chan *chan,
