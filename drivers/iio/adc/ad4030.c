@@ -15,9 +15,13 @@
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/dmaengine.h>
+#include <linux/iio/buffer-dmaengine.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/pm_runtime.h>
+#include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/offload/consumer.h>
@@ -113,6 +117,10 @@
 #define AD4632_TCYC_NS			2000
 #define AD4632_TCYC_ADJUSTED_NS		(AD4632_TCYC_NS - AD4030_TCNVL_NS)
 #define AD4030_TRESET_COM_DELAY_MS	750
+/* Datasheet says 9.8ns, so use the closest integer value */
+#define AD4030_TQUIET_CNV_DELAY_NS	10
+/* SPI transfer */
+#define AD4030_SPI_SAMPLING_SPEED	80000000UL
 
 enum ad4030_out_mode {
 	AD4030_OUT_DATA_MD_DIFF,
@@ -138,6 +146,7 @@ struct ad4030_chip_info {
 	const char *name;
 	const unsigned long *available_masks;
 	const struct iio_chan_spec channels[AD4030_MAX_IIO_CHANNEL_NB];
+	const struct iio_chan_spec offload_channels[AD4030_MAX_HARDWARE_CHANNEL_NB];
 	u8 grade;
 	u8 precision_bits;
 	/* Number of hardware channels */
@@ -150,6 +159,8 @@ struct ad4030_state {
 	struct regmap *regmap;
 	const struct ad4030_chip_info *chip;
 	struct gpio_desc *cnv_gpio;
+	struct pwm_device *conv_trigger;
+	struct pwm_waveform conv_wf;
 	int vref_uv;
 	int vio_uv;
 	int offset_avail[3];
@@ -161,6 +172,10 @@ struct ad4030_state {
 	struct spi_offload *offload;
 	struct spi_offload_trigger *offload_trigger;
 	struct spi_offload_trigger_config offload_trigger_config;
+	unsigned int max_rate;
+	bool test_pattern_en; // TODO can avoid?
+	u8 bits_per_word; // TODO can avoid?
+	u8 pattern_bits_per_word; // TODO can avoid?
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -909,6 +924,79 @@ static const struct iio_buffer_setup_ops ad4030_buffer_setup_ops = {
 	.validate_scan_mask = ad4030_validate_scan_mask,
 };
 
+static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct ad4030_state *st = iio_priv(indio_dev);
+	int ret, read_ret;
+	u32 dummy;
+
+	ret = pm_runtime_resume_and_get(&st->spi->dev);
+	if (ret < 0)
+		return ret;
+
+	if (st->test_pattern_en)
+		st->offload_xfer.bits_per_word  = st->pattern_bits_per_word;
+	else
+		st->offload_xfer.bits_per_word  = st->bits_per_word;
+
+	ret = regmap_write(st->regmap, AD4030_REG_EXIT_CFG_MODE, BIT(0));
+	if (ret)
+		goto out_error;
+
+	st->offload_msg.offload = st->offload;
+	ret = spi_optimize_message(st->spi, &st->offload_msg);
+	if (ret < 0)
+		goto out_reset_mode;
+
+	spi_bus_lock(st->spi->controller);
+
+	ret = pwm_set_waveform_might_sleep(st->conv_trigger, &st->conv_wf, false);
+	if (ret)
+		goto out_unlock;
+
+	ret = spi_offload_trigger_enable(st->offload, st->offload_trigger,
+		&st->offload_trigger_config);
+	if (ret)
+		goto out_pwm_disable;
+	return 0;
+out_pwm_disable:
+	pwm_disable(st->conv_trigger);
+out_unlock:
+	spi_bus_unlock(st->spi->controller);
+	spi_unoptimize_message(&st->offload_msg);
+out_reset_mode:
+	/* reenter register configuration mode */
+	ret = ad4030_enter_config_mode(st);
+	if (ret)
+		dev_warn(&st->spi->dev,
+			 "couldn't reenter register configuration mode\n");
+out_error:
+	pm_runtime_mark_last_busy(&st->spi->dev);
+	pm_runtime_put_autosuspend(&st->spi->dev);
+	return ret;
+}
+
+static int ad4030_offload_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad4030_state *st = iio_priv(indio_dev);
+	u32 dummy;
+	int ret;
+
+	pwm_disable(st->conv_trigger);
+
+	spi_offload_trigger_disable(st->offload, st->offload_trigger);
+	spi_bus_unlock(st->spi->controller);
+
+	spi_unoptimize_message(&st->offload_msg);
+	ret = regmap_read(st->regmap, AD4030_REG_ACCESS, &dummy);
+	if (ret)
+		dev_warn(&st->spi->dev, "couldn't reenter register configuration mode\n");
+
+	pm_runtime_mark_last_busy(&st->spi->dev);
+	pm_runtime_put_autosuspend(&st->spi->dev);
+	return ret;
+}
+
 static const struct iio_buffer_setup_ops ad4030_offload_buffer_setup_ops = {
 	.postenable = &ad4030_offload_buffer_postenable,
 	.predisable = &ad4030_offload_buffer_predisable,
@@ -983,6 +1071,43 @@ static int ad4030_detect_chip_info(const struct ad4030_state *st)
 	return 0;
 }
 
+static void ad4030_prepare_spi_sampling_msg(struct ad4030_state *st,
+					    u32 clk_mode, u32 lane_mode,
+					    bool data_rate)
+{
+	const struct ad4630_out_mode *out_mode = &st->chip->modes[st->out_data];
+	int data_width = out_mode->data_width;
+	st->offload_xfer.speed_hz = AD4030_SPI_SAMPLING_SPEED;
+
+	/*
+	 * In host mode, for a 16-bit data-word, the device adds an additional
+	 * eight clock pulses for a total of 24 clock pulses.
+	 */
+	if (clk_mode == AD4630_CLOCK_HOST_MODE && data_width == 16)
+		data_width = 24;
+
+	if (lane_mode == AD4630_SHARED_TWO_CH) {
+		/*
+		 * This means all channels on 1 lane.
+		 */
+		st->bits_per_word = data_width * st->chip->n_channels;
+		st->pattern_bits_per_word = 32 * st->chip->n_channels;
+	} else {
+		st->bits_per_word  = data_width / (1 << lane_mode);
+		st->pattern_bits_per_word  = 32 / (1 << lane_mode);
+	}
+
+	if (data_rate) {
+		st->bits_per_word  /= 2;
+		st->pattern_bits_per_word  /= 2;
+	}
+
+	st->offload_xfer.bits_per_word = st->bits_per_word;
+	st->offload_xfer.len = roundup_pow_of_two(BITS_TO_BYTES(st->bits_per_word));
+	st->offload_xfer.offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
+	spi_message_init_with_transfers(&st->offload_msg, &st->offload_xfer, 1);
+}
+
 static int ad4030_config(struct ad4030_state *st)
 {
 	int ret;
@@ -1008,6 +1133,134 @@ static int ad4030_config(struct ad4030_state *st)
 				    AD4030_REG_IO_MASK_IO2X);
 
 	return 0;
+}
+
+static void ad4030_get_sampling_freq(const struct ad4030_state *st, int *freq)
+{
+	*freq = DIV_ROUND_CLOSEST_ULL(NANO, st->conv_wf.period_length_ns);
+}
+
+static int __ad4030_set_sampling_freq(struct ad4030_state *st, unsigned int freq)
+{
+	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
+	struct pwm_waveform conv_wf = { };
+	u64 offload_period_ns;
+	u64 offload_offset_ns;
+	u32 mode;
+	int ret;
+	u64 target = AD4030_TCNVH_NS;
+
+	conv_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq);
+	/*
+	 * The datasheet lists a minimum time of 9.8 ns, but no maximum. If the
+	 * rounded PWM's value is less than 10, increase the target value by 10
+	 * and attempt to round the waveform again, until the value is at least
+	 * 10 ns. Use a separate variable to represent the target in case the
+	 * rounding is severe enough to keep putting the first few results under
+	 * the minimum 10ns condition checked by the while loop.
+	 */
+	do {
+		conv_wf.duty_length_ns = target;
+		ret = pwm_round_waveform_might_sleep(st->conv_trigger, &conv_wf);
+		if (ret)
+			return ret;
+		target += 10;
+	} while (conv_wf.duty_length_ns < 10);
+
+	offload_period_ns = conv_wf.period_length_ns;
+
+	ret = regmap_read(st->regmap, AD4030_REG_MODES, &mode);
+	if (ret)
+		return ret;
+	if (FIELD_GET(AD4030_REG_MODES_MASK_OUT_DATA_MODE, mode) == AD4630_30_AVERAGED_DIFF) {
+		u32 avg;
+
+		ret = regmap_read(st->regmap, AD4030_REG_AVG, &avg);
+		if (ret)
+			return ret;
+
+		offload_period_ns <<= FIELD_GET(AD4030_REG_AVG_MASK_AVG_VAL, avg);
+	}
+
+	config->periodic.frequency_hz =  DIV_ROUND_UP_ULL(NSEC_PER_SEC,
+			offload_period_ns);
+
+	/*
+	 * The hardware does the capture on zone 2 (when spi trigger PWM
+	 * is used). This means that the spi trigger signal should happen at
+	 * tsync + tquiet_con_delay being tsync the conversion signal period
+	 * and tquiet_con_delay 9.8ns. Hence set the PWM phase accordingly.
+	 *
+	 * The PWM waveform API only supports nanosecond resolution right now,
+	 * so round this setting to the closest available value.
+	 */
+	offload_offset_ns = AD4030_TQUIET_CNV_DELAY_NS;
+	do {
+		config->periodic.offset_ns = offload_offset_ns;
+		ret = spi_offload_trigger_validate(st->offload_trigger, config);
+		if (ret)
+			return ret;
+		offload_offset_ns += 10;
+
+	} while (config->periodic.offset_ns < AD4030_TQUIET_CNV_DELAY_NS);
+
+	st->conv_wf = conv_wf;
+
+	return 0;
+}
+
+static int ad4030_set_sampling_freq(struct iio_dev *indio_dev, unsigned int freq)
+{
+	struct ad4030_state *st = iio_priv(indio_dev);
+	int ret;
+
+	if (!freq || freq > st->max_rate)
+		return -EINVAL;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = __ad4030_set_sampling_freq(st, freq);
+	iio_device_release_direct(indio_dev);
+
+	return ret;
+}
+
+static int ad4030_spi_offload_setup(struct iio_dev *indio_dev,
+				    struct ad4030_state *st)
+{
+	struct device *dev = &st->spi->dev;
+	struct dma_chan *rx_dma;
+
+	indio_dev->setup_ops = &ad4030_offload_buffer_setup_ops;
+	indio_dev->channels = st->chip->offload_channels;
+	indio_dev->num_channels = ARRAY_SIZE(st->chip->offload_channels);
+
+	st->offload_trigger = devm_spi_offload_trigger_get(dev, st->offload,
+		SPI_OFFLOAD_TRIGGER_PERIODIC);
+	if (IS_ERR(st->offload_trigger))
+		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
+				     "failed to get offload trigger\n");
+
+	//ret = ad7944_set_sample_freq(adc, 2 * MEGA);
+	//if (ret)
+	//	return dev_err_probe(dev, ret,
+	//			     "failed to init sample rate\n");
+
+	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev, st->offload);
+	if (IS_ERR(rx_dma))
+		return dev_err_probe(dev, PTR_ERR(rx_dma),
+				     "failed to get offload RX DMA\n");
+
+	/*
+	 * REVISIT: ideally, we would confirm that the offload RX DMA
+	 * buffer layout is the same as what is hard-coded in
+	 * offload_channels. Right now, the only supported offload
+	 * is the pulsar_adc project which always uses 32-bit word
+	 * size for data values, regardless of the SPI bits per word.
+	 */
+	return devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev, rx_dma,
+							   IIO_BUFFER_DIRECTION_IN);
 }
 
 static int ad4030_probe(struct spi_device *spi)
@@ -1061,18 +1314,9 @@ static int ad4030_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
 				     "Failed to get cnv gpio\n");
 
-	/*
-	 * One hardware channel is split in two software channels when using
-	 * common byte mode. Add one more channel for the timestamp.
-	 */
-	indio_dev->num_channels = 2 * st->chip->num_voltage_inputs + 1;
 	indio_dev->name = st->chip->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4030_iio_info;
-	indio_dev->channels = st->chip->channels;
-	indio_dev->available_scan_masks = st->chip->available_masks;
-
-//-------------
 
 	st->offload = devm_spi_offload_get(dev, spi, &ad4030_offload_config);
 	ret = PTR_ERR_OR_ZERO(st->offload);
@@ -1081,7 +1325,13 @@ static int ad4030_probe(struct spi_device *spi)
 
 	/* Fall back to low speed usage when no SPI offload available. */
 	if (ret == -ENODEV) {
-
+		/*
+		 * One hardware channel is split in two software channels when using
+		 * common byte mode. Add one more channel for the timestamp.
+		 */
+		indio_dev->num_channels = 2 * st->chip->num_voltage_inputs + 1;
+		indio_dev->channels = st->chip->channels;
+		indio_dev->available_scan_masks = st->chip->available_masks;
 
 		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 						      iio_pollfunc_store_time,
@@ -1092,45 +1342,13 @@ static int ad4030_probe(struct spi_device *spi)
 					     "Failed to setup triggered buffer\n");
 
 	} else {
-		struct dma_chan *rx_dma;
-
-		indio_dev->setup_ops = &ad4030_offload_buffer_setup_ops;
-		indio_dev->channels = chip_info->offload_channels;
-		indio_dev->num_channels = ARRAY_SIZE(chip_info->offload_channels);
-
-		st->offload_trigger = devm_spi_offload_trigger_get(dev,
-			adc->offload, SPI_OFFLOAD_TRIGGER_PERIODIC);
-		if (IS_ERR(st->offload_trigger))
-			return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
-					     "failed to get offload trigger\n");
-
-		ret = ad7944_set_sample_freq(adc, 2 * MEGA);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "failed to init sample rate\n");
-
-		rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev,
-								     st->offload);
-		if (IS_ERR(rx_dma))
-			return dev_err_probe(dev, PTR_ERR(rx_dma),
-					     "failed to get offload RX DMA\n");
-
-		/*
-		 * REVISIT: ideally, we would confirm that the offload RX DMA
-		 * buffer layout is the same as what is hard-coded in
-		 * offload_channels. Right now, the only supported offload
-		 * is the pulsar_adc project which always uses 32-bit word
-		 * size for data values, regardless of the SPI bits per word.
-		 */
-
-		ret = devm_iio_dmaengine_buffer_setup_with_handle(dev,
-			indio_dev, rx_dma, IIO_BUFFER_DIRECTION_IN);
+		/* */
+		ret = ad4030_spi_offload_setup(indio_dev, st);
 		if (ret)
 			return ret;
-
 	}
-//-------------
 
+	dev_info(dev, "improved ad4030\n");
 	return devm_iio_device_register(dev, indio_dev);
 }
 
@@ -1191,6 +1409,9 @@ static const struct ad4030_chip_info ad4030_24_chip_info = {
 		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
 		AD4030_CHAN_CMO(1, 0),
 		IIO_CHAN_SOFT_TIMESTAMP(2),
+	},
+	.offload_channels = {
+		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4030_24_GRADE,
 	.precision_bits = 24,
@@ -1311,3 +1532,4 @@ module_spi_driver(ad4030_driver);
 MODULE_AUTHOR("Esteban Blanc <eblanc@baylibre.com>");
 MODULE_DESCRIPTION("Analog Devices AD4630 ADC family driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_DMAENGINE_BUFFER");
