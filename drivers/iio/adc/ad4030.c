@@ -131,6 +131,12 @@ enum ad4030_out_mode {
 };
 
 enum {
+	AD4030_SPI_COMPATIBLE_MODE,
+	AD4030_ECHO_CLOCK_MODE,
+	AD4030_CLOCK_HOST_MODE,
+};
+
+enum {
 	AD4030_LANE_MD_1_PER_CH,
 	AD4030_LANE_MD_2_PER_CH,
 	AD4030_LANE_MD_4_PER_CH,
@@ -1075,23 +1081,24 @@ static void ad4030_prepare_spi_sampling_msg(struct ad4030_state *st,
 					    u32 clk_mode, u32 lane_mode,
 					    bool data_rate)
 {
-	const struct ad4630_out_mode *out_mode = &st->chip->modes[st->out_data];
-	int data_width = out_mode->data_width;
+	//const struct ad4630_out_mode *out_mode = &st->chip->modes[st->out_data];
+	//int data_width = out_mode->data_width;
+	u8 data_width = st->chip->precision_bits;
 	st->offload_xfer.speed_hz = AD4030_SPI_SAMPLING_SPEED;
 
 	/*
 	 * In host mode, for a 16-bit data-word, the device adds an additional
 	 * eight clock pulses for a total of 24 clock pulses.
 	 */
-	if (clk_mode == AD4630_CLOCK_HOST_MODE && data_width == 16)
+	if (clk_mode == AD4030_CLOCK_HOST_MODE && data_width == 16)
 		data_width = 24;
 
-	if (lane_mode == AD4630_SHARED_TWO_CH) {
+	if (lane_mode == AD4030_LANE_MD_INTERLEAVED) {
 		/*
 		 * This means all channels on 1 lane.
 		 */
-		st->bits_per_word = data_width * st->chip->n_channels;
-		st->pattern_bits_per_word = 32 * st->chip->n_channels;
+		st->bits_per_word = data_width * st->chip->num_voltage_inputs;
+		st->pattern_bits_per_word = 32 * st->chip->num_voltage_inputs;
 	} else {
 		st->bits_per_word  = data_width / (1 << lane_mode);
 		st->pattern_bits_per_word  = 32 / (1 << lane_mode);
@@ -1172,7 +1179,7 @@ static int __ad4030_set_sampling_freq(struct ad4030_state *st, unsigned int freq
 	ret = regmap_read(st->regmap, AD4030_REG_MODES, &mode);
 	if (ret)
 		return ret;
-	if (FIELD_GET(AD4030_REG_MODES_MASK_OUT_DATA_MODE, mode) == AD4630_30_AVERAGED_DIFF) {
+	if (FIELD_GET(AD4030_REG_MODES_MASK_OUT_DATA_MODE, mode) == AD4030_OUT_DATA_MD_30_AVERAGED_DIFF) {
 		u32 avg;
 
 		ret = regmap_read(st->regmap, AD4030_REG_AVG, &avg);
