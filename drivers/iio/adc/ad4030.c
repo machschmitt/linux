@@ -419,7 +419,7 @@ static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 	struct ad4030_state *st = iio_priv(indio_dev);
 	const struct iio_scan_type *scan_type;
 
-	scan_type = iio_get_current_scan_type(indio_dev, st->chip->channels);
+	scan_type = iio_get_current_scan_type(indio_dev, indio_dev->channels);
 	if (IS_ERR(scan_type))
 		return PTR_ERR(scan_type);
 
@@ -645,7 +645,7 @@ static int ad4030_conversion(struct iio_dev *indio_dev)
 	unsigned int i;
 	int ret;
 
-	scan_type = iio_get_current_scan_type(indio_dev, st->chip->channels);
+	scan_type = iio_get_current_scan_type(indio_dev, indio_dev->channels);
 	if (IS_ERR(scan_type))
 		return PTR_ERR(scan_type);
 
@@ -659,6 +659,9 @@ static int ad4030_conversion(struct iio_dev *indio_dev)
 			st->mode == AD4030_OUT_DATA_MD_16_DIFF_8_COM) ? 1 : 0;
 	/* Mulitiply by the number of hardware channels */
 	bytes_to_read *= st->chip->num_voltage_inputs;
+
+	if (!st->cnv_gpio)
+		return 0;
 
 	for (i = 0; i < cnv_nb; i++) {
 		gpiod_set_value_cansleep(st->cnv_gpio, 1);
@@ -1241,7 +1244,7 @@ static int ad4030_spi_offload_setup(struct iio_dev *indio_dev,
 
 	indio_dev->setup_ops = &ad4030_offload_buffer_setup_ops;
 	indio_dev->channels = st->chip->offload_channels;
-	indio_dev->num_channels = ARRAY_SIZE(st->chip->offload_channels);
+	indio_dev->num_channels = st->chip->num_voltage_inputs; //TODO revisit
 
 	st->offload_trigger = devm_spi_offload_trigger_get(dev, st->offload,
 		SPI_OFFLOAD_TRIGGER_PERIODIC);
