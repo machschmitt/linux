@@ -419,7 +419,7 @@ static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 	struct ad4030_state *st = iio_priv(indio_dev);
 	const struct iio_scan_type *scan_type;
 
-	scan_type = iio_get_current_scan_type(indio_dev, indio_dev->channels);
+	scan_type = iio_get_current_scan_type(indio_dev, chan);
 	if (IS_ERR(scan_type))
 		return PTR_ERR(scan_type);
 
@@ -645,7 +645,11 @@ static int ad4030_conversion(struct iio_dev *indio_dev)
 	unsigned int i;
 	int ret;
 
-	scan_type = iio_get_current_scan_type(indio_dev, indio_dev->channels);
+	/*
+	 * Currently, just passing the first channel scan_type.
+	 * Are all channels always using the same scan_type?
+	 */
+	scan_type = iio_get_current_scan_type(indio_dev, &indio_dev->channels[0]);
 	if (IS_ERR(scan_type))
 		return PTR_ERR(scan_type);
 
