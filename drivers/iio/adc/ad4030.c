@@ -178,6 +178,7 @@ struct ad4030_state {
 	struct spi_offload *offload;
 	struct spi_offload_trigger *offload_trigger;
 	struct spi_offload_trigger_config offload_trigger_config;
+	bool spi_offloading;
 	unsigned int max_rate;
 	bool test_pattern_en; // TODO can avoid?
 	u8 bits_per_word; // TODO can avoid?
@@ -485,6 +486,99 @@ static int ad4030_get_chan_calibbias(struct iio_dev *indio_dev,
 	}
 }
 
+static void ad4030_get_sampling_freq(const struct ad4030_state *st, int *freq)
+{
+	*freq = DIV_ROUND_CLOSEST_ULL(NANO, st->conv_wf.period_length_ns);
+}
+
+static int __ad4030_set_sampling_freq(struct ad4030_state *st, unsigned int freq)
+{
+	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
+	struct pwm_waveform conv_wf = { };
+	u64 offload_period_ns;
+	u64 offload_offset_ns;
+	u32 mode;
+	int ret;
+	u64 target = AD4030_TCNVH_NS;
+
+	conv_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq);
+	/*
+	 * The datasheet lists a minimum time of 9.8 ns, but no maximum. If the
+	 * rounded PWM's value is less than 10, increase the target value by 10
+	 * and attempt to round the waveform again, until the value is at least
+	 * 10 ns. Use a separate variable to represent the target in case the
+	 * rounding is severe enough to keep putting the first few results under
+	 * the minimum 10ns condition checked by the while loop.
+	 */
+	do {
+		conv_wf.duty_length_ns = target;
+		ret = pwm_round_waveform_might_sleep(st->conv_trigger, &conv_wf);
+		if (ret)
+			return ret;
+		target += 10;
+	} while (conv_wf.duty_length_ns < 10);
+
+	offload_period_ns = conv_wf.period_length_ns;
+
+	ret = regmap_read(st->regmap, AD4030_REG_MODES, &mode);
+	if (ret)
+		return ret;
+	if (FIELD_GET(AD4030_REG_MODES_MASK_OUT_DATA_MODE, mode) == AD4030_OUT_DATA_MD_30_AVERAGED_DIFF) {
+		u32 avg;
+
+		ret = regmap_read(st->regmap, AD4030_REG_AVG, &avg);
+		if (ret)
+			return ret;
+
+		offload_period_ns <<= FIELD_GET(AD4030_REG_AVG_MASK_AVG_VAL, avg);
+	}
+
+	config->periodic.frequency_hz =  DIV_ROUND_UP_ULL(NSEC_PER_SEC,
+			offload_period_ns);
+
+	/*
+	 * The hardware does the capture on zone 2 (when spi trigger PWM
+	 * is used). This means that the spi trigger signal should happen at
+	 * tsync + tquiet_con_delay being tsync the conversion signal period
+	 * and tquiet_con_delay 9.8ns. Hence set the PWM phase accordingly.
+	 *
+	 * The PWM waveform API only supports nanosecond resolution right now,
+	 * so round this setting to the closest available value.
+	 */
+	offload_offset_ns = AD4030_TQUIET_CNV_DELAY_NS;
+	do {
+		config->periodic.offset_ns = offload_offset_ns;
+		ret = spi_offload_trigger_validate(st->offload_trigger, config);
+		if (ret)
+			return ret;
+		offload_offset_ns += 10;
+
+	} while (config->periodic.offset_ns < AD4030_TQUIET_CNV_DELAY_NS);
+
+	st->conv_wf = conv_wf;
+
+	return 0;
+}
+
+static int ad4030_set_sampling_freq(struct iio_dev *indio_dev, unsigned int freq)
+{
+	struct ad4030_state *st = iio_priv(indio_dev);
+	int ret;
+
+	if (!st->spi_offloading)
+		return -EINVAL;
+
+	if (!freq || freq > st->max_rate)
+		return -EINVAL;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = __ad4030_set_sampling_freq(st, freq);
+	iio_device_release_direct(indio_dev);
+
+	return ret;
+}
 static int ad4030_set_chan_calibscale(struct iio_dev *indio_dev,
 				      struct iio_chan_spec const *chan,
 				      int gain_int,
@@ -808,6 +902,14 @@ static int ad4030_read_raw_dispatch(struct iio_dev *indio_dev,
 		*val = BIT(st->avg_log2);
 		return IIO_VAL_INT;
 
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (st->spi_offloading) {
+			ad4030_get_sampling_freq(st, val);
+			return IIO_VAL_INT;
+		} else {
+			return -EINVAL;
+		}
+
 	default:
 		return -EINVAL;
 	}
@@ -847,6 +949,9 @@ static int ad4030_write_raw_dispatch(struct iio_dev *indio_dev,
 
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		return ad4030_set_avg_frame_len(indio_dev, val);
+
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return ad4030_set_sampling_freq(indio_dev, val);
 
 	default:
 		return -EINVAL;
@@ -1084,6 +1189,24 @@ static int ad4030_detect_chip_info(const struct ad4030_state *st)
 	return 0;
 }
 
+static int ad4030_pwm_get(struct ad4030_state *st)
+{
+	struct device *dev = &st->spi->dev;
+
+	st->conv_trigger = devm_pwm_get(dev, "cnv");
+	if (IS_ERR(st->conv_trigger))
+		return dev_err_probe(dev, PTR_ERR(st->conv_trigger),
+				     "Failed to get cnv pwm\n");
+
+	/*
+	 * Preemptively disable the PWM, since we only want to enable it with
+	 * the buffer
+	 */
+	pwm_disable(st->conv_trigger);
+
+	return __ad4030_set_sampling_freq(st, st->max_rate);
+}
+
 static void ad4030_prepare_spi_sampling_msg(struct ad4030_state *st,
 					    u32 clk_mode, u32 lane_mode,
 					    bool data_rate)
@@ -1146,98 +1269,8 @@ static int ad4030_config(struct ad4030_state *st)
 		return regmap_write(st->regmap, AD4030_REG_IO,
 				    AD4030_REG_IO_MASK_IO2X);
 
+	ad4030_prepare_spi_sampling_msg(st, 0, 0, false);
 	return 0;
-}
-
-static void ad4030_get_sampling_freq(const struct ad4030_state *st, int *freq)
-{
-	*freq = DIV_ROUND_CLOSEST_ULL(NANO, st->conv_wf.period_length_ns);
-}
-
-static int __ad4030_set_sampling_freq(struct ad4030_state *st, unsigned int freq)
-{
-	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
-	struct pwm_waveform conv_wf = { };
-	u64 offload_period_ns;
-	u64 offload_offset_ns;
-	u32 mode;
-	int ret;
-	u64 target = AD4030_TCNVH_NS;
-
-	conv_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq);
-	/*
-	 * The datasheet lists a minimum time of 9.8 ns, but no maximum. If the
-	 * rounded PWM's value is less than 10, increase the target value by 10
-	 * and attempt to round the waveform again, until the value is at least
-	 * 10 ns. Use a separate variable to represent the target in case the
-	 * rounding is severe enough to keep putting the first few results under
-	 * the minimum 10ns condition checked by the while loop.
-	 */
-	do {
-		conv_wf.duty_length_ns = target;
-		ret = pwm_round_waveform_might_sleep(st->conv_trigger, &conv_wf);
-		if (ret)
-			return ret;
-		target += 10;
-	} while (conv_wf.duty_length_ns < 10);
-
-	offload_period_ns = conv_wf.period_length_ns;
-
-	ret = regmap_read(st->regmap, AD4030_REG_MODES, &mode);
-	if (ret)
-		return ret;
-	if (FIELD_GET(AD4030_REG_MODES_MASK_OUT_DATA_MODE, mode) == AD4030_OUT_DATA_MD_30_AVERAGED_DIFF) {
-		u32 avg;
-
-		ret = regmap_read(st->regmap, AD4030_REG_AVG, &avg);
-		if (ret)
-			return ret;
-
-		offload_period_ns <<= FIELD_GET(AD4030_REG_AVG_MASK_AVG_VAL, avg);
-	}
-
-	config->periodic.frequency_hz =  DIV_ROUND_UP_ULL(NSEC_PER_SEC,
-			offload_period_ns);
-
-	/*
-	 * The hardware does the capture on zone 2 (when spi trigger PWM
-	 * is used). This means that the spi trigger signal should happen at
-	 * tsync + tquiet_con_delay being tsync the conversion signal period
-	 * and tquiet_con_delay 9.8ns. Hence set the PWM phase accordingly.
-	 *
-	 * The PWM waveform API only supports nanosecond resolution right now,
-	 * so round this setting to the closest available value.
-	 */
-	offload_offset_ns = AD4030_TQUIET_CNV_DELAY_NS;
-	do {
-		config->periodic.offset_ns = offload_offset_ns;
-		ret = spi_offload_trigger_validate(st->offload_trigger, config);
-		if (ret)
-			return ret;
-		offload_offset_ns += 10;
-
-	} while (config->periodic.offset_ns < AD4030_TQUIET_CNV_DELAY_NS);
-
-	st->conv_wf = conv_wf;
-
-	return 0;
-}
-
-static int ad4030_set_sampling_freq(struct iio_dev *indio_dev, unsigned int freq)
-{
-	struct ad4030_state *st = iio_priv(indio_dev);
-	int ret;
-
-	if (!freq || freq > st->max_rate)
-		return -EINVAL;
-
-	if (!iio_device_claim_direct(indio_dev))
-		return -EBUSY;
-
-	ret = __ad4030_set_sampling_freq(st, freq);
-	iio_device_release_direct(indio_dev);
-
-	return ret;
 }
 
 static int ad4030_spi_offload_setup(struct iio_dev *indio_dev,
@@ -1256,6 +1289,7 @@ static int ad4030_spi_offload_setup(struct iio_dev *indio_dev,
 		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
 				     "failed to get offload trigger\n");
 
+	st->offload_trigger_config.type = SPI_OFFLOAD_TRIGGER_PERIODIC;
 	//ret = ad7944_set_sample_freq(adc, 2 * MEGA);
 	//if (ret)
 	//	return dev_err_probe(dev, ret,
@@ -1360,6 +1394,14 @@ static int ad4030_probe(struct spi_device *spi)
 		ret = ad4030_spi_offload_setup(indio_dev, st);
 		if (ret)
 			return ret;
+
+		st->max_rate = 2000000; //TODO revisit
+		ret = ad4030_pwm_get(st);
+		if (ret)
+			return dev_err_probe(&spi->dev, ret,
+					     "Failed to get PWM: %d\n", ret);
+
+		st->spi_offloading = true;
 	}
 
 	dev_info(dev, "improved ad4030\n");
