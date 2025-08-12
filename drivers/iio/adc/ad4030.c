@@ -1357,10 +1357,6 @@ static int ad4030_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	st->cnv_gpio = devm_gpiod_get_optional(dev, "cnv", GPIOD_OUT_LOW);
-	if (IS_ERR(st->cnv_gpio))
-		return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
-				     "Failed to get cnv gpio\n");
 
 	indio_dev->name = st->chip->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -1380,6 +1376,15 @@ static int ad4030_probe(struct spi_device *spi)
 		indio_dev->num_channels = 2 * st->chip->num_voltage_inputs + 1;
 		indio_dev->channels = st->chip->channels;
 		indio_dev->available_scan_masks = st->chip->available_masks;
+
+		/*
+		 * Use a GPIO to generate the CNV signal when not doing SPI
+		 * offloading.
+		 */
+		st->cnv_gpio = devm_gpiod_get(dev, "cnv", GPIOD_OUT_LOW);
+		if (IS_ERR(st->cnv_gpio))
+			return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
+					     "Failed to get cnv gpio\n");
 
 		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 						      iio_pollfunc_store_time,
