@@ -1576,7 +1576,7 @@ static const struct ad4030_chip_info adaq4216_chip_info = {
 		IIO_CHAN_SOFT_TIMESTAMP(2),
 	},
 	.offload_channels = {
-		AD4030_CHAN_DIFF(0, ad4030_16_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_16_scan_types),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_ADAQ4216_GRADE,
 	.precision_bits = 16,
