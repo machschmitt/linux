@@ -146,6 +146,8 @@ enum {
 enum {
 	AD4030_SCAN_TYPE_NORMAL,
 	AD4030_SCAN_TYPE_AVG,
+	AD4030_OFFLOAD_SCAN_TYPE_NORMAL,
+	AD4030_OFFLOAD_SCAN_TYPE_AVG,
 };
 
 struct ad4030_chip_info {
@@ -1014,7 +1016,11 @@ static int ad4030_get_current_scan_type(const struct iio_dev *indio_dev,
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 
-	return st->avg_log2 ? AD4030_SCAN_TYPE_AVG : AD4030_SCAN_TYPE_NORMAL;
+	if (st->spi_offloading)
+		return st->avg_log2 ? AD4030_OFFLOAD_SCAN_TYPE_AVG :
+				      AD4030_OFFLOAD_SCAN_TYPE_NORMAL;
+	else
+		return st->avg_log2 ? AD4030_SCAN_TYPE_AVG : AD4030_SCAN_TYPE_NORMAL;
 }
 
 static int ad4030_update_scan_mode(struct iio_dev *indio_dev,
@@ -1451,6 +1457,20 @@ static const struct iio_scan_type ad4030_24_scan_types[] = {
 		.shift = 2,
 		.endianness = IIO_BE,
 	},
+	[AD4030_OFFLOAD_SCAN_TYPE_NORMAL] = {
+		.sign = 's',
+		.storagebits = 32,
+		.realbits = 24,
+		.shift = 0,
+		.endianness = IIO_CPU,
+	},
+	[AD4030_OFFLOAD_SCAN_TYPE_AVG] = {
+		.sign = 's',
+		.storagebits = 32,
+		.realbits = 30,
+		.shift = 2,
+		.endianness = IIO_CPU,
+	},
 };
 
 static const struct iio_scan_type ad4030_16_scan_types[] = {
@@ -1467,7 +1487,21 @@ static const struct iio_scan_type ad4030_16_scan_types[] = {
 		.realbits = 30,
 		.shift = 2,
 		.endianness = IIO_BE,
-	}
+	},
+	[AD4030_OFFLOAD_SCAN_TYPE_NORMAL] = {
+		.sign = 's',
+		.storagebits = 32,
+		.realbits = 16,
+		.shift = 0,
+		.endianness = IIO_CPU,
+	},
+	[AD4030_OFFLOAD_SCAN_TYPE_AVG] = {
+		.sign = 's',
+		.storagebits = 32,
+		.realbits = 30,
+		.shift = 2,
+		.endianness = IIO_CPU,
+	},
 };
 
 static const struct ad4030_chip_info ad4030_24_chip_info = {
