@@ -1059,7 +1059,6 @@ static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 	int ret, read_ret;
-	u32 dummy;
 
 	ret = pm_runtime_resume_and_get(&st->spi->dev);
 	if (ret < 0)
@@ -1110,7 +1109,6 @@ out_error:
 static int ad4030_offload_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
-	u32 dummy;
 	int ret;
 
 	pwm_disable(st->conv_trigger);
@@ -1119,9 +1117,12 @@ static int ad4030_offload_buffer_predisable(struct iio_dev *indio_dev)
 	spi_bus_unlock(st->spi->controller);
 
 	spi_unoptimize_message(&st->offload_msg);
-	ret = regmap_read(st->regmap, AD4030_REG_ACCESS, &dummy);
+
+	/* reenter register configuration mode */
+	ret = ad4030_enter_config_mode(st);
 	if (ret)
-		dev_warn(&st->spi->dev, "couldn't reenter register configuration mode\n");
+		dev_warn(&st->spi->dev,
+			 "couldn't reenter register configuration mode\n");
 
 	pm_runtime_mark_last_busy(&st->spi->dev);
 	pm_runtime_put_autosuspend(&st->spi->dev);
