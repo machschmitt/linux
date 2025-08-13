@@ -1489,6 +1489,12 @@ static const unsigned long ad4630_channel_masks[] = {
 	0,
 };
 
+static const unsigned long ad4030_offload_channel_masks[] = {
+	/* Differential only */
+	BIT(0),
+	0,
+};
+
 static const struct iio_scan_type ad4030_24_scan_types[] = {
 	[AD4030_SCAN_TYPE_NORMAL] = {
 		.sign = 's',
@@ -1650,7 +1656,7 @@ static const struct ad4030_chip_info ad4632_24_chip_info = {
 
 static const struct ad4030_chip_info adaq4216_chip_info = {
 	.name = "adaq4216",
-	.available_masks = ad4630_channel_masks,
+	.available_masks = ad4030_offload_channel_masks, //TODO fix properly
 	.channels = {
 		AD4030_CHAN_DIFF(0, ad4030_16_scan_types),
 		AD4030_CHAN_CMO(1, 0),
