@@ -122,6 +122,9 @@
 #define AD4030_TQUIET_CNV_DELAY_NS	10
 /* SPI transfer */
 #define AD4030_SPI_SAMPLING_SPEED	80000000UL
+/* POWER MODE*/
+#define AD4030_POWER_MODE_MSK		GENMASK(1, 0)
+#define AD4030_LOW_POWER_MODE		3
 
 enum ad4030_out_mode {
 	AD4030_OUT_DATA_MD_DIFF,
@@ -1444,6 +1447,32 @@ static int ad4030_probe(struct spi_device *spi)
 	return devm_iio_device_register(dev, indio_dev);
 }
 
+static int ad4030_runtime_suspend(struct device *dev)
+{
+	u32 val = FIELD_PREP(AD4030_POWER_MODE_MSK, AD4030_LOW_POWER_MODE);
+	struct ad4030_state *st = dev_get_drvdata(dev);
+
+	return regmap_write(st->regmap, AD4030_REG_DEVICE_CONFIG, val);
+}
+
+static int ad4030_runtime_resume(struct device *dev)
+{
+	struct ad4030_state *st = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regmap_write(st->regmap, AD4030_REG_DEVICE_CONFIG,
+			   FIELD_PREP(AD4030_POWER_MODE_MSK, 0));
+	if (ret)
+		return ret;
+
+	fsleep(30);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(ad4030_pm_ops, ad4030_runtime_suspend,
+				ad4030_runtime_resume);
+
 static const unsigned long ad4030_channel_masks[] = {
 	/* Differential only */
 	BIT(0),
@@ -1662,6 +1691,7 @@ static struct spi_driver ad4030_driver = {
 	.driver = {
 		.name = "ad4030",
 		.of_match_table = ad4030_of_match,
+		.pm = pm_ptr(&ad4030_pm_ops),
 	},
 	.probe = ad4030_probe,
 	.id_table = ad4030_id_table,
