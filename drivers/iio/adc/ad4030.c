@@ -239,12 +239,13 @@ struct ad4030_state {
  * - voltage0-voltage1
  * - voltage2-voltage3
  */
-#define AD4030_CHAN_DIFF(_idx, _scan_type) {				\
+#define __AD4030_CHAN_DIFF(_idx, _scan_type, _offload) {		\
 	.info_mask_shared_by_all =					\
 		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),			\
 	.info_mask_shared_by_all_available =				\
 		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),			\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE) |		\
+		(_offload ? BIT(IIO_CHAN_INFO_SAMP_FREQ) : 0) |		\
 		BIT(IIO_CHAN_INFO_CALIBSCALE) |				\
 		BIT(IIO_CHAN_INFO_CALIBBIAS) |				\
 		BIT(IIO_CHAN_INFO_RAW),					\
@@ -261,6 +262,12 @@ struct ad4030_state {
 	.ext_scan_type = _scan_type,					\
 	.num_ext_scan_type = ARRAY_SIZE(_scan_type),			\
 }
+
+#define AD4030_CHAN_DIFF(_idx, _scan_type)				\
+	__AD4030_CHAN_DIFF(_idx, _scan_type, 0)
+
+#define AD4030_OFFLOAD_CHAN_DIFF(_idx, _scan_type)			\
+	__AD4030_CHAN_DIFF(_idx, _scan_type, 1)
 
 static const int ad4030_average_modes[] = {
 	1, 2, 4, 8, 16, 32, 64, 128,
@@ -1472,7 +1479,7 @@ static const struct ad4030_chip_info ad4030_24_chip_info = {
 		IIO_CHAN_SOFT_TIMESTAMP(2),
 	},
 	.offload_channels = {
-		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_scan_types),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4030_24_GRADE,
 	.precision_bits = 24,
@@ -1491,8 +1498,8 @@ static const struct ad4030_chip_info ad4630_16_chip_info = {
 		IIO_CHAN_SOFT_TIMESTAMP(4),
 	},
 	.offload_channels = {
-		AD4030_CHAN_DIFF(0, ad4030_16_scan_types),
-		AD4030_CHAN_DIFF(1, ad4030_16_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_16_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_16_scan_types),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4630_16_GRADE,
 	.precision_bits = 16,
@@ -1511,8 +1518,8 @@ static const struct ad4030_chip_info ad4630_24_chip_info = {
 		IIO_CHAN_SOFT_TIMESTAMP(4),
 	},
 	.offload_channels = {
-		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
-		AD4030_CHAN_DIFF(1, ad4030_24_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_24_scan_types),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4630_24_GRADE,
 	.precision_bits = 24,
@@ -1531,8 +1538,8 @@ static const struct ad4030_chip_info ad4632_16_chip_info = {
 		IIO_CHAN_SOFT_TIMESTAMP(4),
 	},
 	.offload_channels = {
-		AD4030_CHAN_DIFF(0, ad4030_16_scan_types),
-		AD4030_CHAN_DIFF(1, ad4030_16_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_16_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_16_scan_types),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4632_16_GRADE,
 	.precision_bits = 16,
@@ -1551,8 +1558,8 @@ static const struct ad4030_chip_info ad4632_24_chip_info = {
 		IIO_CHAN_SOFT_TIMESTAMP(4),
 	},
 	.offload_channels = {
-		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
-		AD4030_CHAN_DIFF(1, ad4030_24_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_24_scan_types),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4632_24_GRADE,
 	.precision_bits = 24,
