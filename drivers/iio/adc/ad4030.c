@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/iio/buffer-dmaengine.h>
+#include <linux/iio/buffer-dmaengine-filtered.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
@@ -1325,8 +1326,23 @@ static int ad4030_spi_offload_setup(struct iio_dev *indio_dev,
 	 * is the pulsar_adc project which always uses 32-bit word
 	 * size for data values, regardless of the SPI bits per word.
 	 */
-	return devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev, rx_dma,
-							   IIO_BUFFER_DIRECTION_IN);
+	/*
+	 * The ad4630_fmc HDL project was designed for ADCs with two channels
+	 * and always streams two data channels to DMA (even when the ADC has
+	 * only one physical channel). Though, if the ADC has only one physical
+	 * channel, the data that would come from the second ADC channel comes
+	 * in as noise and has to be discarded. Because of that, when using
+	 * single-channel ADCs, the ADC driver needs to use a special DMA buffer
+	 * that filters out half of the data that reaches DMA memory. With that,
+	 * the ADC sample data can be delivered to user space without any noise
+	 * being added to the IIO buffer.
+	 */
+	if (indio_dev->num_channels == 1)
+		return devm_iio_dmaengine_filtered_buffer_setup_with_handle(dev,
+			indio_dev, rx_dma, IIO_BUFFER_DIRECTION_IN);
+	else
+		return devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev,
+			rx_dma, IIO_BUFFER_DIRECTION_IN);
 }
 
 static void ad4030_pm_disable(void *data)
@@ -1708,3 +1724,4 @@ MODULE_AUTHOR("Esteban Blanc <eblanc@baylibre.com>");
 MODULE_DESCRIPTION("Analog Devices AD4630 ADC family driver");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("IIO_DMAENGINE_BUFFER");
+MODULE_IMPORT_NS("IIO_DMAENGINE_FILTERED_BUFFER");
