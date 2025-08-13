@@ -481,5 +481,5 @@ EXPORT_SYMBOL_NS_GPL(devm_iio_dmaengine_filtered_buffer_setup_with_handle,
 MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("IIO framework DMA buffer that filters data");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_DMA_BUFFER);
-MODULE_IMPORT_NS(IIO_DMAENGINE_BUFFER);
+MODULE_IMPORT_NS("IIO_DMA_BUFFER");
+MODULE_IMPORT_NS("IIO_DMAENGINE_BUFFER");
