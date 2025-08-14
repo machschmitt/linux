@@ -224,7 +224,7 @@ int iio_dmaengine_filtered_buffer_submit_block(struct iio_dma_buffer_queue *queu
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(iio_dmaengine_filtered_buffer_submit_block, IIO_DMAENGINE_FILTERED_BUFFER);
+EXPORT_SYMBOL_NS_GPL(iio_dmaengine_filtered_buffer_submit_block, "IIO_DMAENGINE_FILTERED_BUFFER");
 
 static void iio_dmaengine_buffer_release(struct iio_buffer *buf)
 {
@@ -438,7 +438,7 @@ struct iio_buffer *iio_dmaengine_filtered_buffer_setup_ext(struct device *dev,
 
 	return buffer;
 }
-EXPORT_SYMBOL_NS_GPL(iio_dmaengine_filtered_buffer_setup_ext, IIO_DMAENGINE_FILTERED_BUFFER);
+EXPORT_SYMBOL_NS_GPL(iio_dmaengine_filtered_buffer_setup_ext, "IIO_DMAENGINE_FILTERED_BUFFER");
 
 static void devm_iio_dmaengine_buffer_free(void *buffer)
 {
@@ -476,7 +476,7 @@ int devm_iio_dmaengine_filtered_buffer_setup_with_handle(struct device *dev,
 					buffer);
 }
 EXPORT_SYMBOL_NS_GPL(devm_iio_dmaengine_filtered_buffer_setup_with_handle,
-		     IIO_DMAENGINE_FILTERED_BUFFER);
+		     "IIO_DMAENGINE_FILTERED_BUFFER");
 
 MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("IIO framework DMA buffer that filters data");
