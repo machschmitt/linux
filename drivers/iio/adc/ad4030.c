@@ -121,8 +121,6 @@
 #define AD4030_TRESET_COM_DELAY_MS	750
 /* Datasheet says 9.8ns, so use the closest integer value */
 #define AD4030_TQUIET_CNV_DELAY_NS	10
-/* SPI transfer */
-#define AD4030_SPI_SAMPLING_SPEED	80000000UL
 /* POWER MODE*/
 #define AD4030_POWER_MODE_MSK		GENMASK(1, 0)
 #define AD4030_LOW_POWER_MODE		3
@@ -1233,7 +1231,7 @@ static void ad4030_prepare_spi_sampling_msg(struct ad4030_state *st,
 	//const struct ad4630_out_mode *out_mode = &st->chip->modes[st->out_data];
 	//int data_width = out_mode->data_width;
 	u8 data_width = st->chip->precision_bits;
-	st->offload_xfer.speed_hz = AD4030_SPI_SAMPLING_SPEED;
+	st->offload_xfer.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED;
 
 	/*
 	 * In host mode, for a 16-bit data-word, the device adds an additional
