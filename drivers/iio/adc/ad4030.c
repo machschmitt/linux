@@ -1439,7 +1439,8 @@ static int ad4030_probe(struct spi_device *spi)
 		/* */
 		ret = ad4030_spi_offload_setup(indio_dev, st);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret,
+					     "Failed to setup SPI offload\n");
 
 		st->max_rate = 2000000; //TODO revisit
 		ret = ad4030_pwm_get(st);
