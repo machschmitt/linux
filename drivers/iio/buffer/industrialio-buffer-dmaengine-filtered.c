@@ -11,6 +11,7 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/dma-buf.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
@@ -256,6 +257,19 @@ static int iio_dma_filtered_buffer_alloc_blocks(struct iio_buffer *buffer,
 	req->size = req->size * 2;
 	return iio_dma_buffer_alloc_blocks(buffer, req);
 }
+#else
+static struct iio_dma_buffer_block *
+iio_dma_filtered_buffer_attach_dmabuf(struct iio_buffer *buffer,
+			     struct dma_buf_attachment *attach)
+{
+	/*
+	 * Allocate buffer with two times the usual size because half of the
+	 * data will be discarded so the DMA buffer has to be double size to
+	 * fill the IIO buffer.
+	 */
+	attach->dmabuf->size = attach->dmabuf->size * 2;
+	return  iio_dma_buffer_attach_dmabuf(buffer, attach);
+}
 #endif
 
 static const struct iio_buffer_access_funcs iio_dmaengine_buffer_ops = {
@@ -278,7 +292,7 @@ static const struct iio_buffer_access_funcs iio_dmaengine_buffer_ops = {
 	.mmap = iio_dma_buffer_mmap,
 #else
 	.enqueue_dmabuf = iio_dma_buffer_enqueue_dmabuf,
-	.attach_dmabuf = iio_dma_buffer_attach_dmabuf,
+	.attach_dmabuf = iio_dma_filtered_buffer_attach_dmabuf,
 	.detach_dmabuf = iio_dma_buffer_detach_dmabuf,
 
 	.lock_queue = iio_dma_buffer_lock_queue,
