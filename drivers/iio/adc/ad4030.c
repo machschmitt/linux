@@ -1063,7 +1063,7 @@ static const struct iio_buffer_setup_ops ad4030_buffer_setup_ops = {
 static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
-	int ret, read_ret;
+	int ret;
 
 	ret = pm_runtime_resume_and_get(&st->spi->dev);
 	if (ret < 0)
