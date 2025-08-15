@@ -226,6 +226,15 @@ int iio_dmaengine_filtered_buffer_submit_block(struct iio_dma_buffer_queue *queu
 }
 EXPORT_SYMBOL_NS_GPL(iio_dmaengine_filtered_buffer_submit_block, "IIO_DMAENGINE_FILTERED_BUFFER");
 
+static void iio_dmaengine_buffer_abort(struct iio_dma_buffer_queue *queue)
+{
+	struct dmaengine_buffer *dmaengine_buffer =
+		iio_buffer_to_dmaengine_buffer(&queue->buffer);
+
+	dmaengine_terminate_sync(dmaengine_buffer->chan);
+	iio_dma_buffer_block_list_abort(queue, &dmaengine_buffer->active);
+}
+
 static void iio_dmaengine_buffer_release(struct iio_buffer *buf)
 {
 	struct dmaengine_buffer *dmaengine_buffer =
