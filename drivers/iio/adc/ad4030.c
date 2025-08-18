@@ -485,50 +485,39 @@ static int ad4030_update_scale_avail(struct iio_dev *indio_dev,
 
 	rbits = scan_type->realbits;
 
-	for (i = 0; i < ARRAY_SIZE(ad4030_hw_gains); i++) {
+	if (!st->pga_gpios) {
 		/* Multiply by MILLI here to avoid losing precision */
-		range = mult_frac(range, ad4030_hw_gains_frac[i][1] * MILLI,
+		range = mult_frac(range, ad4030_hw_gains_frac[st->pga_idx][1],
+				  ad4030_hw_gains_frac[st->pga_idx][0]);
+		/* Would multiply by NANO here but we already multiplied by MILLI */
+		tmp0 = div_u64_rem(((u64)range * MICRO) >> rbits, NANO, &tmp1);
+		st->scale_avail[st->pga_idx][0] = tmp0; /* Integer part */
+		st->scale_avail[st->pga_idx][1] = abs(tmp1); /* Fractional part */
+		return 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ad4030_hw_gains); i++) {
+		range = mult_frac(range, ad4030_hw_gains_frac[i][1],
 				  ad4030_hw_gains_frac[i][0]);
 		/* Would multiply by NANO here but we already multiplied by MILLI */
 		tmp0 = div_u64_rem(((u64)range * MICRO) >> rbits, NANO, &tmp1);
-		st->scale_tbl[i][0] = tmp0; /* Integer part */
-		st->scale_tbl[i][1] = abs(tmp1); /* Fractional part */
+		st->scale_avail[i][0] = tmp0; /* Integer part */
+		st->scale_avail[i][1] = tmp1; /* Fractional part */
 	}
 
 	return 0;
 }
 
-static int ad4030_set_pga_gain(struct iio_dev *indio_dev, int gain_idx)
+static int ad4030_set_pga_gain(struct iio_dev *indio_dev, int gain_index)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
-	DECLARE_BITMAP(values, AD4030_PGA_PINS);
-	int ret;
+	DECLARE_BITMAP(bitmap, AD4030_PGA_PINS) = { };
 
-	/* Set appropriate status for A0, A1 pins according to requested gain */
-	switch (gain_idx) {
-	case 0:
-		values[0] = AD4030_PGA_1_BITMAP;
-		break;
-	case 1:
-		values[0] = AD4030_PGA_2_BITMAP;
-		break;
-	case 2:
-		values[0] = AD4030_PGA_3_BITMAP;
-		break;
-	case 3:
-		values[0] = AD4030_PGA_4_BITMAP;
-		break;
-	default:
-		return -EINVAL;
-	}
+	st->pga_idx = gain_index;
 
-	ret = gpiod_set_array_value_cansleep(AD4030_PGA_PINS,
-					     st->pga_gpios->desc,
-					     st->pga_gpios->info, values);
-	if (!ret)
-		st->pga_idx = gain_idx;
+	bitmap_write(bitmap, gain_index, 0, 2);
 
-	return ret;
+	return gpiod_multi_set_value_cansleep(st->pga_gpios, bitmap);
 }
 
 static int ad4030_set_pga(struct iio_dev *indio_dev,
