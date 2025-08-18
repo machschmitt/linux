@@ -488,6 +488,8 @@ static int ad4030_scale_avail_tbl(struct iio_dev *indio_dev,
 		st->scale_tbl[i][0] = tmp0; /* Integer part */
 		st->scale_tbl[i][1] = abs(tmp1); /* Fractional part */
 	}
+
+	return 0;
 }
 
 static int ad4030_set_pga_gain(struct iio_dev *indio_dev, int gain_idx)
@@ -1024,6 +1026,7 @@ static int ad4030_read_avail(struct iio_dev *indio_dev,
 			     int *length, long mask)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -1040,6 +1043,16 @@ static int ad4030_read_avail(struct iio_dev *indio_dev,
 		*vals = ad4030_average_modes;
 		*type = IIO_VAL_INT;
 		*length = ARRAY_SIZE(ad4030_average_modes);
+		return IIO_AVAIL_LIST;
+
+	case IIO_CHAN_INFO_SCALE:
+		ret = ad4030_scale_avail_tbl(indio_dev, channel);
+		if (ret)
+			return ret;
+
+		*vals = (int *)st->scale_tbl;
+		*length = ARRAY_SIZE(ad4030_hw_gains) * 2;
+		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
 
 	default:
