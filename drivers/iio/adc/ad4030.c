@@ -196,7 +196,7 @@ struct ad4030_chip_info {
 	/* Number of hardware channels */
 	int num_voltage_inputs;
 	unsigned int tcyc_ns;
-	bool has_pga;
+	unsigned int pga_pins;
 };
 
 struct ad4030_state {
@@ -490,26 +490,6 @@ static int ad4030_scale_avail_tbl(struct iio_dev *indio_dev,
 	}
 }
 
-static int ad4030_calc_pga_gain(int gain_int, int gain_fract, int vref,
-				int precision)
-{
-	u64 gain_nano, tmp;
-	int gain_idx;
-
-	gain_nano = gain_int * NANO + gain_fract;
-
-	//clamp?
-	if (gain_nano > AD4030_GAIN_MAX_NANO)
-		return -EINVAL;
-
-	tmp = DIV_ROUND_CLOSEST_ULL(gain_nano << precision, NANO);
-	gain_nano = DIV_ROUND_CLOSEST_ULL(vref * 2, tmp);
-	gain_idx = find_closest(gain_nano, ad4030_hw_gains,
-				ARRAY_SIZE(ad4030_hw_gains));
-
-	return gain_idx;
-}
-
 static int ad4030_set_pga_gain(struct iio_dev *indio_dev, int gain_idx)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
@@ -543,6 +523,33 @@ static int ad4030_set_pga_gain(struct iio_dev *indio_dev, int gain_idx)
 	return ret;
 }
 
+static int ad4030_set_pga(struct iio_dev *indio_dev,
+			  struct iio_chan_spec const *chan, int gain_int,
+			  int gain_fract)
+{
+	struct ad4030_state *st = iio_priv(indio_dev);
+	const struct iio_scan_type *scan_type;
+	unsigned int gain_idx;
+	u64 gain_nano, tmp;
+	int precision;
+
+	scan_type = iio_get_current_scan_type(indio_dev, chan);
+	precision = scan_type->realbits;
+
+	gain_nano = gain_int * NANO + gain_fract;
+
+	//clamp?
+	if (gain_nano > AD4030_GAIN_MAX_NANO)
+		return -EINVAL;
+
+	tmp = DIV_ROUND_CLOSEST_ULL(gain_nano << precision, NANO);
+	gain_nano = DIV_ROUND_CLOSEST_ULL(st->vref_uv * 2, tmp);
+	gain_idx = find_closest(gain_nano, ad4030_hw_gains,
+				ARRAY_SIZE(ad4030_hw_gains));
+
+	return ad4030_set_pga_gain(indio_dev, gain_idx);
+}
+
 static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 				 struct iio_chan_spec const *chan,
 				 int *val,
@@ -565,7 +572,7 @@ static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 
 	*val2 = scan_type->realbits;
 
-	if (!st->chip->has_pga)
+	if (!st->chip->pga_pins == 0)
 		return IIO_VAL_FRACTIONAL_LOG2;
 
 	/* Multiply by MILLI here to avoid losing precision */
@@ -776,6 +783,19 @@ static int ad4030_set_chan_calibbias(struct iio_dev *indio_dev,
 	return regmap_bulk_write(st->regmap,
 				 AD4030_REG_OFFSET_CHAN(chan->address),
 				 st->tx_data, AD4030_REG_OFFSET_BYTES_NB);
+}
+
+static int ad4030_write_raw_get_fmt(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan, long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	default:
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+
+	return -EINVAL;
 }
 
 static int ad4030_set_avg_frame_len(struct iio_dev *dev, int avg_val)
@@ -1098,6 +1118,9 @@ static int ad4030_write_raw_dispatch(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return ad4030_set_sampling_freq(indio_dev, val);
 
+	case IIO_CHAN_INFO_SCALE:
+		return ad4030_set_pga(indio_dev, chan, val, val2);
+
 	default:
 		return -EINVAL;
 	}
@@ -1169,6 +1192,7 @@ static const struct iio_info ad4030_iio_info = {
 	.read_avail = ad4030_read_avail,
 	.read_raw = ad4030_read_raw,
 	.write_raw = ad4030_write_raw,
+	.write_raw_get_fmt = &ad4030_write_raw_get_fmt,
 	.debugfs_reg_access = ad4030_reg_access,
 	.read_label = ad4030_read_label,
 	.get_current_scan_type = ad4030_get_current_scan_type,
@@ -1525,6 +1549,16 @@ static int ad4030_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	if (st->chip->pga_pins > 0) {
+		st->pga_gpios = devm_gpiod_get_array_optional(&spi->dev, "adi,pga",
+							      GPIOD_OUT_LOW);
+
+		if (IS_ERR(st->pga_gpios))
+			dev_err_probe(&spi->dev, PTR_ERR(st->pga_gpios),
+				      "Failed to get PGA GPIOs\n");
+		ad4030_set_pga_gain(indio_dev, 0);
+	}
+
 	ret = ad4030_config(st);
 	if (ret)
 		return ret;
@@ -1818,7 +1852,7 @@ static const struct ad4030_chip_info adaq4216_chip_info = {
 	.precision_bits = 16,
 	.num_voltage_inputs = 1,
 	.tcyc_ns = AD4030_TCYC_ADJUSTED_NS,
-	.has_pga = true,
+	.pga_pins = 2,
 };
 
 static const struct spi_device_id ad4030_id_table[] = {
