@@ -127,7 +127,6 @@
 			adi,lane-mode = <1>;
 			adi,clock-mode = <0>;
 			adi,out-data-mode = <0>;
-			adi,spi-trigger;
 		};
 	};
 };
