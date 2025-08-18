@@ -1513,13 +1513,6 @@ static int ad4030_spi_offload_setup(struct iio_dev *indio_dev,
 			rx_dma, IIO_BUFFER_DIRECTION_IN);
 }
 
-static void ad4030_pm_disable(void *data)
-{
-	/* based in upstream pm_runtime_disable_action() */
-	pm_runtime_dont_use_autosuspend(data);
-	pm_runtime_disable(data);
-}
-
 static int ad4030_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
@@ -1630,10 +1623,7 @@ static int ad4030_probe(struct spi_device *spi)
 
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
-	ret = devm_add_action_or_reset(dev, ad4030_pm_disable, &spi->dev);
+	ret = devm_pm_runtime_set_active_enabled(dev);
 	if (ret)
 		return ret;
 
