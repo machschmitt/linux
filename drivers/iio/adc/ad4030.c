@@ -125,6 +125,14 @@
 #define AD4030_POWER_MODE_MSK		GENMASK(1, 0)
 #define AD4030_LOW_POWER_MODE		3
 
+/* HARDWARE_GAIN */
+#define AD4030_PGA_PINS			2
+#define AD4030_PGA_1_BITMAP		0
+#define AD4030_PGA_2_BITMAP		BIT(0)
+#define AD4030_PGA_3_BITMAP		BIT(1)
+#define AD4030_PGA_4_BITMAP		GENMASK(1, 0)
+#define AD4030_GAIN_MAX_NANO		6670000000
+
 enum ad4030_out_mode {
 	AD4030_OUT_DATA_MD_DIFF,
 	AD4030_OUT_DATA_MD_16_DIFF_8_COM,
@@ -153,6 +161,31 @@ enum {
 	AD4030_OFFLOAD_SCAN_TYPE_AVG,
 };
 
+enum {
+	AD4030_033_HW_GAIN = 0,
+	AD4030_056_HW_GAIN = 1,
+	AD4030_222_HW_GAIN = 2,
+	AD4030_667_HW_GAIN = 3,
+	AD4030_MAX_HW_PGA,
+};
+
+/*
+ * Gains computed as fractions of 1000 so they can be expressed by integers.
+ */
+static const int ad4030_hw_gains[4] = {
+	330, 560, 2220, 6670
+};
+
+/*
+ * Gains stored and computed as fractions to avoid introducing rounding erros.
+ */
+static const int ad4030_hw_gains_frac[4][2] = {
+	[AD4030_033_HW_GAIN] = { 1, 3 },
+	[AD4030_056_HW_GAIN] = { 5, 9 },
+	[AD4030_222_HW_GAIN] = { 20, 9 },
+	[AD4030_667_HW_GAIN] = { 20, 3 },
+};
+
 struct ad4030_chip_info {
 	const char *name;
 	const unsigned long *available_masks;
@@ -163,6 +196,7 @@ struct ad4030_chip_info {
 	/* Number of hardware channels */
 	int num_voltage_inputs;
 	unsigned int tcyc_ns;
+	bool has_pga;
 };
 
 struct ad4030_state {
@@ -188,6 +222,9 @@ struct ad4030_state {
 	bool test_pattern_en; // TODO can avoid?
 	u8 bits_per_word; // TODO can avoid?
 	u8 pattern_bits_per_word; // TODO can avoid?
+	struct gpio_descs *pga_gpios;
+	int pga_idx;
+	int scale_tbl[ARRAY_SIZE(ad4030_hw_gains)][2];
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -424,6 +461,88 @@ static const struct regmap_config ad4030_regmap_config = {
 	.max_register = AD4030_REG_DIG_ERR,
 };
 
+static int ad4030_scale_avail_tbl(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan)
+{
+	struct ad4030_state *st = iio_priv(indio_dev);
+	const struct iio_scan_type *scan_type;
+	int range, rbits, tmp0, tmp1, i;
+
+	if (chan->differential)
+		range = (st->vref_uv * 2) / MILLI;
+	else
+		range = st->vref_uv / MILLI;
+
+	scan_type = iio_get_current_scan_type(indio_dev, chan);
+	if (IS_ERR(scan_type))
+		return PTR_ERR(scan_type);
+
+	rbits = scan_type->realbits;
+
+	for (i = 0; i < ARRAY_SIZE(ad4030_hw_gains); i++) {
+		/* Multiply by MILLI here to avoid losing precision */
+		range = mult_frac(range, ad4030_hw_gains_frac[i][1] * MILLI,
+				  ad4030_hw_gains_frac[i][0]);
+		/* Would multiply by NANO here but we already multiplied by MILLI */
+		tmp0 = div_u64_rem(((u64)range * MICRO) >> rbits, NANO, &tmp1);
+		st->scale_tbl[i][0] = tmp0; /* Integer part */
+		st->scale_tbl[i][1] = abs(tmp1); /* Fractional part */
+	}
+}
+
+static int ad4030_calc_pga_gain(int gain_int, int gain_fract, int vref,
+				int precision)
+{
+	u64 gain_nano, tmp;
+	int gain_idx;
+
+	gain_nano = gain_int * NANO + gain_fract;
+
+	//clamp?
+	if (gain_nano > AD4030_GAIN_MAX_NANO)
+		return -EINVAL;
+
+	tmp = DIV_ROUND_CLOSEST_ULL(gain_nano << precision, NANO);
+	gain_nano = DIV_ROUND_CLOSEST_ULL(vref * 2, tmp);
+	gain_idx = find_closest(gain_nano, ad4030_hw_gains,
+				ARRAY_SIZE(ad4030_hw_gains));
+
+	return gain_idx;
+}
+
+static int ad4030_set_pga_gain(struct iio_dev *indio_dev, int gain_idx)
+{
+	struct ad4030_state *st = iio_priv(indio_dev);
+	DECLARE_BITMAP(values, AD4030_PGA_PINS);
+	int ret;
+
+	/* Set appropriate status for A0, A1 pins according to requested gain */
+	switch (gain_idx) {
+	case 0:
+		values[0] = AD4030_PGA_1_BITMAP;
+		break;
+	case 1:
+		values[0] = AD4030_PGA_2_BITMAP;
+		break;
+	case 2:
+		values[0] = AD4030_PGA_3_BITMAP;
+		break;
+	case 3:
+		values[0] = AD4030_PGA_4_BITMAP;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = gpiod_set_array_value_cansleep(AD4030_PGA_PINS,
+					     st->pga_gpios->desc,
+					     st->pga_gpios->info, values);
+	if (!ret)
+		st->pga_idx = gain_idx;
+
+	return ret;
+}
+
 static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 				 struct iio_chan_spec const *chan,
 				 int *val,
@@ -431,6 +550,9 @@ static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 	const struct iio_scan_type *scan_type;
+	unsigned int range;
+	unsigned int tmp1;
+	u64 tmp0;
 
 	scan_type = iio_get_current_scan_type(indio_dev, chan);
 	if (IS_ERR(scan_type))
@@ -443,7 +565,18 @@ static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 
 	*val2 = scan_type->realbits;
 
-	return IIO_VAL_FRACTIONAL_LOG2;
+	if (!st->chip->has_pga)
+		return IIO_VAL_FRACTIONAL_LOG2;
+
+	/* Multiply by MILLI here to avoid losing precision */
+	range = mult_frac(*val, ad4030_hw_gains_frac[st->pga_idx][1] * MILLI,
+			  ad4030_hw_gains_frac[st->pga_idx][0]);
+	/* Would multiply by NANO here but we already multiplied by MILLI */
+	tmp0 = div_u64_rem(((u64)range * MICRO) >> *val2, NANO, &tmp1);
+	*val = (int)tmp0; /* Integer part */
+	*val2 = abs(tmp1); /* Fractional part */
+
+	return IIO_VAL_INT_PLUS_NANO;
 }
 
 static int ad4030_get_chan_calibscale(struct iio_dev *indio_dev,
@@ -1685,6 +1818,7 @@ static const struct ad4030_chip_info adaq4216_chip_info = {
 	.precision_bits = 16,
 	.num_voltage_inputs = 1,
 	.tcyc_ns = AD4030_TCYC_ADJUSTED_NS,
+	.has_pga = true,
 };
 
 static const struct spi_device_id ad4030_id_table[] = {
