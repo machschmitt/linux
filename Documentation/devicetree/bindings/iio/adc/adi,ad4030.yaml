@@ -62,6 +62,24 @@ properties:
       The Reset Input (/RST). Used for asynchronous device reset.
     maxItems: 1
 
+  pga-gpios:
+    description:
+      A0 and A1 pins for gain selection. For devices that have PGA configuration
+      input pins, pga-gpios should be defined if adi,gain-milli is absent.
+    minItems: 2
+    maxItems: 2
+
+  adi,gain-milli:
+    description: |
+      Should be present if PGA pins are pin-strapped. Possible values:
+      Gain 330 (PGA1=0, PGA2=0)
+      Gain 560 (PGA1=0, PGA2=1)
+      Gain 2220 (PGA1=1, PGA2=0)
+      Gain 6670 (PGA1=1, PGA2=1)
+      If defined, pga-gpios must be absent.
+    $ref: /schemas/types.yaml#/definitions/uint16
+    enum: [330, 560, 2220, 6670]
+
   interrupts:
     description:
       The BUSY pin is used to signal that the conversions results are available
