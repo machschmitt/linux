@@ -1671,6 +1671,7 @@ static const struct ad4030_chip_info ad4632_24_chip_info = {
 
 static const struct ad4030_chip_info adaq4216_chip_info = {
 	.name = "adaq4216",
+	//.available_masks = ad4030_channel_masks, //TODO fix properly
 	.available_masks = ad4030_offload_channel_masks, //TODO fix properly
 	.channels = {
 		AD4030_CHAN_DIFF(0, ad4030_16_scan_types),
