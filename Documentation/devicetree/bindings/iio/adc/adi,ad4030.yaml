@@ -98,7 +98,6 @@ required:
   - vdd-5v-supply
   - vdd-1v8-supply
   - vio-supply
-  - cnv-gpios
 
 allOf:
   - oneOf:
@@ -106,6 +105,12 @@ allOf:
           - ref-supply
       - required:
           - refin-supply
+  - oneOf:
+      - required:
+          - pwm-names
+          - pwms
+      - required:
+          - cnv-gpios
   - oneOf:
       - required:
           - adi,gain-milli
