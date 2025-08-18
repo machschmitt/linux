@@ -74,10 +74,10 @@ properties:
   adi,gain-milli:
     description: |
       Should be present if PGA pins are pin-strapped. Possible values:
-      Gain 330 (PGA1=0, PGA2=0)
-      Gain 560 (PGA1=0, PGA2=1)
-      Gain 2220 (PGA1=1, PGA2=0)
-      Gain 6670 (PGA1=1, PGA2=1)
+      Gain 330 (A1=0, A0=0)
+      Gain 560 (A1=0, A0=1)
+      Gain 2220 (A1=1, A0=0)
+      Gain 6670 (A1=1, A0=1)
       If defined, pga-gpios must be absent.
     $ref: /schemas/types.yaml#/definitions/uint16
     enum: [330, 560, 2220, 6670]
