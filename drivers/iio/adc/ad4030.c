@@ -224,7 +224,8 @@ struct ad4030_state {
 	u8 pattern_bits_per_word; // TODO can avoid?
 	struct gpio_descs *pga_gpios;
 	int pga_idx;
-	int scale_tbl[ARRAY_SIZE(ad4030_hw_gains)][2];
+	u16 scale_avail[ARRAY_SIZE(ad4030_hw_gains)][2];
+	size_t scale_avail_size;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -461,17 +462,22 @@ static const struct regmap_config ad4030_regmap_config = {
 	.max_register = AD4030_REG_DIG_ERR,
 };
 
-static int ad4030_scale_avail_tbl(struct iio_dev *indio_dev,
-				  const struct iio_chan_spec *chan)
+static int ad4030_update_scale_avail(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 	const struct iio_scan_type *scan_type;
 	int range, rbits, tmp0, tmp1, i;
 
+	/*
+	 * Keep the input range in µV to avoid truncating the less
+	 * significant bits when right shifting it so to preserve scale
+	 * precision.
+	 */
 	if (chan->differential)
-		range = (st->vref_uv * 2) / MILLI;
+		range = (st->vref_uv * 2);
 	else
-		range = st->vref_uv / MILLI;
+		range = st->vref_uv;
 
 	scan_type = iio_get_current_scan_type(indio_dev, chan);
 	if (IS_ERR(scan_type))
@@ -1046,12 +1052,12 @@ static int ad4030_read_avail(struct iio_dev *indio_dev,
 		return IIO_AVAIL_LIST;
 
 	case IIO_CHAN_INFO_SCALE:
-		ret = ad4030_scale_avail_tbl(indio_dev, channel);
+		ret = ad4030_update_scale_avail(indio_dev, channel);
 		if (ret)
 			return ret;
 
-		*vals = (int *)st->scale_tbl;
-		*length = ARRAY_SIZE(ad4030_hw_gains) * 2;
+		*vals = (int *)st->scale_avail;
+		*length = st->scale_avail_size;
 		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
 
@@ -1513,6 +1519,46 @@ static int ad4030_spi_offload_setup(struct iio_dev *indio_dev,
 			rx_dma, IIO_BUFFER_DIRECTION_IN);
 }
 
+static int ad4030_setup_pga(struct device *dev, struct iio_dev *indio_dev,
+			    struct ad4030_state *st)
+{
+	unsigned int i;
+	int pga_value;
+	int ret;
+
+	ret = device_property_read_u32(dev, "adi,gain-milli", &pga_value);
+	if (ret && ret != -EINVAL)
+		return dev_err_probe(dev, ret, "Failed to get pga value.\n");
+
+	if (ret == -EINVAL) {
+		/* Setup GPIOs for PGA control */
+		st->pga_gpios = devm_gpiod_get_array(dev, "pga", GPIOD_OUT_LOW);
+		if (IS_ERR(st->pga_gpios))
+			return dev_err_probe(dev, PTR_ERR(st->pga_gpios),
+					     "Failed to get pga gpios.\n");
+
+		if (st->pga_gpios->ndescs != 2)
+			return dev_err_probe(dev, -EINVAL,
+					     "Expected 2 GPIOs for PGA control.\n");
+
+		st->scale_avail_size = ARRAY_SIZE(ad4030_hw_gains) * 2;
+
+		return ad4030_set_pga_gain(indio_dev, 0);
+	} else {
+		/* Set ADC driver to handle pin-strapped PGA pins setup */
+		for (i = 0; i < ARRAY_SIZE(ad4030_hw_gains); i++) {
+			if (pga_value != ad4030_hw_gains[i])
+				continue;
+			st->pga_idx = i;
+			break;
+		}
+		st->scale_avail_size = 1;
+		st->pga_gpios = NULL;
+	}
+
+	return ret;
+}
+
 static int ad4030_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
@@ -1556,12 +1602,10 @@ static int ad4030_probe(struct spi_device *spi)
 		return ret;
 
 	if (st->chip->pga_pins > 0) {
-		st->pga_gpios = devm_gpiod_get_array_optional(&spi->dev, "pga",
-							      GPIOD_OUT_LOW);
-		if (IS_ERR(st->pga_gpios))
-			dev_err_probe(&spi->dev, PTR_ERR(st->pga_gpios),
-				      "Failed to get PGA GPIOs\n");
-		ad4030_set_pga_gain(indio_dev, 0);
+		ret = ad4030_setup_pga(dev, indio_dev, st);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to setup ADC PGA.\n");
 	}
 
 	ret = ad4030_config(st);
