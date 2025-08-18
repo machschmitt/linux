@@ -98,11 +98,17 @@ required:
   - vio-supply
   - cnv-gpios
 
-oneOf:
-  - required:
-      - ref-supply
-  - required:
-      - refin-supply
+allOf:
+  - oneOf:
+      - required:
+          - ref-supply
+      - required:
+          - refin-supply
+  - oneOf:
+      - required:
+          - adi,gain-milli
+      - required:
+          - pga-gpios
 
 unevaluatedProperties: false
 
