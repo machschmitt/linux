@@ -172,8 +172,8 @@ enum {
 /*
  * Gains computed as fractions of 1000 so they can be expressed by integers.
  */
-static const int ad4030_hw_gains[4] = {
-	330, 560, 2220, 6670
+static const int ad4030_hw_gains[] = {
+	330, 560, 2220, 6670,
 };
 
 /*
