@@ -1550,9 +1550,9 @@ static int ad4030_probe(struct spi_device *spi)
 		return ret;
 
 	if (st->chip->pga_pins > 0) {
-		st->pga_gpios = devm_gpiod_get_array_optional(&spi->dev, "adi,pga",
+		st->pga_gpios = devm_gpiod_get_array_optional(&spi->dev,
+							      "pga-gpios",
 							      GPIOD_OUT_LOW);
-
 		if (IS_ERR(st->pga_gpios))
 			dev_err_probe(&spi->dev, PTR_ERR(st->pga_gpios),
 				      "Failed to get PGA GPIOs\n");
