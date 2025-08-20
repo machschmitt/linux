@@ -24,6 +24,7 @@
 #include <linux/math64.h>
 #include <linux/minmax.h>
 #include <linux/pwm.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/offload/consumer.h>
@@ -126,6 +127,9 @@
 #define AD4030_TRESET_COM_DELAY_MS	750
 /* Datasheet says 9.8ns, so use the closest integer value */
 #define AD4030_TQUIET_CNV_DELAY_NS	10
+/* POWER MODE*/
+#define AD4030_POWER_MODE_MSK		GENMASK(1, 0)
+#define AD4030_LOW_POWER_MODE		3
 
 /* HARDWARE_GAIN */
 #define ADAQ4616_PGA_PINS		2
@@ -1202,9 +1206,13 @@ static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 	struct ad4030_state *st = iio_priv(indio_dev);
 	int ret;
 
+	ret = pm_runtime_resume_and_get(&st->spi->dev);
+	if (ret < 0)
+		return ret;
+
 	ret = regmap_write(st->regmap, AD4030_REG_EXIT_CFG_MODE, BIT(0));
 	if (ret)
-		return ret;
+		goto out_error;
 
 	st->offload_msg.offload = st->offload;
 	ret = spi_optimize_message(st->spi, &st->offload_msg);
@@ -1230,6 +1238,9 @@ out_reset_mode:
 	if (ret)
 		dev_warn(&st->spi->dev,
 			 "couldn't reenter register configuration mode\n");
+out_error:
+	pm_runtime_mark_last_busy(&st->spi->dev);
+	pm_runtime_put_autosuspend(&st->spi->dev);
 	return ret;
 }
 
@@ -1250,6 +1261,8 @@ static int ad4030_offload_buffer_predisable(struct iio_dev *indio_dev)
 		dev_warn(&st->spi->dev,
 			 "couldn't reenter register configuration mode\n");
 
+	pm_runtime_mark_last_busy(&st->spi->dev);
+	pm_runtime_put_autosuspend(&st->spi->dev);
 	return ret;
 }
 
@@ -1612,8 +1625,40 @@ static int ad4030_probe(struct spi_device *spi)
 		ad4030_prepare_offload_msg(st);
 	}
 
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
+	ret = devm_pm_runtime_set_active_enabled(dev);
+	if (ret)
+		return ret;
+
 	return devm_iio_device_register(dev, indio_dev);
 }
+
+static int ad4030_runtime_suspend(struct device *dev)
+{
+	u32 val = FIELD_PREP(AD4030_POWER_MODE_MSK, AD4030_LOW_POWER_MODE);
+	struct ad4030_state *st = dev_get_drvdata(dev);
+
+	return regmap_write(st->regmap, AD4030_REG_DEVICE_CONFIG, val);
+}
+
+static int ad4030_runtime_resume(struct device *dev)
+{
+	struct ad4030_state *st = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regmap_write(st->regmap, AD4030_REG_DEVICE_CONFIG,
+			   FIELD_PREP(AD4030_POWER_MODE_MSK, 0));
+	if (ret)
+		return ret;
+
+	fsleep(30);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(ad4030_pm_ops, ad4030_runtime_suspend,
+				ad4030_runtime_resume);
 
 static const unsigned long ad4030_channel_masks[] = {
 	/* Differential only */
@@ -1872,6 +1917,7 @@ static struct spi_driver ad4030_driver = {
 	.driver = {
 		.name = "ad4030",
 		.of_match_table = ad4030_of_match,
+		.pm = pm_ptr(&ad4030_pm_ops),
 	},
 	.probe = ad4030_probe,
 	.id_table = ad4030_id_table,
