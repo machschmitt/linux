@@ -1293,16 +1293,17 @@ static int ad4030_reset(struct ad4030_state *st)
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *reset;
 
-	reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(reset))
-		return dev_err_probe(dev, PTR_ERR(reset),
-				     "Failed to get reset GPIO\n");
+	dev_info(dev, "%s: TODO re-add reset\n", __func__);
+	//reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	//if (IS_ERR(reset))
+	//	return dev_err_probe(dev, PTR_ERR(reset),
+	//			     "Failed to get reset GPIO\n");
 
-	if (reset) {
-		ndelay(50);
-		gpiod_set_value_cansleep(reset, 0);
-		return 0;
-	}
+	//if (reset) {
+	//	ndelay(50);
+	//	gpiod_set_value_cansleep(reset, 0);
+	//	return 0;
+	//}
 
 	return regmap_write(st->regmap, AD4030_REG_INTERFACE_CONFIG_A,
 			   AD4030_REG_INTERFACE_CONFIG_A_SW_RESET);
