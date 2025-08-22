@@ -898,10 +898,11 @@ static int ad4030_conversion(struct iio_dev *indio_dev)
 	/* Mulitiply by the number of hardware channels */
 	bytes_to_read *= st->chip->num_voltage_inputs;
 
+	dev_info(&st->spi->dev, "%s: TODO re-add cnv_gpio\n", __func__);
 	for (i = 0; i < cnv_nb; i++) {
-		gpiod_set_value_cansleep(st->cnv_gpio, 1);
+		//gpiod_set_value_cansleep(st->cnv_gpio, 1);
 		ndelay(AD4030_TCNVH_NS);
-		gpiod_set_value_cansleep(st->cnv_gpio, 0);
+		//gpiod_set_value_cansleep(st->cnv_gpio, 0);
 		ndelay(st->chip->tcyc_ns);
 	}
 
@@ -1554,10 +1555,11 @@ static int ad4030_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	st->cnv_gpio = devm_gpiod_get(dev, "cnv", GPIOD_OUT_LOW);
-	if (IS_ERR(st->cnv_gpio))
-		return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
-				     "Failed to get cnv gpio\n");
+	dev_info(dev, "%s: TODO re-add cnv_gpio\n", __func__);
+	//st->cnv_gpio = devm_gpiod_get(dev, "cnv", GPIOD_OUT_LOW);
+	//if (IS_ERR(st->cnv_gpio))
+	//	return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
+	//			     "Failed to get cnv gpio\n");
 
 	indio_dev->name = st->chip->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
