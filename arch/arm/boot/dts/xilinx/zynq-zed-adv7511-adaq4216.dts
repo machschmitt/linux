@@ -125,6 +125,7 @@
 			cnv-gpios = <&gpio0 85 GPIO_ACTIVE_HIGH>;
 			pga-gpios = <&gpio0 87 GPIO_ACTIVE_HIGH>,
 				    <&gpio0 88 GPIO_ACTIVE_HIGH>;
+			adi,gain-milli = <6670>;
 			adi,lane-mode = <1>;
 			adi,clock-mode = <0>;
 			adi,out-data-mode = <0>;
