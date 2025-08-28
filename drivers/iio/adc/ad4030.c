@@ -21,6 +21,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/log2.h>
+#include <linux/math64.h>
 #include <linux/minmax.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>
