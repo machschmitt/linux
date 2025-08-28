@@ -29,6 +29,7 @@
 #include <linux/spi/spi.h>
 #include <linux/unaligned.h>
 #include <linux/units.h>
+#include <linux/types.h>
 
 #define AD4030_REG_INTERFACE_CONFIG_A			0x00
 #define     AD4030_REG_INTERFACE_CONFIG_A_SW_RESET	(BIT(0) | BIT(7))
