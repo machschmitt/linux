@@ -78,10 +78,10 @@ properties:
   adi,pga-value:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
-      Should be present if PGA control inputs are pin-strapped. The values are
-      set as fractions of 1000 so they can be expressed by integers. For
-      example, 333 means the input signal is scaled by a 0.333 factor (i.e.
-      attenuated to one third of it's original magnitude). Possible values:
+      Should be present if PGA control inputs are pin-strapped. The values
+      specify the gain per mille. For example, 333 means the input signal is
+      scaled by a 0.333 factor (i.e. attenuated to one third of it's original
+      magnitude). Possible values:
       Gain 333 (A1=0, A0=0)
       Gain 556 (A1=0, A0=1)
       Gain 2222 (A1=1, A0=0)
