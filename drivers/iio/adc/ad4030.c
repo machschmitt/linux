@@ -777,27 +777,6 @@ static int ad4030_write_raw_get_fmt(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static int ad4030_set_avg_frame_len(struct iio_dev *dev, int avg_val)
-{
-	struct ad4030_state *st = iio_priv(dev);
-	unsigned int avg_log2 = ilog2(avg_val);
-	unsigned int last_avg_idx = ARRAY_SIZE(ad4030_average_modes) - 1;
-	int ret;
-
-	if (avg_val < 0 || avg_val > ad4030_average_modes[last_avg_idx])
-		return -EINVAL;
-
-	ret = regmap_write(st->regmap, AD4030_REG_AVG,
-			   AD4030_REG_AVG_MASK_AVG_SYNC |
-			   FIELD_PREP(AD4030_REG_AVG_MASK_AVG_VAL, avg_log2));
-	if (ret)
-		return ret;
-
-	st->avg_log2 = avg_log2;
-
-	return 0;
-}
-
 static bool ad4030_is_common_byte_asked(struct ad4030_state *st,
 					unsigned int mask)
 {
@@ -832,6 +811,27 @@ static int ad4030_set_mode(struct iio_dev *indio_dev, unsigned long mask)
 	return regmap_update_bits(st->regmap, AD4030_REG_MODES,
 				  AD4030_REG_MODES_MASK_OUT_DATA_MODE,
 				  st->mode);
+}
+
+static int ad4030_set_avg_frame_len(struct iio_dev *dev, unsigned long mask, int avg_val)
+{
+	struct ad4030_state *st = iio_priv(dev);
+	unsigned int avg_log2 = ilog2(avg_val);
+	unsigned int last_avg_idx = ARRAY_SIZE(ad4030_average_modes) - 1;
+	int ret;
+
+	if (avg_val < 0 || avg_val > ad4030_average_modes[last_avg_idx])
+		return -EINVAL;
+
+	ret = regmap_write(st->regmap, AD4030_REG_AVG,
+			   AD4030_REG_AVG_MASK_AVG_SYNC |
+			   FIELD_PREP(AD4030_REG_AVG_MASK_AVG_VAL, avg_log2));
+	if (ret)
+		return ret;
+
+	st->avg_log2 = avg_log2;
+
+	return ad4030_set_mode(dev, mask);
 }
 
 /*
@@ -1094,7 +1094,7 @@ static int ad4030_write_raw_dispatch(struct iio_dev *indio_dev,
 		return ad4030_set_chan_calibbias(indio_dev, chan, val);
 
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		return ad4030_set_avg_frame_len(indio_dev, val);
+		return ad4030_set_avg_frame_len(indio_dev, BIT(chan->scan_index), val);
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return ad4030_set_sampling_freq(indio_dev, val);
