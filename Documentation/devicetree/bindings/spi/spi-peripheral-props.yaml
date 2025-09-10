@@ -45,6 +45,19 @@ properties:
     description:
       Maximum SPI clocking speed of the device in Hz.
 
+  spi-sclk-source:
+    description: |
+      Indicates how the SCLK is wired.
+      controller: The SCLK line is driven by the controller (typical SPI bus).
+      echo: The SCLK line is driven by the controller and the peripheral echos
+        the clock back to an input on the controller on a second line.
+      peripheral: The SCLK line from the controller is not connected to the
+        peripheral and an independent clock output driven by the peripheral is
+        connected to an input on the controller.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [ controller, echo, peripheral ]
+    default: controller
+
   spi-cs-setup-delay-ns:
     description:
       Delay in nanoseconds to be introduced by the controller after CS is
