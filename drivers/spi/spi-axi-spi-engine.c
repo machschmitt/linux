@@ -50,6 +50,8 @@
 #define SPI_ENGINE_REG_OFFLOAD_CMD_FIFO(x)	(0x110 + SPI_ENGINE_MAX_NUM_OFFLOADS * (x))
 #define SPI_ENGINE_REG_OFFLOAD_SDO_FIFO(x)	(0x114 + SPI_ENGINE_MAX_NUM_OFFLOADS * (x))
 
+#define SPI_ENGINE_REG_CFG_INFO_(x)		(0x200 + 4 * (x))
+
 #define SPI_ENGINE_SPI_OFFLOAD_MEM_WIDTH_SDO	GENMASK(15, 8)
 #define SPI_ENGINE_SPI_OFFLOAD_MEM_WIDTH_CMD	GENMASK(7, 0)
 
@@ -1090,6 +1092,7 @@ static int spi_engine_probe(struct platform_device *pdev)
 	host->get_offload = spi_engine_get_offload;
 	host->put_offload = spi_engine_put_offload;
 	host->num_chipselect = 8;
+	host->dtr_caps = !!(readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CFG_INFO_(3)));
 
 	/* Some features depend of the IP core version. */
 	if (ADI_AXI_PCORE_VER_MAJOR(version) >= 1) {
