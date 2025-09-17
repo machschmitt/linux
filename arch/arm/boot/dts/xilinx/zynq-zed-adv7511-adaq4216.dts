@@ -125,7 +125,7 @@
 			cnv-gpios = <&gpio0 85 GPIO_ACTIVE_HIGH>;
 			//pga-gpios = <&gpio0 87 GPIO_ACTIVE_HIGH>,
 			//	    <&gpio0 88 GPIO_ACTIVE_HIGH>;
-			adi,pga-value = <6667>;
+			adi,pga-value = <6666>;
 		};
 	};
 };
