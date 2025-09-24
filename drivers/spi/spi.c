@@ -2355,6 +2355,37 @@ static void of_spi_parse_dt_cs_delay(struct device_node *nc,
 	}
 }
 
+enum sclk_source {
+	CONTROLLER = 0,
+	ECHO = 1,
+	PERIPHERAL = 2,
+};
+
+/* maps spi-sclk-source property value to enum */
+static const char * const sclk_source_str[] = {
+	[CONTROLLER] = "controller",
+	[PERIPHERAL] = "peripheral",
+};
+
+static void of_spi_parse_dt_sclk_source(struct device_node *nc)
+{
+	const char *sclk_src;
+	unsigned int i;
+
+	//ret = device_property_match_property_string(dev, "spi-sclk-source",
+	//					    sclk_source_str,
+	//					    ARRAY_SIZE(sclk_source_str));
+	if (!of_property_read_string(nc, "spi-sclk-source", &sclk_src)) {
+		for (i = 0; i < ARRAY_SIZE(sclk_source_str); i++)
+			if (strcmp(sclk_source_str[i], sclk_src) == 0)
+				break;
+
+		if (i == ARRAY_SIZE(sclk_source_str))
+			dev_err("unknown spi-sclk-source: %s\n", sclk_src);
+	}
+}
+
+
 static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 			   struct device_node *nc)
 {
@@ -2496,6 +2527,9 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	/* Device speed */
 	if (!of_property_read_u32(nc, "spi-max-frequency", &value))
 		spi->max_speed_hz = value;
+
+	/* Data frame clock source */
+	of_spi_parse_dt_sclk_source(nc);
 
 	/* Device CS delays */
 	of_spi_parse_dt_cs_delay(nc, &spi->cs_setup, "spi-cs-setup-delay-ns");
