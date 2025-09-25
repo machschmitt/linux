@@ -167,7 +167,6 @@ struct ad4030_state {
 	int offset_avail[3];
 	unsigned int avg_log2;
 	enum ad4030_out_mode mode;
-	struct mutex lock; /* Protect read-modify-write and multi write sequences */
 	/* Offload sampling */
 	struct spi_transfer offload_xfer;
 	struct spi_message offload_msg;
@@ -586,7 +585,6 @@ static int ad4030_set_sampling_freq(struct iio_dev *indio_dev, int freq)
 	if (!in_range(freq, 1, st->chip->max_sample_rate_hz))
 		return -EINVAL;
 
-	guard(mutex)(&st->lock);
 	return ad4030_update_conversion_rate(st, freq, st->avg_log2);
 }
 
@@ -690,7 +688,6 @@ static int ad4030_set_avg_frame_len(struct iio_dev *dev, unsigned long mask, int
 	if (avg_val < 0 || avg_val > ad4030_average_modes[last_avg_idx])
 		return -EINVAL;
 
-	guard(mutex)(&st->lock);
 	ret = ad4030_set_mode(st, mask, avg_log2);
 	if (ret)
 		return ret;
@@ -1314,10 +1311,6 @@ static int ad4030_probe(struct spi_device *spi)
 	st->chip = spi_get_device_match_data(spi);
 	if (!st->chip)
 		return -EINVAL;
-
-	ret = devm_mutex_init(dev, &st->lock);
-	if (ret)
-		return ret;
 
 	ret = ad4030_regulators_get(st);
 	if (ret)
