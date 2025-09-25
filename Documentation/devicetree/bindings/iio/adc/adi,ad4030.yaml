@@ -42,6 +42,10 @@ properties:
   spi-max-frequency:
     maximum: 102040816
 
+  spi-buses:
+    minItems: 1
+    maxItems: 2
+
   spi-rx-bus-width:
     enum: [1, 2, 4]
 
@@ -124,6 +128,20 @@ allOf:
           - ref-supply
       - required:
           - refin-supply
+  # 1-channel chips can only have up to 1 bus
+  - if:
+      properties:
+        compatible:
+          enum:
+            - adi,ad4030-24
+            - adi,ad4032-24
+            - adi,adaq4216
+            - adi,adaq4224
+    then:
+      properties:
+        spi-buses:
+          maxItems: 1
+
   # ADAQ devices require a gain property to indicate how hardware PGA is set
   - if:
       properties:
