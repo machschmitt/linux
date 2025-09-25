@@ -1088,7 +1088,7 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
-	int ret;
+	int ret, ret2;
 
 	ret = regmap_write(st->regmap, AD4030_REG_EXIT_CFG_MODE, BIT(0));
 	if (ret)
@@ -1117,9 +1117,12 @@ out_unoptimize:
 	spi_unoptimize_message(&st->offload_msg);
 out_reset_mode:
 	/* reenter register configuration mode */
-	if (ad4030_enter_config_mode(st))
+	ret2 = ad4030_enter_config_mode(st);
+	if (ret2)
 		dev_err(&st->spi->dev,
-			"couldn't reenter register configuration mode\n");
+			"couldn't reenter register configuration mode: %d\n",
+			ret2);
+
 	return ret;
 }
 
