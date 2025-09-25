@@ -1076,7 +1076,7 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 	else
 		offload_bpw = st->chip->precision_bits;
 
-	st->offload_xfer.bits_per_word = roundup_pow_of_two(offload_bpw);
+	st->offload_xfer.bits_per_word = offload_bpw;
 	st->offload_xfer.len = spi_bpw_to_bytes(offload_bpw);
 	st->offload_xfer.offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 	spi_message_init_with_transfers(&st->offload_msg, &st->offload_xfer, 1);
