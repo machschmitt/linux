@@ -1085,7 +1085,23 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
+	unsigned int reg_modes;
 	int ret, ret2;
+
+	/*
+	 * When data from 2 analog input channels is output through a single
+	 * bus line (interleaved mode (LANE_MD == 0b11)) and gets pushed through
+	 * DMA, extra hardware is required to do the de-interleaving. While we
+	 * don't support such hardware configurations, disallow interleaved mode
+	 * when using SPI offload.
+	 */
+	ret = regmap_read(st->regmap, AD4030_REG_MODES, &reg_modes);
+	if (ret)
+		return ret;
+
+	if (st->chip->num_voltage_inputs > 1 &&
+	    FIELD_GET(AD4030_REG_MODES_MASK_LANE_MODE, reg_modes) == AD4030_LANE_MD_INTERLEAVED)
+		return -EINVAL;
 
 	ret = regmap_write(st->regmap, AD4030_REG_EXIT_CFG_MODE, BIT(0));
 	if (ret)
