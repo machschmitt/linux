@@ -150,21 +150,28 @@ enum {
 	AD4030_SCAN_TYPE_AVG,
 };
 
+static const int adaq4216_hw_gains_db[] = {
+	-10,	/* 1/3 V/V gain */
+	-5,	/* 5/9 V/V gain */
+	7,	/* 20/9 V/V gain */
+	16,	/* 20/3 V/V gain */
+};
+
 /*
  * Gains computed as fractions of 1000 so they can be expressed by integers.
  */
-static const int ad4030_hw_gains[] = {
+static const int adaq4216_hw_gains_vpv[] = {
 	MILLI / 3,		/* 333 */
 	(5 * MILLI / 9),	/* 555 */
 	(20 * MILLI / 9),	/* 2222 */
 	(20 * MILLI / 3),	/* 6666 */
 };
 
-static const int ad4030_hw_gains_frac[][2] = {
-	{ 1, 3 },  /* 1/3 gain */
-	{ 5, 9 },  /* 5/9 gain */
-	{ 20, 9 }, /* 20/9 gain */
-	{ 20, 3 }, /* 20/3 gain */
+static const int adaq4216_hw_gains_frac[][2] = {
+	{ 1, 3 },  /* 1/3 V/V gain */
+	{ 5, 9 },  /* 5/9 V/V gain */
+	{ 20, 9 }, /* 20/9 V/V gain */
+	{ 20, 3 }, /* 20/3 V/V gain */
 };
 
 struct ad4030_chip_info {
@@ -200,7 +207,7 @@ struct ad4030_state {
 	struct pwm_device *cnv_trigger;
 	size_t scale_avail_size;
 	struct pwm_waveform cnv_wf;
-	unsigned int scale_avail[ARRAY_SIZE(ad4030_hw_gains)][2];
+	unsigned int scale_avail[ARRAY_SIZE(adaq4216_hw_gains_db)][2];
 	struct gpio_descs *pga_gpios;
 	unsigned int pga_index;
 
@@ -461,9 +468,9 @@ static void ad4030_fill_scale_avail(struct ad4030_state *st)
 	 */
 	mag_bits = st->chip->precision_bits - 1;
 
-	for (i = 0; i < ARRAY_SIZE(ad4030_hw_gains); i++) {
-		range = mult_frac(st->vref_uv, ad4030_hw_gains_frac[i][1],
-				  ad4030_hw_gains_frac[i][0]);
+	for (i = 0; i < ARRAY_SIZE(adaq4216_hw_gains_frac); i++) {
+		range = mult_frac(st->vref_uv, adaq4216_hw_gains_frac[i][1],
+				  adaq4216_hw_gains_frac[i][0]);
 		/*
 		 * If range were in mV, we would multiply it by NANO below.
 		 * Though, range is in µV so multiply it by MICRO only so the
@@ -501,8 +508,8 @@ static int ad4030_set_pga(struct iio_dev *indio_dev, int gain_int, int gain_frac
 
 	tmp = DIV_ROUND_CLOSEST_ULL(gain_nano << mag_bits, NANO);
 	gain_nano = DIV_ROUND_CLOSEST_ULL(st->vref_uv, tmp);
-	st->pga_index = find_closest(gain_nano, ad4030_hw_gains,
-				     ARRAY_SIZE(ad4030_hw_gains));
+	st->pga_index = find_closest(gain_nano, adaq4216_hw_gains_vpv,
+				     ARRAY_SIZE(adaq4216_hw_gains_vpv));
 
 	return ad4030_set_pga_gain(st);
 }
@@ -1436,10 +1443,10 @@ static int ad4030_setup_pga(struct device *dev, struct iio_dev *indio_dev,
 			    struct ad4030_state *st)
 {
 	unsigned int i;
-	int pga_value;
+	int pga_gain_dB;
 	int ret;
 
-	ret = device_property_read_u32(dev, "adi,pga-value", &pga_value);
+	ret = device_property_read_u32(dev, "adi,pga-gain-db", &pga_gain_dB);
 	if (ret == -EINVAL) {
 		/* Setup GPIOs for PGA control */
 		st->pga_gpios = devm_gpiod_get_array(dev, "pga", GPIOD_OUT_LOW);
@@ -1451,7 +1458,7 @@ static int ad4030_setup_pga(struct device *dev, struct iio_dev *indio_dev,
 			return dev_err_probe(dev, -EINVAL,
 					     "Expected 2 GPIOs for PGA control.\n");
 
-		st->scale_avail_size = ARRAY_SIZE(ad4030_hw_gains);
+		st->scale_avail_size = ARRAY_SIZE(adaq4216_hw_gains_db);
 		st->pga_index = 0;
 		return 0;
 	} else if (ret != 0) {
@@ -1459,16 +1466,16 @@ static int ad4030_setup_pga(struct device *dev, struct iio_dev *indio_dev,
 	}
 
 	/* Set ADC driver to handle pin-strapped PGA pins setup */
-	for (i = 0; i < ARRAY_SIZE(ad4030_hw_gains); i++) {
-		if (pga_value != ad4030_hw_gains[i])
+	for (i = 0; i < ARRAY_SIZE(adaq4216_hw_gains_db); i++) {
+		if (pga_gain_dB != adaq4216_hw_gains_db[i])
 			continue;
 
 		st->pga_index = i;
 		break;
 	}
-	if (i == ARRAY_SIZE(ad4030_hw_gains))
-		return dev_err_probe(dev, -EINVAL, "Invalid PGA value: %d.\n",
-				     pga_value);
+	if (i == ARRAY_SIZE(adaq4216_hw_gains_db))
+		return dev_err_probe(dev, -EINVAL, "Invalid PGA gain: %d.\n",
+				     pga_gain_dB);
 
 	st->scale_avail_size = 1;
 	st->pga_gpios = NULL;
