@@ -1208,8 +1208,8 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 		offload_bpw = 32;
 	} else {
 		offload_bpw = st->chip->precision_bits;
-		offload_bpw += (st->mode == AD4030_OUT_DATA_MD_24_DIFF_8_COM ||
-				st->mode == AD4030_OUT_DATA_MD_16_DIFF_8_COM) ? 8 : 0;
+		//offload_bpw += (st->mode == AD4030_OUT_DATA_MD_24_DIFF_8_COM ||
+		//		st->mode == AD4030_OUT_DATA_MD_16_DIFF_8_COM) ? 8 : 0;
 	}
 
 	st->offload_xfer.bits_per_word = offload_bpw;
