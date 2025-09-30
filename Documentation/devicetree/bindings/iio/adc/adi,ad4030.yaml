@@ -181,10 +181,12 @@ examples:
             vdd-5v-supply = <&supply_5V>;
             vdd-1v8-supply = <&supply_1_8V>;
             vio-supply = <&supply_1_8V>;
-            ref-supply = <&supply_5V>;
+            refin-supply = <&refin_sup>;
+            vddh-supply = <&vddh>;
+            vdd-fda-supply = <&vdd_fda>;
             cnv-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
             reset-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
-            adi,pga-gain-db = <-5>;
+            adi,pga-gain-db = <(-5)>;
         };
     };
 ...
