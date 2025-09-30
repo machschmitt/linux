@@ -79,7 +79,7 @@ properties:
   pga-gpios:
     description:
       A0 and A1 pins for gain selection. For devices that have PGA configuration
-      input pins, pga-gpios should be defined if adi,gain-milli is absent.
+      input pins, pga-gpios should be defined if adi,pga-gain-db is absent.
     minItems: 2
     maxItems: 2
 
@@ -137,7 +137,7 @@ allOf:
             ref-supply: false
         - oneOf:
             - required:
-                - adi,pga-value
+                - adi,pga-gain-db
             - required:
                 - pga-gpios
     else:
