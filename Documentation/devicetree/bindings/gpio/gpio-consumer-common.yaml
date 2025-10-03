@@ -44,6 +44,11 @@ properties:
       GPIO connected to the pin waking up the device from suspend or other
       power-saving modes.
 
+  fixed-gpios:
+    description:
+      GPIO (or GPIOs) that will be set once and never change while it's client
+      devices are active in the system.
+
 allOf:
   - if:
       properties:
