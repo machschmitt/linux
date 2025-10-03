@@ -39,6 +39,18 @@
 		regulator-always-on;
 	};
 
+	fixed_gpio: hard-wires {
+		compatible = "fixed-gpios";
+		gpio-controller;
+		#gpio-cells = <1>;
+	};
+	
+	gpio0: gpio-controller@4000000 {
+		compatible = "vendor,soc-gpios";
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
 	trigger_pwm: adc-pwm-trigger {
 		compatible = "pwm-trigger";
 		#trigger-source-cells = <0>;
@@ -125,7 +137,23 @@
 			cnv-gpios = <&gpio0 85 GPIO_ACTIVE_HIGH>;
 			//pga-gpios = <&gpio0 87 GPIO_ACTIVE_HIGH>,
 			//	    <&gpio0 88 GPIO_ACTIVE_HIGH>;
-			adi,pga-gain-db = <16>;
+			//adi,pga-gain-db = <16>;
+
+			/* All gpios */
+			//mode-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>,
+			//	     <&gpio0 1 GPIO_ACTIVE_HIGH>,
+			//	     <&gpio0 2 GPIO_ACTIVE_HIGH>,
+			//	     <&gpio0 3 GPIO_ACTIVE_HIGH>;
+			/* or all hard-wired */
+			mode-gpios = <&fixed_gpio 0 GPIO_FIXED_HIGH>,
+				     <&fixed_gpio GPIO_FIXED_HIGH>,
+				     <&fixed_gpio GPIO_FIXED_LOW>,
+				     <&fixed_gpio GPIO_FIXED_LOW>;
+			/* or mixed */
+			//mode-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>,
+			//	     <&gpio0 1 GPIO_ACTIVE_HIGH>,
+			//	     <&fixed_gpio GPIO_FIXED_LOW>,
+			//	     <&fixed_gpio GPIO_FIXED_LOW>;
 		};
 	};
 };
