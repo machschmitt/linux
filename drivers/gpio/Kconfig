@@ -1978,6 +1978,14 @@ config GPIO_AGGREGATOR
 	      industrial control context, to be operated from userspace using
 	      the GPIO chardev interface.
 
+config GPIO_FIXED
+	tristate "Driver for fixed-state GPIOs"
+	default m
+	help
+	  This enables the fixed GPIO driver - an auxiliary driver that enables
+	  client devices to use the GPIO subsystem to get information about
+	  hardwired and fixed-state GPIOs.
+
 config GPIO_LATCH
 	tristate "GPIO latch driver"
 	help
