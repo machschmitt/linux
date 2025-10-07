@@ -150,21 +150,14 @@ enum {
 	AD4030_SCAN_TYPE_AVG,
 };
 
-static const int adaq4216_hw_gains_db[] = {
-	-10,	/* 1/3 V/V gain */
-	-5,	/* 5/9 V/V gain */
-	7,	/* 20/9 V/V gain */
-	16,	/* 20/3 V/V gain */
-};
-
 /*
  * Gains computed as fractions of 1000 so they can be expressed by integers.
  */
 static const int adaq4216_hw_gains_vpv[] = {
 	MILLI / 3,		/* 333 */
-	(5 * MILLI / 9),	/* 555 */
-	(20 * MILLI / 9),	/* 2222 */
-	(20 * MILLI / 3),	/* 6666 */
+	5 * MILLI / 9,		/* 555 */
+	20 * MILLI / 9,		/* 2222 */
+	20 * MILLI / 3,		/* 6666 */
 };
 
 static const int adaq4216_hw_gains_frac[][2] = {
@@ -207,7 +200,7 @@ struct ad4030_state {
 	struct pwm_device *cnv_trigger;
 	size_t scale_avail_size;
 	struct pwm_waveform cnv_wf;
-	unsigned int scale_avail[ARRAY_SIZE(adaq4216_hw_gains_db)][2];
+	unsigned int scale_avail[ARRAY_SIZE(adaq4216_hw_gains_vpv)][2];
 	struct gpio_descs *pga_gpios;
 	unsigned int pga_index;
 
@@ -487,7 +480,7 @@ static void ad4030_fill_scale_avail(struct ad4030_state *st)
 		 * result after right shift and division scales output codes to
 		 * millivolts.
 		 */
-		int_part = div_u64_rem(((u64)range * MICRO) >> mag_bits, NANO, &fract_part);
+		int_part = div_u64_rem((range * MICRO) >> mag_bits, NANO, &fract_part);
 		st->scale_avail[i][0] = int_part;
 		st->scale_avail[i][1] = fract_part;
 	}
@@ -1428,43 +1421,19 @@ static int ad4030_spi_offload_setup(struct iio_dev *indio_dev,
 static int ad4030_setup_pga(struct device *dev, struct iio_dev *indio_dev,
 			    struct ad4030_state *st)
 {
-	unsigned int i;
-	int pga_gain_dB;
-	int ret;
+	/* Setup GPIOs for PGA control */
+	st->pga_gpios = devm_gpiod_get_array(dev, "pga", GPIOD_OUT_LOW);
+	if (IS_ERR(st->pga_gpios))
+		return dev_err_probe(dev, PTR_ERR(st->pga_gpios),
+				     "Failed to get PGA gpios.\n");
 
-	ret = device_property_read_u32(dev, "adi,pga-gain-db", &pga_gain_dB);
-	if (ret == -EINVAL) {
-		/* Setup GPIOs for PGA control */
-		st->pga_gpios = devm_gpiod_get_array(dev, "pga", GPIOD_OUT_LOW);
-		if (IS_ERR(st->pga_gpios))
-			return dev_err_probe(dev, PTR_ERR(st->pga_gpios),
-					     "Failed to get PGA gpios.\n");
+	if (st->pga_gpios->ndescs != ADAQ4616_PGA_PINS)
+		return dev_err_probe(dev, -EINVAL,
+				     "Expected %d GPIOs for PGA control.\n",
+				     ADAQ4616_PGA_PINS);
 
-		if (st->pga_gpios->ndescs != ADAQ4616_PGA_PINS)
-			return dev_err_probe(dev, -EINVAL,
-					     "Expected 2 GPIOs for PGA control.\n");
-
-		st->scale_avail_size = ARRAY_SIZE(adaq4216_hw_gains_db);
-		st->pga_index = 0;
-		return 0;
-	} else if (ret) {
-		return dev_err_probe(dev, ret, "Failed to get PGA value.\n");
-	}
-
-	/* Set ADC driver to handle pin-strapped PGA pins setup */
-	for (i = 0; i < ARRAY_SIZE(adaq4216_hw_gains_db); i++) {
-		if (pga_gain_dB != adaq4216_hw_gains_db[i])
-			continue;
-
-		st->pga_index = i;
-		break;
-	}
-	if (i == ARRAY_SIZE(adaq4216_hw_gains_db))
-		return dev_err_probe(dev, -EINVAL, "Invalid PGA gain: %d.\n",
-				     pga_gain_dB);
-
-	st->scale_avail_size = 1;
-	st->pga_gpios = NULL;
+	st->scale_avail_size = ARRAY_SIZE(adaq4216_hw_gains_vpv);
+	st->pga_index = 0;
 
 	return 0;
 }
