@@ -30,13 +30,13 @@ static int gpio_fixed_proxy_probe(struct auxiliary_device *adev,
 	struct device *dev = &adev->dev;
 	struct gpio_chip *gc;
 
-	shared_desc = devm_gpiod_fixed_get(dev);
-	if (IS_ERR(shared_desc))
-		return PTR_ERR(shared_desc);
+	//shared_desc = devm_gpiod_fixed_get(dev);
+	//if (IS_ERR(shared_desc))
+	//	return PTR_ERR(shared_desc);
 
-	proxy = devm_kzalloc(dev, sizeof(*proxy), GFP_KERNEL);
-	if (!proxy)
-		return -ENOMEM;
+	//proxy = devm_kzalloc(dev, sizeof(*proxy), GFP_KERNEL);
+	//if (!proxy)
+	//	return -ENOMEM;
 
 	//proxy->shared_desc = shared_desc;
 	//proxy->dev = dev;
@@ -64,7 +64,8 @@ static int gpio_fixed_proxy_probe(struct auxiliary_device *adev,
 	//gc->get_direction = gpio_shared_proxy_get_direction;
 	//gc->to_irq = gpio_shared_proxy_to_irq;
 
-	return devm_gpiochip_add_data(dev, &proxy->gc, proxy);
+	//return devm_gpiochip_add_data(dev, &proxy->gc, proxy);
+	return 0;
 }
 
 #if defined(CONFIG_OF)
