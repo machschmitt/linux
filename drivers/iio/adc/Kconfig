@@ -65,6 +65,7 @@ config AD4030
 	select IIO_BUFFER_DMA
 	select IIO_BUFFER_DMAENGINE
 	select IIO_TRIGGERED_BUFFER
+	select SPI_OFFLOAD
 	imply PWM
 	imply SPI_OFFLOAD_TRIGGER_PWM
 	help
