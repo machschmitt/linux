@@ -1100,7 +1100,7 @@ static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 	    FIELD_GET(AD4030_REG_MODES_MASK_LANE_MODE, reg_modes) == AD4030_LANE_MD_INTERLEAVED)
 		return -EINVAL;
 
-	ret = regmap_write(st->regmap, AD4030_REG_EXIT_CFG_MODE, BIT(0));
+	ret = ad4030_exit_config_mode(st);
 	if (ret)
 		return ret;
 
