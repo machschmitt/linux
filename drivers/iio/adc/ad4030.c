@@ -150,13 +150,6 @@ enum {
 	AD4030_SCAN_TYPE_AVG,
 };
 
-static const int adaq4216_hw_gains_db[] = {
-	-10,	/* 1/3 V/V gain */
-	-5,	/* 5/9 V/V gain */
-	7,	/* 20/9 V/V gain */
-	16,	/* 20/3 V/V gain */
-};
-
 /*
  * Gains computed as fractions of 1000 so they can be expressed by integers.
  */
@@ -207,7 +200,7 @@ struct ad4030_state {
 	struct pwm_device *cnv_trigger;
 	size_t scale_avail_size;
 	struct pwm_waveform cnv_wf;
-	unsigned int scale_avail[ARRAY_SIZE(adaq4216_hw_gains_db)][2];
+	unsigned int scale_avail[ARRAY_SIZE(adaq4216_hw_gains_vpv)][2];
 	struct gpio_descs *pga_gpios;
 	unsigned int pga_index;
 
@@ -1462,7 +1455,7 @@ static int ad4030_setup_pga(struct device *dev, struct iio_dev *indio_dev,
 		return dev_err_probe(dev, -EINVAL,
 				     "Expected 2 GPIOs for PGA control.\n");
 
-	st->scale_avail_size = ARRAY_SIZE(adaq4216_hw_gains_db);
+	st->scale_avail_size = ARRAY_SIZE(adaq4216_hw_gains_vpv);
 	st->pga_index = 0;
 
 	return 0;
