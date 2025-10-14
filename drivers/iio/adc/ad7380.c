@@ -899,7 +899,7 @@ struct ad7380_state {
 	struct spi_message normal_msg;
 	struct spi_transfer seq_xfer[4];
 	struct spi_message seq_msg;
-	struct spi_transfer offload_xfer;
+	struct spi_transfer offload_xfer[4];
 	struct spi_message offload_msg;
 	struct spi_offload *offload;
 	struct spi_offload_trigger *offload_trigger;
@@ -1169,7 +1169,7 @@ static int ad7380_set_sample_freq(struct ad7380_state *st, int val)
 static int ad7380_init_offload_msg(struct ad7380_state *st,
 				   struct iio_dev *indio_dev)
 {
-	struct spi_transfer *xfer = &st->offload_xfer;
+	struct spi_transfer *xfer = st->offload_xfer;
 	struct device *dev = &st->spi->dev;
 	const struct iio_scan_type *scan_type;
 	int ret;
@@ -1201,12 +1201,19 @@ static int ad7380_init_offload_msg(struct ad7380_state *st,
 		}
 	}
 
-	xfer->bits_per_word = scan_type->realbits;
-	xfer->offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
-	xfer->len = AD7380_SPI_BYTES(scan_type) *
-		st->chip_info->num_simult_channels / st->num_sdi;
+	unsigned int i;
+	for (i = 0; i < st->chip_info->num_simult_channels / st->num_sdi; i++) {
+		/*
+		 * Run SPI transfers to get the data of all simultaneously
+		 * sampled channels. If more data output lines are used,
+		 * less transfers are needed.
+		 */
+		xfer[i].bits_per_word = scan_type->realbits;
+		xfer[i].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
+		xfer[i].len = AD7380_SPI_BYTES(scan_type);
+	}
 
-	spi_message_init_with_transfers(&st->offload_msg, xfer, 1);
+	spi_message_init_with_transfers(&st->offload_msg, xfer, i);
 	st->offload_msg.offload = st->offload;
 
 	ret = spi_optimize_message(st->spi, &st->offload_msg);
