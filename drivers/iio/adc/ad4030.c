@@ -539,12 +539,7 @@ static int ad4030_update_conversion_rate(struct ad4030_state *st,
 	if (!in_range(cnv_wf.period_length_ns, AD4030_TCYC_NS, INT_MAX))
 		return -EINVAL;
 
-	offload_period_ns = cnv_wf.period_length_ns;
-	/*
-	 * Make the offload trigger period be N times longer than the CNV PWM
-	 * period when averaging over N samples.
-	 */
-	offload_period_ns <<= avg_log2;
+	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq_hz);
 
 	config->periodic.frequency_hz = DIV_ROUND_UP_ULL(NSEC_PER_SEC,
 							 offload_period_ns);
