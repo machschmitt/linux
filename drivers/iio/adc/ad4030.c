@@ -209,7 +209,7 @@ struct ad4030_state {
  * - _idx - _ch * 2 + _ch gives the channel number for this specific common-mode
  *   channel
  */
-#define __AD4030_CHAN_CMO(_idx, _ch, _offload)  {			\
+#define AD4030_CHAN_CMO(_idx, _ch)  {					\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
 		BIT(IIO_CHAN_INFO_SCALE),				\
 	.type = IIO_VOLTAGE,						\
@@ -219,17 +219,11 @@ struct ad4030_state {
 	.scan_index = (_idx),						\
 	.scan_type = {							\
 		.sign = 'u',						\
-		.storagebits = (_offload ? 32 : 8),			\
+		.storagebits = 8,					\
 		.realbits = 8,						\
-		.endianness = (_offload ? IIO_CPU : IIO_BE),		\
+		.endianness = IIO_BE,					\
 	},								\
 }
-
-#define AD4030_CHAN_CMO(_idx, _ch)					\
-	__AD4030_CHAN_CMO(_idx, _ch, 0)
-
-#define AD4030_OFFLOAD_CHAN_CMO(_idx, _ch)				\
-	__AD4030_CHAN_CMO(_idx, _ch, 1)
 
 /*
  * For a chip with 2 hardware channel this will be used to create 2 differential
@@ -1510,7 +1504,6 @@ static const struct ad4030_chip_info ad4030_24_chip_info = {
 	},
 	.offload_channels = {
 		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_offload_scan_types),
-		AD4030_OFFLOAD_CHAN_CMO(1, 0),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4030_24_GRADE,
 	.precision_bits = 24,
@@ -1532,8 +1525,6 @@ static const struct ad4030_chip_info ad4630_16_chip_info = {
 	.offload_channels = {
 		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_16_offload_scan_types),
 		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_16_offload_scan_types),
-		AD4030_OFFLOAD_CHAN_CMO(2, 0),
-		AD4030_OFFLOAD_CHAN_CMO(3, 1),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4630_16_GRADE,
 	.precision_bits = 16,
@@ -1555,8 +1546,6 @@ static const struct ad4030_chip_info ad4630_24_chip_info = {
 	.offload_channels = {
 		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_offload_scan_types),
 		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_24_offload_scan_types),
-		AD4030_OFFLOAD_CHAN_CMO(2, 0),
-		AD4030_OFFLOAD_CHAN_CMO(3, 1),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4630_24_GRADE,
 	.precision_bits = 24,
@@ -1578,8 +1567,6 @@ static const struct ad4030_chip_info ad4632_16_chip_info = {
 	.offload_channels = {
 		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_16_offload_scan_types),
 		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_16_offload_scan_types),
-		AD4030_OFFLOAD_CHAN_CMO(2, 0),
-		AD4030_OFFLOAD_CHAN_CMO(3, 1),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4632_16_GRADE,
 	.precision_bits = 16,
@@ -1601,8 +1588,6 @@ static const struct ad4030_chip_info ad4632_24_chip_info = {
 	.offload_channels = {
 		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_offload_scan_types),
 		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_24_offload_scan_types),
-		AD4030_OFFLOAD_CHAN_CMO(2, 0),
-		AD4030_OFFLOAD_CHAN_CMO(3, 1),
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4632_24_GRADE,
 	.precision_bits = 24,
