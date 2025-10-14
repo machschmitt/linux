@@ -1155,10 +1155,22 @@ static int ad4030_offload_buffer_predisable(struct iio_dev *indio_dev)
 	return ret;
 }
 
+static bool ad4030_offload_validate_scan_mask(struct iio_dev *indio_dev,
+					      const unsigned long *scan_mask)
+{
+	struct ad4030_state *st = iio_priv(indio_dev);
+
+	/* Voltage common-mode data is currently not supported with SPI offload */
+	if (ad4030_is_common_byte_asked(st, *scan_mask))
+		return false;
+
+	return true;
+}
+
 static const struct iio_buffer_setup_ops ad4030_offload_buffer_setup_ops = {
 	.postenable = &ad4030_offload_buffer_postenable,
 	.predisable = &ad4030_offload_buffer_predisable,
-	.validate_scan_mask = ad4030_validate_scan_mask,
+	.validate_scan_mask = ad4030_offload_validate_scan_mask,
 };
 
 static int ad4030_regulators_get(struct ad4030_state *st)
