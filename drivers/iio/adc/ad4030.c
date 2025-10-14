@@ -500,11 +500,12 @@ static void ad4030_get_sampling_freq(struct ad4030_state *st, int *freq)
 }
 
 static int ad4030_update_conversion_rate(struct ad4030_state *st,
-					 unsigned int freq, unsigned int avg_log2)
+					 unsigned int freq_hz, unsigned int avg_log2)
 {
 	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
 	struct pwm_waveform cnv_wf = { };
 	u64 target = AD4030_TCNVH_NS;
+	unsigned int cnv_rate_hz;
 	u64 offload_period_ns;
 	u64 offload_offset_ns;
 	int ret;
@@ -516,9 +517,9 @@ static int ad4030_update_conversion_rate(struct ad4030_state *st,
 	 * into account to correctly re-evaluate both the PWM waveform connected
 	 * to CNV and the SPI offload trigger.
 	 */
-	freq <<= avg_log2;
+	cnv_rate_hz = freq_hz << avg_log2;
 
-	cnv_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq);
+	cnv_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, cnv_rate_hz);
 	/*
 	 * The datasheet lists a minimum time of 9.8 ns, but no maximum. If the
 	 * rounded PWM's value is less than 10, increase the target value by 10
@@ -571,7 +572,7 @@ static int ad4030_update_conversion_rate(struct ad4030_state *st,
 	return 0;
 }
 
-static int ad4030_set_sampling_freq(struct iio_dev *indio_dev, int freq)
+static int ad4030_set_sampling_freq(struct iio_dev *indio_dev, int freq_hz)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 
@@ -582,10 +583,10 @@ static int ad4030_set_sampling_freq(struct iio_dev *indio_dev, int freq)
 	if (!st->offload_trigger)
 		return -ENODEV;
 
-	if (!in_range(freq, 1, st->chip->max_sample_rate_hz))
+	if (!in_range(freq_hz, 1, st->chip->max_sample_rate_hz))
 		return -EINVAL;
 
-	return ad4030_update_conversion_rate(st, freq, st->avg_log2);
+	return ad4030_update_conversion_rate(st, freq_hz, st->avg_log2);
 }
 
 static int ad4030_set_chan_calibscale(struct iio_dev *indio_dev,
