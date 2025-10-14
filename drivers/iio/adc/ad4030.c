@@ -526,6 +526,13 @@ static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 	if (IS_ERR(scan_type))
 		return PTR_ERR(scan_type);
 
+	/* The LSB of the 8-bit common-mode data is always vref/256. */
+	if (st->chip->has_pga && scan_type->realbits != 8) {
+		*val = st->scale_avail[st->pga_index][0];
+		*val2 = st->scale_avail[st->pga_index][1];
+		return IIO_VAL_INT_PLUS_NANO;
+	}
+
 	if (chan->differential)
 		*val = (st->vref_uv * 2) / MILLI;
 	else
