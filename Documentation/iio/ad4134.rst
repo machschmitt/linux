@@ -18,7 +18,7 @@ Wiring connections
 AD4134 and similar ADCs can operate in a few different wiring configurations.
 
 Minimum I/O mode (SPI control mode)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The minimum I/O mode wiring allows AD4134 register and data access with the
 conventional set of SPI bus lines. The hardware configuration settings for using
