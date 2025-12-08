@@ -56,3 +56,192 @@ mode is:
       |          DEC1/DCLKMODE |<--+
       +------------------------+   |
                                   GND
+
+
+PIN/SPI
+Enables the chip's SPI interface
+Set the PIN/SPI pin high to enable the SPI
+control mode, which enables the SPI of the device.
+Device Configuration Mode Control Input. Tie this pin to IOVDD to enable device
+configuration through register access over the SPI.
+
+Table 22. Configuration 2 Hardware Settings
+
++----------------------------+----------------------+--------------------+
+| Pin Function               |    Supply/Level      | Description        |
++============================+======================+====================+
+| AVDD5, DVDD5               |       5V             | Supply             |
++----------------------------+----------------------+--------------------+
+| IOVDD, CLKVDD, AVDD1V8,    |       1.8 V          | Supply             |
+| LDOIN, DVDD1V8             |                      |                    |
++----------------------------+----------------------+--------------------+
+| PIN/SPI                    |       High           | SPI control mode   |
++----------------------------+----------------------+--------------------+
+| CLKSEL                     |       Low            | CMOS input clock   |
++----------------------------+----------------------+--------------------+
+| MODE                       |       Low            | ASRC slave         |
++----------------------------+----------------------+--------------------+
+| DCLKMODE                   |       Low            | Gated DCLK         |
++----------------------------+----------------------+--------------------+
+| DCLKIO                     |       Low            | DCLK input         |
++----------------------------+----------------------+--------------------+
+
+Parallel wiring mode (IIO-backend mode)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Figure 87. Typical Connections Diagram
+
+
+The reference configuration for the current implementation of IIO-backend mode
+is the HDL reference provided by ADI:
+https://wiki.analog.com/resources/eval/user-guides/ad4134/hdl
+https://analogdevicesinc.github.io/hdl/projects/ad4134_fmc/index.html
+
+https://wiki.analog.com/resources/eval/user-guides/ad713x/hdl
+https://analogdevicesinc.github.io/hdl/projects/ad7134_fmc/index.html
+
+
+
+--------------
+
+Context:
+Integrate support for AD4134/AD7134/CN0561.
+
+- It's a board with two AD7134 ADCs.
+- The ADCs usual SPI lines are connected to ZedBoard PS SPI controller and are
+  used for configuration.
+- From the eval board comes out 8 data lines that carry data from both ADCs and
+  those lines are routed to SPI-Engine.
+- The intent is to feature simultaneous data capture and a common GPIO (cs_gpio)
+  is used for doing device synchronization to enable that.
+
+The HDL reference design is here
+https://wiki.analog.com/resources/eval/user-guides/cn0561/hdl
+
+The proposed changes in PR #2513
+(https://github.com/analogdevicesinc/linux/pull/2513) turn one of the AD7134
+into an "empty" ADC with no channels (only configuration) and the other one into
+a 8 channel ADC that provides data from both sensors.
+
+The device is set to SPI control mode (SPI pin high) to allow device
+synchronization and the devices are then configured in slave mode and
+receive a command setting the DIG_IF_RESET bit before data capture.
+That DIG_IF_RESET command must be given to all the slaves simultaneously
+using one single SPI write command.
+
+The configuration interface (PS SPI) CS lines that are going to the AD7134
+devices are "tied together" when the CS GPIO (active high) is set. With that,
+when a simultaneous write is needed, spi0 CS is set to both AD7134 CS lines and
+thus both device are selected and receive the same command at the same time. The
+data interface (ADC sampling) does not have a CS signal (only uses ODR, DCLK,
+and DOUT[0..3]) so SPI-Engine CS is unused.
+
+Alternative connection diagram for the project.
+
+::
+
+
+                                                              +-------------+
+  +----------------------+                                    |  DATA HOST  |
+  |       AD4134         |                                    | (SPI-ENGINE)|
+  |                      |                                    |             |
+  |Data interface  DOUT0 |----------------------------------->| GPI0        |
+  |for ADC data    DOUT1 |----------------------------------->| GPI1        |
+  |read back       DOUT2 |----------------------------------->| GPI2        |
+  |                DOUT3 |----------------------------------->| GPI3        |
+  |                DCLK  |<--------------+        +---------->| GPI4        |
+  |                ODR   |<------------+ |        | +-------->| GPI5        |
+  |                      |             | |        | | +------>| GPI6        |
+  |                      |             | |        | | | +---->| GPI7        |
+  | SPI interface   CS   |<-------+    | +--------|-|-|-|-+---| DCLK        |
+  | for register    SCLK |<-----+ |    |          | | | | |   |             |
+  | access          SDI  |<---+ | |    |          | | | | |   | TRIGGER     |
+  |                 SDO  |--+ | | |    |          | | | | |   +-------------+
+  +----------------------+  | | | |    +----------|-|-|-|-|-+     ^
+                            | | | |               | | | | | |     |
+  +----------------------+  | | | | +-----------+ | | | | | | +---+
+  |       AD4134         |  | | | | |   HOST    | | | | | | | |
+  |                      |  | | | | |(ZED PS SPI) | | | | | | |  +------------+
+  | SPI interface   CS   |<-|-|-|-+-| CS        | | | | | | | |  | PULSE      |
+  | for register    SCLK |<-|-|-+---| SCLK      | | | | | | | |  | GENERATOR  |
+  | access          SDI  |<-|-+-----| MOSI      | | | | | | | |  |(AXI PWM GEN)
+  |                 SDO  |--+------>| MISO      | | | | | | | |  |            |
+  |                      |          +-----------+ | | | | | | +--| OUT0       |
+  |                      |                        | | | | | +----| OUT1       |
+  |Data interface  DOUT0 |------------------------+ | | | | |    +------------+
+  |for ADC data    DOUT1 |--------------------------+ | | | |
+  |read back       DOUT2 |----------------------------+ | | |
+  |                DOUT3 |------------------------------+ | |
+  |                DCLK  |<-------------------------------+ |
+  |                ODR   |<---------------------------------+
+  +----------------------+
+
+In short, the device doesn't seem the have been designed with single-shot
+sampling in mind. Here's why (quotes are from AD4134 datasheet):
+
+
+* The ADC requires an additional periodic signal (ODR) to sample data.
+
+* "If the DCLK pin is configured as a free running input, the user must ensure
+  that the DCLK pin is synchronized to the ODR signal for proper data framing."
+  I was told that the intended setup is to use a free running ODR signal.
+
+* "An ODR input frequency check applies only to device operation in ASRC slave mode.
+  [...] The device checks the input ODR signal frequency after the PLL
+  locks and sets the ERR_ASRC bit if the ODR frequency detected
+  is outside the range for the particular type of filter selected as
+  specified in Table 19. [...] There is no data output in this scenario."
+  In Table 19 we can see the slowest sample rate is 10 SPS. No single-shot read.
+
+Nevertheless, here are some ideas.
+
+Idea 1:
+Have another GPIO and a mux to switch ODR pin input between the ODR PWM and the
+new GPIO. Pulse that ODR GPIO to get one single read.
+Will probably not work due to the ODR input frequency check plus
+the DCLK and ODR signals would not be synchronized.
+
+Idea 2:
+The current implementation already synchronizes the ODR with SPI transfer SCLK
+and uses the SPI-Engine offload module to takes samples and pass them through
+DMA. What if we do a buffered read, grab only one of the samples, then pass
+it as single-shot read? The down side is that it would pollute IIO device read
+buffer.
+
+Idea 3:
+Use the SPI-Engine command FIFO (AXI SPI Engine Module) to do a SPI read transfer.
+Issue: the transfer SCLK signal going to AD7134 DCLK would not be synchronized
+with the ODR PWM signal. So SPI-Engine would have to be extended to be able
+to synchronize the SPI interface SCLK with the provided ODR input signal.
+New software interfaces would also be needed to allow the peripheral device
+tell SPI-Engine how to synchronize SCLK with ODR (ODR duty cycle is 13 times
+larger than SPI-Engine offload trigger duty cycle in current implementation).
+
+Unimplemented features
+----------------------
+
+Many.
+
+
+
+
+                                                              +-------------+
+  +----------------------+                                    |  DATA HOST  |
+  |       AD4134         |                                    |             |
+  |                      |                                    |             |
+  |Data interface  DOUT0 |----------------------------------->| GPI0        |
+  |for ADC data    DOUT1 |----------------------------------->| GPI1        |
+  |read back       DOUT2 |----------------------------------->| GPI2        |
+  |                DOUT3 |----------------------------------->| GPI3        |
+  |                DCLK  |<--------------+        +---------->| GPI4        |
+  |                ODR   |<------------+ |        | +-------->| GPI5        |
+  |                      |             | |        | | +------>| GPI6        |
+  |                      |             | |        | | | +---->| GPI7        |
+  | SPI interface   CS   |<-------+    | +--------|-|-|-|-----| DCLK        |
+  | for register    SCLK |<-----+ |    |          | | | |     |             |
+  | access          SDI  |<---+ | |    |          | | | |     | TRIGGER     |
+  |                 SDO  |--+ | | |    |          | | | |     +-------------+
+  +----------------------+  | | | |    +----------|-|-|-|---------+
+                            | | | +---------------+ | | |
+                            | | +-------------------+ | |
+                            | +-----------------------+ |
+                            +---------------------------+
