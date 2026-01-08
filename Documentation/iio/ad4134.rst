@@ -98,4 +98,27 @@ data during zone 2 data read window.
 
 .. _AD4134-FMC HDL project: https://analogdevicesinc.github.io/hdl/projects/ad4134_fmc/index.html
 
+Parallel I/O mode
+~~~~~~~~~~~~~~~~~
+
+::
+
+  +-----------------------+                                    +-------------+
+  |       AD4134          |                                    |  DATA HOST  |
+  |                       |                                    |             |
+  | SPI interface      CS |<-----------------------------------|  CS         |
+  | for register     SCLK |<--+--------------------------------| SCLK        |
+  | access           DCLK |<--+                                |             |
+  |                   SDI |<-----------------------------------| SDO         |
+  |                   SDO |---+                                |             |
+  |                       |   |                                |             |
+  | Data interface  DOUT0 |...+------------------------------->| GPI0        |
+  | for ADC data    DOUT1 |----------------------------------->| GPI1        |
+  | read back       DOUT2 |----------------------------------->| GPI2        |
+  |                 DOUT3 |----------------------------------->| GPI3        |
+  |                 ODR   |<-----------------------------------| TRIGGER     |
+  +-----------------------+                                    +-------------+
+
+
+SDO_PIN_SRC_SEL set to 0x1: Signal on DOUT0 is duplicated on DEC3/SDO pin.
 
