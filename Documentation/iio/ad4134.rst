@@ -86,6 +86,30 @@ Table 22. Configuration 2 Hardware Settings
 | DCLKIO                     |       Low            | DCLK input         |
 +----------------------------+----------------------+--------------------+
 
+Parallel I/O mode
+~~~~~~~~~~~~~~~~~
+
+::
+
+  +-----------------------+                                    +-------------+
+  |       AD4134          |                                    |  DATA HOST  |
+  |                       |                                    |             |
+  | SPI interface      CS |<-----------------------------------|  CS         |
+  | for register     SCLK |<--+--------------------------------| SCLK        |
+  | access           DCLK |<--+                                |             |
+  |                   SDI |<-----------------------------------| SDO         |
+  |                   SDO |---+                                |             |
+  |                       |   |                                |             |
+  | Data interface  DOUT0 |...+------------------------------->| GPI0        |
+  | for ADC data    DOUT1 |----------------------------------->| GPI1        |
+  | read back       DOUT2 |----------------------------------->| GPI2        |
+  |                 DOUT3 |----------------------------------->| GPI3        |
+  |                 ODR   |<-----------------------------------| TRIGGER     |
+  +-----------------------+                                    +-------------+
+
+
+SDO_PIN_SRC_SEL set to 0x1: Signal on DOUT0 is duplicated on DEC3/SDO pin.
+
 Parallel wiring mode (IIO-backend mode)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Figure 87. Typical Connections Diagram
