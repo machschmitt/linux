@@ -426,6 +426,9 @@ static int ad4134_min_io_mode_setup(struct ad4134_state *st)
 }
 
 static const struct iio_info ad4134_info = {
+#ifdef CONFIG_AD4134_OFFLOAD_BUFFER
+	.attrs = &ad4134_offload_attribute_group,
+#endif
 	.read_raw = ad4134_read_raw,
 	.debugfs_reg_access = ad4134_debugfs_reg_access,
 };
@@ -580,9 +583,6 @@ static int ad4134_clock_select(struct ad4134_state *st)
 				     "failed to get clkin\n");
 
 	st->sys_clk_hz = clk_get_rate(xtal_clk) | clk_get_rate(clkin_clk);
-	if (st->sys_clk_hz != AD4134_EXT_CLOCK_MHZ)
-		dev_warn(dev, "invalid external clock frequency %lu\n",
-			 st->sys_clk_hz);
 
 	return 0;
 }
@@ -603,8 +603,6 @@ static int ad4134_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	indio_dev->name = "ad4134";
-	indio_dev->channels = ad4134_chan_set;
-	indio_dev->num_channels = ARRAY_SIZE(ad4134_chan_set);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4134_info;
 
@@ -649,15 +647,21 @@ static int ad4134_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ad4134_init_scan_msg(st);
+	ret = ad4134_offload_buffer_setup(indio_dev, spi);
+	/* Fall back to triggered buffer if no SPI offload is available. */
+	if (ret == -ENODEV) {
+		indio_dev->channels = ad4134_chan_set;
+		indio_dev->num_channels = ARRAY_SIZE(ad4134_chan_set);
+		ad4134_init_scan_msg(st);
 
-	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
-					      iio_pollfunc_store_time,
-					      &ad4134_trigger_handler,
-					      &ad4134_buffer_setup_ops);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to setup triggered buffer\n");
-
+		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+						      iio_pollfunc_store_time,
+						      &ad4134_trigger_handler,
+						      &ad4134_buffer_setup_ops);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to setup triggered buffer\n");
+	}
 
 	return devm_iio_device_register(dev, indio_dev);
 }
