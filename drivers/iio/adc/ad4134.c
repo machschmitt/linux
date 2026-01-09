@@ -15,6 +15,8 @@
 #include <linux/export.h>
 #include <linux/gpio/consumer.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 #include <linux/iio/types.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -85,6 +87,14 @@ static unsigned char ad4134_spi_crc_table[CRC8_TABLE_SIZE];
 	.channel = (_index),							\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),				\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),			\
+	.scan_index = (_index),							\
+	.scan_type = {								\
+		.sign = 's',							\
+		.realbits = AD4134_CHAN_PRECISION_BITS,				\
+		.storagebits = 32,						\
+		.shift = 32 - AD4134_CHAN_PRECISION_BITS,			\
+		.endianness = IIO_BE,						\
+	},									\
 }
 
 static const struct iio_chan_spec ad4134_chan_set[] = {
@@ -92,6 +102,7 @@ static const struct iio_chan_spec ad4134_chan_set[] = {
 	AD4134_CHANNEL(1),
 	AD4134_CHANNEL(2),
 	AD4134_CHANNEL(3),
+	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
 struct ad4134_state {
@@ -100,11 +111,18 @@ struct ad4134_state {
 	unsigned long sys_clk_hz;
 	struct gpio_desc *odr_gpio;
 	int refin_mv;
+	struct spi_transfer xfers[AD4134_NUM_CHANNELS];
+	struct spi_message msg;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
+	 *
+	 * Make the buffer large enough for AD4134_NUM_CHANNELS 32-bit samples
+	 * and one 64-bit aligned 64-bit timestamp.
 	 */
-	u8 rx_buf[AD4134_SPI_MAX_XFER_LEN] __aligned(IIO_DMA_MINALIGN);
+	IIO_DECLARE_DMA_BUFFER_WITH_TS(u8, scan_data, AD4134_NUM_CHANNELS * sizeof(u32));
+	/* Register access buffers */
+	u8 rx_buf[AD4134_SPI_MAX_XFER_LEN];
 	u8 tx_buf[AD4134_SPI_MAX_XFER_LEN];
 };
 
@@ -257,6 +275,9 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
 		gpiod_set_value_cansleep(st->odr_gpio, 1);
 		/*
 		 * For slave mode gated DCLK (data sheet page 11), the minimum
@@ -271,6 +292,7 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 		fsleep(1);
 		gpiod_set_value_cansleep(st->odr_gpio, 0);
 		ret = regmap_read(st->regmap, AD4134_CH_VREG(chan->channel), val);
+		iio_device_release_direct(indio_dev);
 		if (ret)
 			return ret;
 
@@ -329,6 +351,86 @@ static const struct iio_info ad4134_info = {
 	.read_raw = ad4134_read_raw,
 	.debugfs_reg_access = ad4134_debugfs_reg_access,
 };
+
+static void ad4134_init_scan_msg(struct ad4134_state *st)
+{
+	st->xfers[0].rx_buf = &st->scan_data[0];
+	st->xfers[0].len = BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS);
+	st->xfers[1].rx_buf = &st->scan_data[4];
+	st->xfers[1].len = BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS);
+	st->xfers[2].rx_buf = &st->scan_data[8];
+	st->xfers[2].len = BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS);
+	st->xfers[3].rx_buf = &st->scan_data[12];
+	st->xfers[3].len = BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS);
+
+	spi_message_init_with_transfers(&st->msg, st->xfers, AD4134_NUM_CHANNELS);
+}
+
+static int ad4134_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = spi_optimize_message(st->spi, &st->msg);
+	if (ret) {
+		dev_err(&st->spi->dev, "failed to prepare msg, err: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ad4134_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+
+	spi_unoptimize_message(&st->msg);
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops ad4134_buffer_setup_ops = {
+	.postenable = ad4134_buffer_postenable,
+	.predisable = ad4134_buffer_predisable,
+};
+
+static irqreturn_t ad4134_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ad4134_state *st = iio_priv(indio_dev);
+	unsigned int storagebytes = spi_bpw_to_bytes(AD4134_CHAN_PRECISION_BITS);
+	u8 bounce_buffer[AD4134_NUM_CHANNELS * storagebytes];
+	unsigned int chan_index;
+	unsigned int i = 0;
+	int ret;
+
+	/*
+	 * One ODR pulse causes each of the 4 ADCs within the AD4134 chip to
+	 * take a sample simultaneously. The peripheral then outputs the data
+	 * from those over one, two, or four data output lanes.
+	 */
+	gpiod_set_value_cansleep(st->odr_gpio, 1);
+	fsleep(1);
+	gpiod_set_value_cansleep(st->odr_gpio, 0);
+	ret = spi_sync(st->spi, &st->msg);
+	if (ret)
+		goto err_out;
+
+	/*
+	 * The scan_data buffer contains data from all 4 channels. Copy to
+	 * buffers only the data from the enabled channels.
+	 */
+	iio_for_each_active_channel(indio_dev, chan_index) {
+		memcpy(&bounce_buffer[i],
+		       &st->scan_data[chan_index * storagebytes], storagebytes);
+		i = i + storagebytes;
+	}
+
+	iio_push_to_buffers_with_timestamp(indio_dev, bounce_buffer, pf->timestamp);
+err_out:
+	iio_trigger_notify_done(indio_dev->trig);
+	return IRQ_HANDLED;
+}
 
 static const char * const ad4143_required_regulators[] = {
 	"avdd5", "dvdd5", "iovdd",
@@ -468,6 +570,16 @@ static int ad4134_probe(struct spi_device *spi)
 					    AD4134_POWER_MODE_HIGH_PERF));
 	if (ret)
 		return ret;
+
+	ad4134_init_scan_msg(st);
+
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+					      iio_pollfunc_store_time,
+					      &ad4134_trigger_handler,
+					      &ad4134_buffer_setup_ops);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to setup triggered buffer\n");
+
 
 	return devm_iio_device_register(dev, indio_dev);
 }
