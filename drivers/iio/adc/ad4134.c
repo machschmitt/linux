@@ -11,25 +11,36 @@
 #include <linux/crc8.h>
 #include <linux/delay.h>
 #include <linux/dev_printk.h>
+#include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/gpio/consumer.h>
+#include <linux/iio/buffer-dmaengine.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/types.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
+#include <linux/spi/offload/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/time.h>
 #include <linux/types.h>
 #include <linux/unaligned.h>
 #include <linux/units.h>
 
+#define AD4134_ODR_HIGH_TIME_NS			125
+#define AD4134_DCLK_RISING_OFFSET_NS		8
+#define AD4134_ODR_PERIOD_NS			250
 #define AD4134_RESET_TIME_US			(10 * USEC_PER_SEC)
+
+#define AD4134_MIN_ODR_FREQ_HZ			10
+#define AD4134_MAX_ODR_FREQ_HZ			(1496 * HZ_PER_KHZ)
 
 #define AD4134_REG_READ_MASK			BIT(7)
 #define AD4134_SPI_MAX_XFER_LEN			3
@@ -105,6 +116,49 @@ static const struct iio_chan_spec ad4134_chan_set[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
+/*
+ * Hardcode 32-bit storagebits since the current available HDL only supports
+ * that.
+ */
+#define AD4134_OFFLOAD_CHANNEL(_index) {					\
+	.type = IIO_VOLTAGE,							\
+	.indexed = 1,								\
+	.channel = (_index),							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),				\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |			\
+				    BIT(IIO_CHAN_INFO_SAMP_FREQ),		\
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.scan_index = (_index),							\
+	.scan_type = {								\
+		.sign = 's',							\
+		.storagebits = 32,						\
+		.realbits = AD4134_CHAN_PRECISION_BITS,				\
+		.endianness = IIO_CPU,						\
+	},									\
+}
+
+/*
+ * Offloaded SPI transfers can't support software timestamp so no additional
+ * timestamp channel is added.
+ */
+static const struct iio_chan_spec ad4134_offload_chan_set[] = {
+	AD4134_OFFLOAD_CHANNEL(0),
+	AD4134_OFFLOAD_CHANNEL(1),
+	AD4134_OFFLOAD_CHANNEL(2),
+	AD4134_OFFLOAD_CHANNEL(3),
+};
+
+/* The chip can only convert and output all 4 channels on each sample request */
+static const unsigned long ad4134_offload_scan_masks[] = {
+	GENMASK(3, 0),
+	0
+};
+
+static const struct spi_offload_config ad4134_offload_config = {
+	.capability_flags = SPI_OFFLOAD_CAP_TRIGGER |
+			    SPI_OFFLOAD_CAP_RX_STREAM_DMA,
+};
+
 struct ad4134_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
@@ -113,6 +167,11 @@ struct ad4134_state {
 	int refin_mv;
 	struct spi_transfer xfers[AD4134_NUM_CHANNELS];
 	struct spi_message msg;
+	struct spi_offload *offload;
+	struct spi_offload_trigger *offload_trigger;
+	struct spi_offload_trigger_config offload_trigger_config;
+	struct pwm_device *odr_trigger;
+	struct pwm_waveform odr_wf;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
@@ -266,6 +325,83 @@ static const struct regmap_config ad4134_regmap_config = {
 	.max_register = AD4134_CH_VREG(ARRAY_SIZE(ad4134_chan_set)),
 };
 
+static void ad4134_get_sampling_freq(struct ad4134_state *st, int *freq)
+{
+	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
+
+	/*
+	 * Conversion data is fetched from the device when the offload transfer
+	 * is triggered. Thus, provide the SPI offload trigger frequency as the
+	 * sampling frequency.
+	 */
+	*freq = config->periodic.frequency_hz;
+}
+
+static int ad4134_update_conversion_rate(struct ad4134_state *st,
+					 unsigned int freq_hz)
+{
+	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
+	struct pwm_waveform odr_wf = { };
+	u64 target;
+	u64 offload_period_ns;
+	u64 offload_offset_ns;
+	u64 odr_high_time_ns;
+	unsigned int odr_hz;
+	int ret;
+
+	if (freq_hz < AD4134_MIN_ODR_FREQ_HZ || freq_hz > AD4134_MAX_ODR_FREQ_HZ)
+		return -EINVAL;
+
+	odr_hz = freq_hz;
+	odr_high_time_ns = div64_ul(6ULL * NANO, st->sys_clk_hz);
+
+	odr_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, odr_hz);
+	/*
+	 * For an arbitrary system clock (fSYSCLK), we have a minimum ODR high
+	 * time of 6/fSYSCLK derived from the device clock and data interface
+	 * timing (with Gated DCLK) specifications. Set the PWM duty cycle to
+	 * keep ODR up for at least that long. If the rounded PWM's value is
+	 * less than the minimum required, increase the target value by 10 and
+	 * attempt to round the waveform again, until the minimum is reached.
+	 */
+	do {
+		odr_wf.duty_length_ns = target;
+		ret = pwm_round_waveform_might_sleep(st->odr_trigger, &odr_wf);
+		if (ret)
+			return ret;
+		target += 10;
+	} while (odr_wf.duty_length_ns < odr_high_time_ns);
+
+	if (!in_range(odr_wf.period_length_ns, 2 * odr_high_time_ns, INT_MAX))
+		return -EINVAL;
+
+	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq_hz);
+
+	config->periodic.frequency_hz = DIV_ROUND_UP_ULL(NSEC_PER_SEC,
+							 offload_period_ns);
+
+	/*
+	 * For gated DCLK, the minimum required time between ODR rising edge
+	 * and DCLK rising edge is the sum of ODR high time and ODR falling
+	 * edge to DCLK rising edge time. Delay the begin of data sampling for
+	 * at least that amount of time.
+	 */
+	offload_offset_ns = odr_high_time_ns + AD4134_DCLK_RISING_OFFSET_NS;
+	do {
+		config->periodic.offset_ns = offload_offset_ns;
+		ret = spi_offload_trigger_validate(st->offload_trigger, config);
+		if (ret)
+			return ret;
+
+		offload_offset_ns += 10;
+	} while (config->periodic.offset_ns < odr_high_time_ns +
+					      AD4134_DCLK_RISING_OFFSET_NS);
+
+	st->odr_wf = odr_wf;
+
+	return 0;
+}
+
 static int ad4134_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long info)
@@ -302,6 +438,29 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 		*val2 = AD4134_CHAN_PRECISION_BITS - 1;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		ad4134_get_sampling_freq(st, val);
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad4134_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan, int val,
+			    int val2, long mask)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	int ret;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
+		ret = ad4134_update_conversion_rate(st, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	default:
 		return -EINVAL;
 	}
@@ -347,10 +506,134 @@ static int ad4134_min_io_mode_setup(struct ad4134_state *st)
 			       AD4134_IFACE_CONFIG_B_SINGLE_INSTR);
 }
 
+static int ad4134_samp_freq_avail[] = {
+	AD4134_MIN_ODR_FREQ_HZ, 1, AD4134_MAX_ODR_FREQ_HZ
+};
+
+static int ad4134_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long info)
+{
+	switch (info) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*vals = ad4134_samp_freq_avail;
+		*type = IIO_VAL_INT;
+		return IIO_AVAIL_RANGE;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info ad4134_info = {
 	.read_raw = ad4134_read_raw,
+	.read_avail = ad4134_read_avail,
+	.write_raw = ad4134_write_raw,
 	.debugfs_reg_access = ad4134_debugfs_reg_access,
 };
+
+static void ad4134_prepare_offload_msg(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	unsigned int i;
+
+	for (i = 0; i < AD4134_NUM_CHANNELS; i++) {
+		st->xfers[i].rx_buf = NULL;
+		st->xfers[i].tx_buf = NULL;
+		st->xfers[i].bits_per_word = AD4134_CHAN_PRECISION_BITS;
+		st->xfers[i].len = spi_bpw_to_bytes(AD4134_CHAN_PRECISION_BITS);
+		st->xfers[i].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
+	}
+
+	spi_message_init_with_transfers(&st->msg, st->xfers, AD4134_NUM_CHANNELS);
+}
+
+static int ad4134_offload_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ad4134_prepare_offload_msg(indio_dev);
+	st->msg.offload = st->offload;
+	ret = spi_optimize_message(st->spi, &st->msg);
+	if (ret)
+		return ret;
+
+	ret = pwm_set_waveform_might_sleep(st->odr_trigger, &st->odr_wf, false);
+	if (ret)
+		goto out_unoptimize;
+
+	ret = spi_offload_trigger_enable(st->offload, st->offload_trigger,
+					 &st->offload_trigger_config);
+	if (ret)
+		goto out_pwm_disable;
+
+	return 0;
+
+out_pwm_disable:
+	pwm_disable(st->odr_trigger);
+out_unoptimize:
+	spi_unoptimize_message(&st->msg);
+
+	return 0;
+}
+
+static int ad4134_offload_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+
+	spi_offload_trigger_disable(st->offload, st->offload_trigger);
+
+	pwm_disable(st->odr_trigger);
+
+	spi_unoptimize_message(&st->msg);
+
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops ad4134_offload_buffer_setup_ops = {
+	.postenable = &ad4134_offload_buffer_postenable,
+	.predisable = &ad4134_offload_buffer_predisable,
+};
+
+static int ad4134_spi_offload_setup(struct iio_dev *indio_dev,
+				    struct ad4134_state *st)
+{
+	struct device *dev = &st->spi->dev;
+	struct dma_chan *rx_dma;
+
+	indio_dev->setup_ops = &ad4134_offload_buffer_setup_ops;
+
+	st->offload_trigger = devm_spi_offload_trigger_get(dev, st->offload,
+							   SPI_OFFLOAD_TRIGGER_PERIODIC);
+	if (IS_ERR(st->offload_trigger))
+		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
+				     "failed to get offload trigger\n");
+
+	st->offload_trigger_config.type = SPI_OFFLOAD_TRIGGER_PERIODIC;
+
+	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev, st->offload);
+	if (IS_ERR(rx_dma))
+		return dev_err_probe(dev, PTR_ERR(rx_dma),
+				     "failed to get offload RX DMA\n");
+
+	return devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev, rx_dma,
+							   IIO_BUFFER_DIRECTION_IN);
+}
+
+static int ad4134_pwm_get(struct ad4134_state *st)
+{
+	struct device *dev = &st->spi->dev;
+
+	st->odr_trigger = devm_pwm_get(dev, NULL);
+	if (IS_ERR(st->odr_trigger))
+		return dev_err_probe(dev, PTR_ERR(st->odr_trigger),
+				     "failed to get ODR PWM\n");
+
+	pwm_disable(st->odr_trigger);
+
+	return 0;
+}
 
 static void ad4134_init_scan_msg(struct ad4134_state *st)
 {
@@ -502,9 +785,6 @@ static int ad4134_clock_select(struct ad4134_state *st)
 				     "failed to get clkin\n");
 
 	st->sys_clk_hz = clk_get_rate(xtal_clk) | clk_get_rate(clkin_clk);
-	if (st->sys_clk_hz != AD4134_EXT_CLOCK_MHZ)
-		dev_warn(dev, "invalid external clock frequency %lu\n",
-			 st->sys_clk_hz);
 
 	return 0;
 }
@@ -525,8 +805,6 @@ static int ad4134_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	indio_dev->name = "ad4134";
-	indio_dev->channels = ad4134_chan_set;
-	indio_dev->num_channels = ARRAY_SIZE(ad4134_chan_set);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4134_info;
 
@@ -571,15 +849,49 @@ static int ad4134_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ad4134_init_scan_msg(st);
+	st->offload = devm_spi_offload_get(dev, spi, &ad4134_offload_config);
+	ret = PTR_ERR_OR_ZERO(st->offload);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "failed to get offload\n");
 
-	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
-					      iio_pollfunc_store_time,
-					      &ad4134_trigger_handler,
-					      &ad4134_buffer_setup_ops);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to setup triggered buffer\n");
+	/* Fall back to low speed usage when no SPI offload is available. */
+	if (ret == -ENODEV) {
+		indio_dev->channels = ad4134_chan_set;
+		indio_dev->num_channels = ARRAY_SIZE(ad4134_chan_set);
+		ad4134_init_scan_msg(st);
 
+		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+						      iio_pollfunc_store_time,
+						      &ad4134_trigger_handler,
+						      &ad4134_buffer_setup_ops);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to setup triggered buffer\n");
+	} else {
+		indio_dev->channels = ad4134_offload_chan_set;
+		indio_dev->num_channels = ARRAY_SIZE(ad4134_offload_chan_set);
+		indio_dev->available_scan_masks = ad4134_offload_scan_masks;
+
+		ret = ad4134_spi_offload_setup(indio_dev, st);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to setup SPI offload\n");
+
+		ret = ad4134_pwm_get(st);
+		if (ret)
+			return dev_err_probe(&spi->dev, ret,
+					     "failed to get PWM: %d\n", ret);
+
+		/*
+		 * Start with a slower sampling rate so there is some room for
+		 * adjusting the sampling frequency without hitting the maximum
+		 * conversion rate.
+		 */
+		ret = ad4134_update_conversion_rate(st, AD4134_MAX_ODR_FREQ_HZ >> 4);
+		if (ret)
+			return dev_err_probe(&spi->dev, ret,
+					     "failed to set offload samp freq\n");
+	}
 
 	return devm_iio_device_register(dev, indio_dev);
 }
@@ -610,3 +922,4 @@ MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD4134 SPI driver");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("IIO_AD4134");
+MODULE_IMPORT_NS("IIO_DMAENGINE_BUFFER");
