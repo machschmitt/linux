@@ -1222,10 +1222,6 @@ static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 	    FIELD_GET(AD4030_REG_MODES_MASK_LANE_MODE, reg_modes) == AD4030_LANE_MD_INTERLEAVED)
 		return -EINVAL;
 
-	ret = ad4030_exit_config_mode(st);
-	if (ret)
-		return ret;
-
 	ad4030_prepare_offload_msg(indio_dev);
 	st->offload_msg.offload = st->offload;
 	ret = spi_optimize_message(st->spi, &st->offload_msg);
@@ -1248,13 +1244,6 @@ out_pwm_disable:
 out_unoptimize:
 	spi_unoptimize_message(&st->offload_msg);
 out_reset_mode:
-	/* reenter register configuration mode */
-	ret2 = ad4030_enter_config_mode(st);
-	if (ret2)
-		dev_err(&st->spi->dev,
-			"couldn't reenter register configuration mode: %d\n",
-			ret2);
-
 	return ret;
 }
 
@@ -1269,13 +1258,7 @@ static int ad4030_offload_buffer_predisable(struct iio_dev *indio_dev)
 
 	spi_unoptimize_message(&st->offload_msg);
 
-	/* reenter register configuration mode */
-	ret = ad4030_enter_config_mode(st);
-	if (ret)
-		dev_err(&st->spi->dev,
-			"couldn't reenter register configuration mode\n");
-
-	return ret;
+	return 0;
 }
 
 static const struct iio_buffer_setup_ops ad4030_offload_buffer_setup_ops = {
