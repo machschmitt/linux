@@ -379,7 +379,14 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	if (!in_range(odr_wf.period_length_ns, 2 * odr_high_time_ns, INT_MAX))
 		return -EINVAL;
 
-	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq_hz);
+
+	/*
+	 * The controller will fetch one sample per active lane each time the
+	 * offload is triggered. If multiple data lanes are enabled, the offload
+	 * trigger frequency can be proportionally slower.
+	 */
+	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC,
+					      freq_hz / AD4134_NUM_DOUT_LINES);
 
 	config->periodic.frequency_hz = DIV_ROUND_UP_ULL(NSEC_PER_SEC,
 							 offload_period_ns);
