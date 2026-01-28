@@ -34,6 +34,8 @@
 #include <linux/unaligned.h>
 #include <linux/units.h>
 
+#define AD4134_NUM_DOUT_LINES			1
+
 #define AD4134_ODR_HIGH_TIME_NS			125
 #define AD4134_DCLK_RISING_OFFSET_NS		8
 #define AD4134_ODR_PERIOD_NS			250
@@ -330,11 +332,13 @@ static void ad4134_get_sampling_freq(struct ad4134_state *st, int *freq)
 	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
 
 	/*
-	 * Conversion data is fetched from the device when the offload transfer
-	 * is triggered. Thus, provide the SPI offload trigger frequency as the
-	 * sampling frequency.
+	 * The peripheral outputs the data from all 4 channels over one, two, or
+	 * four data output lanes. Conversion data is fetched from the device
+	 * when the offload transfer is triggered. If the controller can fetch
+	 * data from multiple lanes, the throughput is increased proportionally
+	 * to the number of data lanes in use.
 	 */
-	*freq = config->periodic.frequency_hz;
+	*freq = config->periodic.frequency_hz * AD4134_NUM_DOUT_LINES;
 }
 
 static int ad4134_update_conversion_rate(struct ad4134_state *st,
