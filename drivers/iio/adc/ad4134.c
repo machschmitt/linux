@@ -174,6 +174,7 @@ struct ad4134_state {
 	struct spi_offload_trigger_config offload_trigger_config;
 	struct pwm_device *odr_trigger;
 	struct pwm_waveform odr_wf;
+	unsigned int samp_freq_hz;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
@@ -338,7 +339,8 @@ static void ad4134_get_sampling_freq(struct ad4134_state *st, int *freq)
 	 * data from multiple lanes, the throughput is increased proportionally
 	 * to the number of data lanes in use.
 	 */
-	*freq = config->periodic.frequency_hz * AD4134_NUM_DOUT_LINES;
+	//*freq = config->periodic.frequency_hz * AD4134_NUM_DOUT_LINES;
+	*freq = st->samp_freq_hz;
 }
 
 static int ad4134_update_conversion_rate(struct ad4134_state *st,
@@ -353,10 +355,19 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	unsigned int odr_hz;
 	int ret;
 
-	if (freq_hz < AD4134_MIN_ODR_FREQ_HZ || freq_hz > AD4134_MAX_ODR_FREQ_HZ)
+	/*
+	 * Every ODR pulse causes each of the 4 ADCs within the AD4134 chip to
+	 * take a sample simultaneously. The peripheral then outputs the data
+	 * from all those channels over one, two, or four data output lanes. If
+	 * the controller can fetch data from multiple lanes, the throughput is
+	 * increased proportionally to the number of data lanes in use.
+	 * Conversely, when multiple data lanes are enabled, the requested
+	 * sampling frequency can be reached with slower ODR frequencies.
+	 */
+	odr_hz = freq_hz / AD4134_NUM_DOUT_LINES;
+	if (odr_hz < AD4134_MIN_ODR_FREQ_HZ || odr_hz > AD4134_MAX_ODR_FREQ_HZ)
 		return -EINVAL;
 
-	odr_hz = freq_hz;
 	odr_high_time_ns = div64_ul(6ULL * NANO, st->sys_clk_hz);
 
 	odr_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, odr_hz);
@@ -381,12 +392,12 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 
 
 	/*
-	 * The controller will fetch one sample per active lane each time the
+	 * The controller fetches one sample per active lane each time the
 	 * offload is triggered. If multiple data lanes are enabled, the offload
 	 * trigger frequency can be proportionally slower.
 	 */
 	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC,
-					      freq_hz / AD4134_NUM_DOUT_LINES);
+					      odr_hz * AD4134_NUM_DOUT_LINES);
 
 	config->periodic.frequency_hz = DIV_ROUND_UP_ULL(NSEC_PER_SEC,
 							 offload_period_ns);
@@ -409,6 +420,7 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 					      AD4134_DCLK_RISING_OFFSET_NS);
 
 	st->odr_wf = odr_wf;
+	st->samp_freq_hz = freq_hz;
 
 	return 0;
 }
@@ -898,7 +910,8 @@ static int ad4134_probe(struct spi_device *spi)
 		 * adjusting the sampling frequency without hitting the maximum
 		 * conversion rate.
 		 */
-		ret = ad4134_update_conversion_rate(st, AD4134_MAX_ODR_FREQ_HZ >> 4);
+		st->samp_freq_hz = AD4134_MAX_ODR_FREQ_HZ >> 4;
+		ret = ad4134_update_conversion_rate(st, st->samp_freq_hz);
 		if (ret)
 			return dev_err_probe(&spi->dev, ret,
 					     "failed to set offload samp freq\n");
