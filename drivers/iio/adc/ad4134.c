@@ -369,6 +369,8 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 		return -EINVAL;
 
 	odr_high_time_ns = div64_ul(6ULL * NANO, st->sys_clk_hz);
+	dev_info(&st->spi->dev, "%s: odr_high_time_ns: %llu\n",
+		 __func__, odr_high_time_ns);
 
 	odr_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, odr_hz);
 	/*
@@ -418,6 +420,17 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 		offload_offset_ns += 10;
 	} while (config->periodic.offset_ns < odr_high_time_ns +
 					      AD4134_DCLK_RISING_OFFSET_NS);
+
+	dev_info(&st->spi->dev, "%s: config->periodic.frequency_hz: %llu\n",
+		 __func__, config->periodic.frequency_hz);
+	dev_info(&st->spi->dev, "%s: config->periodic.offset_ns: %llu\n",
+		 __func__, config->periodic.offset_ns);
+	dev_info(&st->spi->dev, "%s: odr_wf.period_length_ns: %llu\n",
+		 __func__, odr_wf.period_length_ns);
+	dev_info(&st->spi->dev, "%s: odr_wf.duty_length_ns: %llu\n",
+		 __func__, odr_wf.duty_length_ns);
+	dev_info(&st->spi->dev, "%s: odr_wf.duty_offset_ns: %llu\n",
+		 __func__, odr_wf.duty_offset_ns);
 
 	st->odr_wf = odr_wf;
 	st->samp_freq_hz = freq_hz;
@@ -808,6 +821,7 @@ static int ad4134_clock_select(struct ad4134_state *st)
 				     "failed to get clkin\n");
 
 	st->sys_clk_hz = clk_get_rate(xtal_clk) | clk_get_rate(clkin_clk);
+	dev_info(dev, "%s: st->sys_clk_hz: %lu\n", __func__, st->sys_clk_hz);
 
 	return 0;
 }
