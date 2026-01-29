@@ -519,29 +519,8 @@ static int ad4134_min_io_mode_setup(struct ad4134_state *st)
 			       AD4134_IFACE_CONFIG_B_SINGLE_INSTR);
 }
 
-static int ad4134_samp_freq_avail[] = {
-	AD4134_MIN_ODR_FREQ_HZ, 1, AD4134_MAX_ODR_FREQ_HZ
-};
-
-static int ad4134_read_avail(struct iio_dev *indio_dev,
-			     struct iio_chan_spec const *chan,
-			     const int **vals, int *type, int *length,
-			     long info)
-{
-	switch (info) {
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		*vals = ad4134_samp_freq_avail;
-		*type = IIO_VAL_INT;
-		return IIO_AVAIL_RANGE;
-	default:
-		return -EINVAL;
-	}
-}
-
 static const struct iio_info ad4134_info = {
 	.read_raw = ad4134_read_raw,
-	.read_avail = ad4134_read_avail,
-	.write_raw = ad4134_write_raw,
 	.debugfs_reg_access = ad4134_debugfs_reg_access,
 };
 
