@@ -175,7 +175,7 @@ struct ad4134_state {
 	struct spi_offload_trigger_config offload_trigger_config;
 	struct pwm_device *odr_trigger;
 	struct pwm_waveform odr_wf;
-	unsigned int samp_freq_hz;
+	unsigned int odr_hz;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
@@ -434,7 +434,7 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 		 __func__, odr_wf.duty_offset_ns);
 
 	st->odr_wf = odr_wf;
-	st->samp_freq_hz = freq_hz;
+	st->odr_hz = odr_hz;
 
 	return 0;
 }
@@ -530,7 +530,7 @@ static ssize_t sampling_frequency_show(struct device *dev,
 {
 	struct ad4134_state *st = iio_priv(dev_to_iio_dev(dev));
 
-	return sysfs_emit(buf, "%u\n", st->samp_freq_hz);
+	return sysfs_emit(buf, "%u\n", st->odr_hz * AD4134_NUM_DOUT_LINES);
 }
 
 static ssize_t sampling_frequency_store(struct device *dev,
@@ -942,8 +942,8 @@ static int ad4134_probe(struct spi_device *spi)
 		 * adjusting the sampling frequency without hitting the maximum
 		 * conversion rate.
 		 */
-		st->samp_freq_hz = AD4134_MAX_ODR_FREQ_HZ >> 4;
-		ret = ad4134_update_conversion_rate(st, st->samp_freq_hz);
+		st->odr_hz = AD4134_MAX_ODR_FREQ_HZ >> 4;
+		ret = ad4134_update_conversion_rate(st, st->odr_hz);
 		if (ret)
 			return dev_err_probe(&spi->dev, ret,
 					     "failed to set offload samp freq\n");
