@@ -128,9 +128,7 @@ static const struct iio_chan_spec ad4134_chan_set[] = {
 	.indexed = 1,								\
 	.channel = (_index),							\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),				\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |			\
-				    BIT(IIO_CHAN_INFO_SAMP_FREQ),		\
-	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),			\
 	.scan_index = (_index),							\
 	.scan_type = {								\
 		.sign = 's',							\
