@@ -329,21 +329,6 @@ static const struct regmap_config ad4134_regmap_config = {
 	.max_register = AD4134_CH_VREG(ARRAY_SIZE(ad4134_chan_set)),
 };
 
-static void ad4134_get_sampling_freq(struct ad4134_state *st, int *freq)
-{
-	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
-
-	/*
-	 * The peripheral outputs the data from all 4 channels over one, two, or
-	 * four data output lanes. Conversion data is fetched from the device
-	 * when the offload transfer is triggered. If the controller can fetch
-	 * data from multiple lanes, the throughput is increased proportionally
-	 * to the number of data lanes in use.
-	 */
-	//*freq = config->periodic.frequency_hz * AD4134_NUM_DOUT_LINES;
-	*freq = st->samp_freq_hz;
-}
-
 static int ad4134_update_conversion_rate(struct ad4134_state *st,
 					 unsigned int freq_hz)
 {
