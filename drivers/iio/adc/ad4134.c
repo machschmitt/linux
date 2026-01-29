@@ -474,29 +474,6 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 		*val2 = AD4134_CHAN_PRECISION_BITS - 1;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		ad4134_get_sampling_freq(st, val);
-		return IIO_VAL_INT;
-	default:
-		return -EINVAL;
-	}
-}
-
-static int ad4134_write_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan, int val,
-			    int val2, long mask)
-{
-	struct ad4134_state *st = iio_priv(indio_dev);
-	int ret;
-
-	switch (mask) {
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (!iio_device_claim_direct(indio_dev))
-			return -EBUSY;
-
-		ret = ad4134_update_conversion_rate(st, val);
-		iio_device_release_direct(indio_dev);
-		return ret;
 	default:
 		return -EINVAL;
 	}
