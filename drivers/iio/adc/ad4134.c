@@ -442,7 +442,7 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	dev_info(&st->spi->dev, "%s: odr_high_time_ns: %llu\n",
 		 __func__, odr_high_time_ns);
 
-	odr_wf.period_length_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, odr_hz);
+	odr_wf.period_length_ns = DIV_ROUND_UP(NSEC_PER_SEC, odr_hz);
 	/*
 	 * For an arbitrary system clock (fSYSCLK), we have a minimum ODR high
 	 * time of 6/fSYSCLK derived from the device clock and data interface
@@ -468,8 +468,8 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	 * offload is triggered. If multiple data lanes are enabled, the offload
 	 * trigger frequency can be proportionally slower.
 	 */
-	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC,
-					      odr_hz * AD4134_NUM_DOUT_LINES);
+	offload_period_ns = DIV_ROUND_UP(NSEC_PER_SEC,
+					 odr_hz * AD4134_NUM_DOUT_LINES);
 
 	config->periodic.frequency_hz = DIV_ROUND_UP_ULL(NSEC_PER_SEC,
 							 offload_period_ns);
