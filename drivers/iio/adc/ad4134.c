@@ -19,6 +19,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/iio/sysfs.h>
 #include <linux/iio/types.h>
 #include <linux/math64.h>
 #include <linux/module.h>
@@ -524,6 +525,66 @@ static const struct iio_info ad4134_info = {
 	.debugfs_reg_access = ad4134_debugfs_reg_access,
 };
 
+static ssize_t sampling_frequency_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct ad4134_state *st = iio_priv(dev_to_iio_dev(dev));
+
+	return sysfs_emit(buf, "%u\n", st->samp_freq_hz);
+}
+
+static ssize_t sampling_frequency_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ad4134_state *st = iio_priv(indio_dev);
+	unsigned int val;
+	int ret;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		goto out_store;
+
+	ret = ad4134_update_conversion_rate(st, val);
+
+out_store:
+	iio_device_release_direct(indio_dev);
+	return ret ?: len;
+}
+
+static IIO_DEVICE_ATTR_RW(sampling_frequency, 0);
+
+static ssize_t sampling_frequency_available_show(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	return sysfs_emit(buf, "[%u %u %lu]\n",
+			  AD4134_MIN_ODR_FREQ_HZ * AD4134_NUM_DOUT_LINES, 1,
+			  AD4134_MAX_ODR_FREQ_HZ * AD4134_NUM_DOUT_LINES);
+}
+
+static IIO_DEVICE_ATTR_RO(sampling_frequency_available, 0);
+
+static struct attribute *ad4134_offload_attributes[] = {
+	&iio_dev_attr_sampling_frequency.dev_attr.attr,
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group ad4134_offload_attribute_group = {
+	.attrs = ad4134_offload_attributes,
+};
+
+static const struct iio_info ad4134_offload_info = {
+	.attrs = &ad4134_offload_attribute_group,
+	.read_raw = ad4134_read_raw,
+	.debugfs_reg_access = ad4134_debugfs_reg_access,
+};
+
 static void ad4134_prepare_offload_msg(struct iio_dev *indio_dev)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
@@ -799,7 +860,6 @@ static int ad4134_probe(struct spi_device *spi)
 
 	indio_dev->name = "ad4134";
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->info = &ad4134_info;
 
 	ret = ad4134_regulator_setup(st);
 	if (ret)
@@ -849,6 +909,7 @@ static int ad4134_probe(struct spi_device *spi)
 
 	/* Fall back to low speed usage when no SPI offload is available. */
 	if (ret == -ENODEV) {
+		indio_dev->info = &ad4134_info;
 		indio_dev->channels = ad4134_chan_set;
 		indio_dev->num_channels = ARRAY_SIZE(ad4134_chan_set);
 		ad4134_init_scan_msg(st);
@@ -861,6 +922,7 @@ static int ad4134_probe(struct spi_device *spi)
 			return dev_err_probe(dev, ret,
 					     "failed to setup triggered buffer\n");
 	} else {
+		indio_dev->info = &ad4134_offload_info;
 		indio_dev->channels = ad4134_offload_chan_set;
 		indio_dev->num_channels = ARRAY_SIZE(ad4134_offload_chan_set);
 		indio_dev->available_scan_masks = ad4134_offload_scan_masks;
