@@ -120,6 +120,8 @@ config AD4130
 config AD4134
 	tristate "Analog Device AD4134 ADC Driver"
 	depends on SPI
+	depends on GPIOLIB
+	depends on COMMON_CLK
 	select REGMAP_SPI
 	select CRC8
 	help
