@@ -34,6 +34,14 @@
 #include <linux/unaligned.h>
 #include <linux/units.h>
 
+//#include <linux/dmaengine.h>
+//#include <linux/iio/buffer-dmaengine.h>
+//#include <linux/iio/sysfs.h>
+//#include <linux/math64.h>
+//#include <linux/pwm.h>
+//#include <linux/spi/offload/consumer.h>
+
+
 #include "ad4134.h"
 
 /*
