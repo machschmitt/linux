@@ -12,8 +12,20 @@
 #include <linux/bits.h>
 #include <linux/compiler_attributes.h>
 #include <linux/iio/iio.h>
+#ifdef CONFIG_AD4134_OFFLOAD_BUFFER
+#include <linux/spi/offload/consumer.h>
+#endif
 #include <linux/units.h>
+#ifdef CONFIG_AD4134_OFFLOAD_BUFFER
+#include <linux/pwm.h>
+#endif
 #include <linux/types.h>
+
+#define AD4134_NUM_DOUT_LINES			1
+
+#define AD4134_DCLK_RISING_OFFSET_NS		8
+#define AD4134_MIN_ODR_FREQ_HZ			10
+#define AD4134_MAX_ODR_FREQ_HZ			(1496 * HZ_PER_KHZ)
 
 #define AD4134_SPI_MAX_XFER_LEN			3
 #define AD4134_NUM_CHANNELS			4
@@ -26,6 +38,14 @@ struct ad4134_state {
 	struct gpio_desc *odr_gpio;
 	struct spi_transfer xfers[AD4134_NUM_CHANNELS];
 	struct spi_message msg;
+#ifdef CONFIG_AD4134_OFFLOAD_BUFFER
+	struct spi_offload *offload;
+	struct spi_offload_trigger *offload_trigger;
+	struct spi_offload_trigger_config offload_trigger_config;
+	struct pwm_device *odr_trigger;
+	struct pwm_waveform odr_wf;
+	unsigned int odr_hz;
+#endif
 	int refin_mv;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -39,5 +59,20 @@ struct ad4134_state {
 	u8 rx_buf[AD4134_SPI_MAX_XFER_LEN];
 	u8 tx_buf[AD4134_SPI_MAX_XFER_LEN];
 };
+
+#ifdef CONFIG_AD4134_OFFLOAD_BUFFER
+extern const struct attribute_group ad4134_offload_attribute_group;
+#endif
+
+#ifdef CONFIG_AD4134_OFFLOAD_BUFFER
+int ad4134_offload_buffer_setup(struct iio_dev *indio_dev, struct spi_device *spi);
+#else
+static inline int ad4134_offload_buffer_setup(struct iio_dev *indio_dev,
+					      struct spi_device *spi)
+{
+	might_sleep();
+	return -ENODEV;
+}
+#endif
 
 #endif /* __DRIVERS_IIO_ADC_AD4134_COMMON_H__ */
