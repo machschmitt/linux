@@ -30,15 +30,13 @@
 #include <linux/unaligned.h>
 #include <linux/units.h>
 
+#include "ad4134.h"
+
 #define AD4134_RESET_TIME_US			(10 * USEC_PER_SEC)
 
 #define AD4134_REG_READ_MASK			BIT(7)
-#define AD4134_SPI_MAX_XFER_LEN			3
 
 #define AD4134_EXT_CLOCK_MHZ			(48 * HZ_PER_MHZ)
-
-#define AD4134_NUM_CHANNELS			4
-#define AD4134_CHAN_PRECISION_BITS		24
 
 #define AD4134_IFACE_CONFIG_A_REG		0x00
 #define AD4134_IFACE_CONFIG_B_REG		0x01
@@ -100,27 +98,6 @@ static const char * const ad4134_filt_names[] = {
 	[AD4134_SINC6] = "sinc6",
 	[AD4134_SINC3] = "sinc3",
 	[AD4134_SINC3_REJ60] = "sinc3+rej60",
-};
-
-struct ad4134_state {
-	struct spi_device *spi;
-	struct regmap *regmap;
-	unsigned long sys_clk_hz;
-	struct gpio_desc *odr_gpio;
-	struct spi_transfer xfers[AD4134_NUM_CHANNELS];
-	struct spi_message msg;
-	int refin_mv;
-	/*
-	 * DMA (thus cache coherency maintenance) requires the transfer buffers
-	 * to live in their own cache lines.
-	 *
-	 * Make the buffer large enough for AD4134_NUM_CHANNELS 32-bit samples
-	 * and one 64-bit aligned 64-bit timestamp.
-	 */
-	IIO_DECLARE_DMA_BUFFER_WITH_TS(u8, scan_data, AD4134_NUM_CHANNELS * sizeof(u32));
-	/* Register access buffers */
-	u8 rx_buf[AD4134_SPI_MAX_XFER_LEN];
-	u8 tx_buf[AD4134_SPI_MAX_XFER_LEN];
 };
 
 static const struct regmap_range ad4134_regmap_rd_range[] = {
