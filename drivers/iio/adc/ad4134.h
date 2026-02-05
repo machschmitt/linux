@@ -8,18 +8,17 @@
 #ifndef __DRIVERS_IIO_ADC_AD4134_H__
 #define __DRIVERS_IIO_ADC_AD4134_H__
 
-#include <linux/array_size.h>
-#include <linux/bits.h>
-#include <linux/compiler_attributes.h>
 #include <linux/iio/iio.h>
-#ifdef CONFIG_AD4134_OFFLOAD_BUFFER
-#include <linux/spi/offload/consumer.h>
-#endif
-#include <linux/units.h>
 #ifdef CONFIG_AD4134_OFFLOAD_BUFFER
 #include <linux/pwm.h>
 #endif
+#include <linux/spi/spi.h>
+#ifdef CONFIG_AD4134_OFFLOAD_BUFFER
+#include <linux/spi/offload/consumer.h>
+#include <linux/spi/offload/types.h>
+#endif
 #include <linux/types.h>
+#include <linux/units.h>
 
 #define AD4134_NUM_DOUT_LINES			1
 
