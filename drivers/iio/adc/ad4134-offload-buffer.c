@@ -4,43 +4,29 @@
  * Author: Marcelo Schmitt <marcelo.schmitt@analog.com>
  */
 
+#include <linux/bits.h>
 #include <linux/array_size.h>
-#include <linux/bitfield.h>
-#include <linux/bitops.h>
-#include <linux/clk.h>
-#include <linux/delay.h>
-#include <linux/dev_printk.h>
-#include <linux/dmaengine.h>
 #include <linux/err.h>
-#include <linux/export.h>
-#include <linux/gpio/consumer.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/buffer-dmaengine.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/trigger_consumer.h>
-#include <linux/iio/triggered_buffer.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/types.h>
+#include <linux/kstrtox.h>
+#include <linux/limits.h>
+#include <linux/linkage.h>
+#include <linux/math.h>
 #include <linux/math64.h>
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
+#include <linux/minmax.h>
 #include <linux/pwm.h>
-#include <linux/regmap.h>
-#include <linux/regulator/consumer.h>
-#include <linux/reset.h>
-#include <linux/spi/offload/consumer.h>
 #include <linux/spi/spi.h>
-#include <linux/time.h>
+#include <linux/spi/offload/consumer.h>
+#include <linux/spi/offload/types.h>
+#include <linux/stddef.h>
+#include <linux/sysfs.h>
+#include <linux/time64.h>
 #include <linux/types.h>
-#include <linux/unaligned.h>
 #include <linux/units.h>
-
-//#include <linux/dmaengine.h>
-//#include <linux/iio/buffer-dmaengine.h>
-//#include <linux/iio/sysfs.h>
-//#include <linux/math64.h>
-//#include <linux/pwm.h>
-//#include <linux/spi/offload/consumer.h>
-
 
 #include "ad4134.h"
 
