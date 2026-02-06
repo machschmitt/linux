@@ -551,8 +551,7 @@ static int ad4030_update_conversion_rate(struct ad4030_state *st,
 
 	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq_hz);
 
-	config->periodic.frequency_hz = DIV_ROUND_UP(NSEC_PER_SEC,
-						     offload_period_ns);
+	config->periodic.frequency_hz = DIV_ROUND_UP(HZ_PER_GHZ, offload_period_ns);
 
 	/*
 	 * The hardware does the capture on zone 2 (when SPI trigger PWM
