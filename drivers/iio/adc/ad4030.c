@@ -508,10 +508,9 @@ static int ad4030_update_conversion_rate(struct ad4030_state *st,
 					 unsigned int freq_hz, unsigned int avg_log2)
 {
 	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
+	unsigned int offload_period_ns, cnv_rate_hz;
 	struct pwm_waveform cnv_wf = { };
 	u64 target = AD4030_TCNVH_NS;
-	unsigned int cnv_rate_hz;
-	u64 offload_period_ns;
 	u64 offload_offset_ns;
 	int ret;
 
