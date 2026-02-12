@@ -62,6 +62,8 @@
 #define AD4134_DIG_IF_CFG_REG			0x12
 #define AD4134_DIF_IF_CFG_FORMAT_MASK		GENMASK(1, 0)
 #define AD4134_DATA_FORMAT_SINGLE_CH_MODE	0x0
+#define AD4134_DATA_FORMAT_DUAL_CH_MODE		0x1
+#define AD4134_DATA_FORMAT_QUAD_CH_MODE		0x2
 
 #define AD4134_PW_DOWN_CTRL_REG			0x13
 #define AD4134_DEVICE_STATUS_REG		0x15
@@ -511,6 +513,35 @@ err_out:
 	return IRQ_HANDLED;
 }
 
+static int ad4134_lane_setup(struct ad4134_state *st)
+{
+	struct device *dev = &st->spi->dev;
+	int ret;
+
+	switch (st->num_dout_lines) {
+	case 1:
+		return ad4134_min_io_mode_setup(st);
+	case 2:
+		ret = regmap_update_bits(st->regmap, AD4134_DIG_IF_CFG_REG,
+					 AD4134_DIF_IF_CFG_FORMAT_MASK,
+					 AD4134_DATA_FORMAT_DUAL_CH_MODE);
+		break;
+	case 4:
+		ret = regmap_update_bits(st->regmap, AD4134_DIG_IF_CFG_REG,
+					 AD4134_DIF_IF_CFG_FORMAT_MASK,
+					 AD4134_DATA_FORMAT_QUAD_CH_MODE);
+		break;
+	default:
+		return dev_err_probe(dev, -EINVAL,
+				     "unsupported lane config\n");
+	}
+	if (ret)
+		return dev_err_probe(dev, -EINVAL,
+				     "failed to setup lane mode\n");
+
+	return 0;
+}
+
 static const char * const ad4143_required_regulators[] = {
 	"avdd5", "dvdd5", "iovdd",
 };
@@ -599,6 +630,7 @@ static int ad4134_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
+	st->num_dout_lines = spi->num_rx_lanes;
 
 	indio_dev->name = "ad4134";
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -629,10 +661,10 @@ static int ad4134_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(st->regmap),
 				     "failed to initialize regmap");
 
-	ret = ad4134_min_io_mode_setup(st);
+	ret = ad4134_lane_setup(st);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to setup minimum I/O mode\n");
+		return dev_err_probe(dev, -EINVAL,
+				     "failed to setup lane mode\n");
 
 	/* Bump precision to 24-bit */
 	ret = regmap_update_bits(st->regmap, AD4134_DATA_PACKET_CONFIG_REG,
