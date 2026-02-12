@@ -405,11 +405,6 @@ static int ad4134_min_io_mode_setup(struct ad4134_state *st)
 	struct device *dev = &st->spi->dev;
 	int ret;
 
-	st->odr_gpio = devm_gpiod_get(dev, "odr", GPIOD_OUT_LOW);
-	if (IS_ERR(st->odr_gpio))
-		return dev_err_probe(dev, PTR_ERR(st->odr_gpio),
-				     "failed to get ODR GPIO\n");
-
 	ret = regmap_update_bits(st->regmap, AD4134_DIG_IF_CFG_REG,
 				 AD4134_DIF_IF_CFG_FORMAT_MASK,
 				 FIELD_PREP(AD4134_DIF_IF_CFG_FORMAT_MASK,
@@ -623,6 +618,11 @@ static int ad4134_probe(struct spi_device *spi)
 				     "failed to get and deassert reset\n");
 
 	crc8_populate_msb(ad4134_spi_crc_table, AD4134_SPI_CRC_POLYNOM);
+
+	st->odr_gpio = devm_gpiod_get(dev, "odr", GPIOD_OUT_LOW);
+	if (IS_ERR(st->odr_gpio))
+		return dev_err_probe(dev, PTR_ERR(st->odr_gpio),
+				     "failed to get ODR GPIO\n");
 
 	st->regmap = devm_regmap_init(dev, NULL, st, &ad4134_regmap_config);
 	if (IS_ERR(st->regmap))
