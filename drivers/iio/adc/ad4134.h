@@ -46,6 +46,7 @@ struct ad4134_state {
 	unsigned int odr_hz;
 #endif
 	int refin_mv;
+	u8 num_dout_lines;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
