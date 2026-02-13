@@ -92,7 +92,7 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	 * Conversely, when multiple data lanes are enabled, the requested
 	 * sampling frequency can be reached with slower ODR frequencies.
 	 */
-	odr_hz = freq_hz / AD4134_NUM_DOUT_LINES;
+	odr_hz = freq_hz / st->num_dout_lines;
 	if (odr_hz < AD4134_MIN_ODR_FREQ_HZ || odr_hz > AD4134_MAX_ODR_FREQ_HZ)
 		return -EINVAL;
 
@@ -123,7 +123,7 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	 * offload trigger frequency can be proportionally slower.
 	 */
 	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC,
-					      odr_hz * AD4134_NUM_DOUT_LINES);
+					      odr_hz * st->num_dout_lines);
 
 	config->periodic.frequency_hz = DIV_ROUND_UP_ULL(NSEC_PER_SEC,
 							 offload_period_ns);
@@ -161,7 +161,7 @@ static ssize_t sampling_frequency_show(struct device *dev,
 	 * If the controller can fetch data from multiple lanes, the throughput
 	 * is increased proportionally to the number of data lanes in use.
 	 */
-	return sysfs_emit(buf, "%u\n", st->odr_hz * AD4134_NUM_DOUT_LINES);
+	return sysfs_emit(buf, "%u\n", st->odr_hz * st->num_dout_lines);
 }
 
 static ssize_t sampling_frequency_store(struct device *dev,
@@ -193,9 +193,12 @@ static ssize_t sampling_frequency_available_show(struct device *dev,
 						 struct device_attribute *attr,
 						 char *buf)
 {
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ad4134_state *st = iio_priv(indio_dev);
+
 	return sysfs_emit(buf, "[%u %u %lu]\n",
-			  AD4134_MIN_ODR_FREQ_HZ * AD4134_NUM_DOUT_LINES, 1,
-			  AD4134_MAX_ODR_FREQ_HZ * AD4134_NUM_DOUT_LINES);
+			  AD4134_MIN_ODR_FREQ_HZ * st->num_dout_lines, 1,
+			  AD4134_MAX_ODR_FREQ_HZ * st->num_dout_lines);
 }
 
 static IIO_DEVICE_ATTR_RO(sampling_frequency_available, 0);
