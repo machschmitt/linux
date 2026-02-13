@@ -20,8 +20,6 @@
 #include <linux/types.h>
 #include <linux/units.h>
 
-#define AD4134_NUM_DOUT_LINES			1
-
 #define AD4134_DCLK_RISING_OFFSET_NS		8
 #define AD4134_MIN_ODR_FREQ_HZ			10
 #define AD4134_MAX_ODR_FREQ_HZ			(1496 * HZ_PER_KHZ)
