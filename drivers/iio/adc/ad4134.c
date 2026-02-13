@@ -270,6 +270,32 @@ static int ad4134_reg_write(void *context, unsigned int reg, unsigned int val)
 	return 0;
 }
 
+static int ad4134_data_read_multi_lane(struct ad4134_state *st, unsigned int reg,
+				       unsigned int *val)
+{
+	unsigned int storagebytes = spi_bpw_to_bytes(AD4134_CHAN_PRECISION_BITS);
+	struct spi_transfer xfer = {
+		.rx_buf = st->scan_data,
+		.bits_per_word = AD4134_CHAN_PRECISION_BITS,
+		.len = st->num_dout_lines * storagebytes,
+		.multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE,
+	};
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < AD4134_NUM_CHANNELS / st->num_dout_lines; i++) {
+		ret = spi_sync_transfer(st->spi, &xfer, 1);
+		if (ret)
+			return ret;
+
+		if (i == AD4134_VREG_CH(reg) / st->num_dout_lines)
+			memcpy(&st->scan_data[AD4134_VREG_CH(reg) * storagebytes],
+			       val, storagebytes);
+	}
+
+	return 0;
+}
+
 static int ad4134_data_read(struct ad4134_state *st, unsigned int reg,
 			    unsigned int *val)
 {
