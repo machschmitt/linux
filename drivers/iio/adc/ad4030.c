@@ -541,6 +541,11 @@ static int ad4030_update_conversion_rate(struct ad4030_state *st,
 		target += AD4030_TCNVH_NS;
 	} while (cnv_wf.duty_length_ns < AD4030_TCNVH_NS);
 
+	/*
+	 * The CNV waveform period (period_length_ns) might get rounded down by
+	 * pwm_round_waveform_might_sleep(). Check the resultant PWM period
+	 * is not smaller than the minimum data conversion cycle time.
+	 */
 	if (!in_range(cnv_wf.period_length_ns, AD4030_TCYC_NS, INT_MAX))
 		return -EINVAL;
 
