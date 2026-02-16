@@ -162,10 +162,10 @@ static const int adaq4216_hw_gains_db[] = {
  * Gains computed as fractions of 1000 so they can be expressed by integers.
  */
 static const int adaq4216_hw_gains_vpv[] = {
-	1 * MILLI / 3,		/* 333 */
-	5 * MILLI / 9,		/* 555 */
-	20 * MILLI / 9,		/* 2222 */
-	20 * MILLI / 3,		/* 6666 */
+	1 * MILLI / 3,		/* 0.333 */
+	5 * MILLI / 9,		/* 0.555 */
+	20 * MILLI / 9,		/* 0.2222 */
+	20 * MILLI / 3,		/* 0.6666 */
 };
 
 static const int adaq4216_hw_gains_frac[][2] = {
