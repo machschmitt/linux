@@ -579,8 +579,11 @@ static int ad4030_set_sampling_freq(struct iio_dev *indio_dev, int freq_hz)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 
-	if (!in_range(freq_hz, 1, st->chip->max_sample_rate_hz))
+	if (freq_hz == 0)
 		return -EINVAL;
+
+	if (!in_range(freq_hz, 0, st->chip->max_sample_rate_hz))
+		return -ERANGE;
 
 	return ad4030_update_conversion_rate(st, freq_hz, st->avg_log2);
 }
