@@ -462,7 +462,7 @@ static const struct regmap_config ad4030_regmap_config = {
 
 static void ad4030_fill_scale_avail(struct ad4030_state *st)
 {
-	unsigned int mag_bits, int_part, fract_part, i;
+	unsigned int mag_bits, int_part, fract_part;
 	u64 range;
 
 	/*
@@ -473,7 +473,7 @@ static void ad4030_fill_scale_avail(struct ad4030_state *st)
 	 */
 	mag_bits = st->chip->precision_bits - 1;
 
-	for (i = 0; i < ARRAY_SIZE(adaq4216_hw_gains_frac); i++) {
+	for (unsigned int i = 0; i < ARRAY_SIZE(adaq4216_hw_gains_frac); i++) {
 		range = mult_frac(st->vref_uv, adaq4216_hw_gains_frac[i][1],
 				  adaq4216_hw_gains_frac[i][0]);
 		/*
