@@ -501,7 +501,8 @@ static int ad4030_set_pga(struct iio_dev *indio_dev, int gain_int, int gain_frac
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 	unsigned int mag_bits = st->chip->precision_bits - 1;
-	u64 gain_nano, tmp;
+	unsigned int tmp;
+	u64 gain_nano;
 
 	if (!st->pga_gpios)
 		return -EINVAL;
@@ -511,7 +512,7 @@ static int ad4030_set_pga(struct iio_dev *indio_dev, int gain_int, int gain_frac
 		return -EINVAL;
 
 	tmp = DIV_ROUND_CLOSEST_ULL(gain_nano << mag_bits, NANO);
-	gain_nano = DIV_ROUND_CLOSEST_ULL(st->vref_uv, tmp);
+	gain_nano = DIV_ROUND_CLOSEST(st->vref_uv, tmp);
 	st->pga_index = find_closest(gain_nano, adaq4216_hw_gains_vpv,
 				     ARRAY_SIZE(adaq4216_hw_gains_vpv));
 
