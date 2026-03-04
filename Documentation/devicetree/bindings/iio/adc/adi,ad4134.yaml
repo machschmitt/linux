@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/iio/adc/adi,ad4134.yaml#
+$id: http://devicetree.org/schemas/iio/adc/adi,legacy-ad4134.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Analog Devices AD4134 ADC
@@ -19,7 +19,7 @@ description: |
 properties:
   compatible:
     enum:
-      - adi,ad4134
+      - adi,legacy-ad4134
 
   reg:
     maxItems: 1
@@ -83,7 +83,7 @@ examples:
       #size-cells = <0>;
 
       adc@0 {
-        compatible = "adi,ad4134";
+        compatible = "adi,legacy-ad4134";
         reg = <0>;
 
         spi-max-frequency = <1000000>;
