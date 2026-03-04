@@ -410,7 +410,7 @@ static int ad4134_clock_select(struct ad4134_state *st)
 static int ad4134_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct reset_control *rst;
+	struct gpio_desc *reset_gpio;
 	struct iio_dev *indio_dev;
 	struct ad4134_state *st;
 	int ret;
@@ -436,10 +436,15 @@ static int ad4134_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	rst = devm_reset_control_get_optional_exclusive_deasserted(dev, NULL);
-	if (IS_ERR(rst))
-		return dev_err_probe(dev, PTR_ERR(rst),
-				     "failed to get and deassert reset\n");
+	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(reset_gpio),
+				     "failed to find reset GPIO\n");
+
+	if (reset_gpio) {
+		fsleep(AD4134_RESET_TIME_US);
+		gpiod_set_value_cansleep(reset_gpio, 0);
+	}
 
 	crc8_populate_msb(ad4134_spi_crc_table, AD4134_SPI_CRC_POLYNOM);
 
