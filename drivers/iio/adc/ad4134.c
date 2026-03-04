@@ -24,7 +24,7 @@
 #include <linux/spi/spi.h>
 #include <linux/time.h>
 #include <linux/types.h>
-#include <linux/unaligned.h>
+#include <asm/unaligned.h>
 #include <linux/units.h>
 
 #define AD4134_RESET_TIME_US			(10 * USEC_PER_SEC)
