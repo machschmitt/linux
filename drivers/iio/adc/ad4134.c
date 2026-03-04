@@ -467,14 +467,14 @@ static void ad4134_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad4134_id[] = {
-	{ "ad4134", 0 },
+	{ "legacy-ad4134", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, ad4134_id);
 
 static const struct of_device_id ad4134_of_match[] = {
 	{
-		.compatible = "adi,ad4134",
+		.compatible = "adi,legacy-ad4134",
 	},
 	{ }
 };
