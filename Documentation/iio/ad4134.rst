@@ -16,13 +16,9 @@ Wiring connections
 ------------------
 
 AD4134 and similar ADCs can operate in a few different wiring configurations.
-
-Minimum I/O mode
-^^^^^^^^^^^^^^^^
-
-The minimum I/O mode wiring allows AD4134 register and data access with the
-conventional set of SPI bus lines. The hardware configuration settings for using
-AD4134 in minimum I/O mode are:
+Because AD4134 also supports control modes other than through SPI protocol,
+the following pins must be statically set for all of the wiring modes described
+below.
 
 +----------------------------+----------------------+--------------------+
 | Pin Function               |         Level        | Description        |
@@ -31,31 +27,29 @@ AD4134 in minimum I/O mode are:
 +----------------------------+----------------------+--------------------+
 | MODE                       |         Low          | ASRC slave mode    |
 +----------------------------+----------------------+--------------------+
-| DCLKIO                     |         Low          | DCLK input         |
+| DEC0/DCLKI                 |         Low          | DCLK input         |
 +----------------------------+----------------------+--------------------+
-| DCLKMODE                   |         Low          | Gated DCLK         |
+| DEC1/DCLKMODE              |         Low          | Gated DCLK         |
 +----------------------------+----------------------+--------------------+
 
-A possible connection schema that sets AD4134 digital interface for minimum I/O
-mode is:
+Minimum I/O mode
+^^^^^^^^^^^^^^^^
 
-::
+The minimum I/O mode wiring allows AD4134 register and data access with the
+conventional set of SPI bus lines. In this mode, the peripheral CS pin may be
+connect to SPI controller CS or be tied to GND. A possible connection schema
+that sets AD4134 digital interface for minimum I/O mode is::
 
-                                 IOVDD
-      +------------------------+   |     +-------------+
-      |                PIN/SPI |<--+     | SPI         |
-      |                        |         | Controller  |
-      |                   DCLK |<--+     |             |
-      |           FORMAT1/SCLK |<--+---- | SCLK        |
-      |   AD4134      DEC2/SDI |<--------| SDO         |
-      |               DEC3/SDO |-------->| SDI         |
-      |                    ODR |<--------| GPIO        |
-      |             FORMAT0/CS |<--+     |             |
-      |                   MODE |<--+     +-------------+
-      |            DEC0/DCLKIO |<--+
-      |          DEC1/DCLKMODE |<--+
-      +------------------------+   |
-                                  GND
+      +----------------+         +-------------+
+      |      AD4134    |         | SPI         |
+      |                |         | Controller  |
+      |           DCLK |<--+     |             |
+      |           SCLK |<--+---- | SCLK        |
+      |             CS |<--------| CS          |
+      |            SDI |<--------| SDO         |
+      |            SDO |-------->| SDI         |
+      |            ODR |<--------| GPIO        |
+      +----------------+         +-------------+
 
 Single-lane offload mode
 ^^^^^^^^^^^^^^^^^^^^^^^^
