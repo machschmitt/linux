@@ -102,9 +102,9 @@ Multi-lane offload mode
   +-----------------------+                           +-----------------+
   |       AD4134          |                           | SPI Controller  |
   |                       |                           |                 |
-  | SPI interface      CS |<--------------------------|  CS             |
+  | SPI interface    DCLK |<--+                       |                 |
   | for register     SCLK |<--+-----------------------| SCLK            |
-  | access           DCLK |<--+                       |                 |
+  | access             CS |<--------------------------| CS              |
   |                   SDI |<--------------------------| SDO             |
   |                   SDO |---+                       |                 |
   |                       |   |                       |                 |
