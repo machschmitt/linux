@@ -112,10 +112,10 @@ Parallel I/O mode
   |                   SDI |<-----------------------------------| SDO         |
   |                   SDO |---+                                |             |
   |                       |   |                                |             |
-  | Data interface  DOUT0 |---+------------------------------->| GPI0        |
-  | for ADC data    DOUT1 |----------------------------------->| GPI1        |
-  | read back       DOUT2 |----------------------------------->| GPI2        |
-  |                 DOUT3 |----------------------------------->| GPI3        |
+  | Data interface  DOUT0 |---+------------------------------->| SDI_A       |
+  | for ADC data    DOUT1 |----------------------------------->| SDI_B       |
+  | read back       DOUT2 |----------------------------------->| SDI_C       |
+  |                 DOUT3 |----------------------------------->| SDI_D       |
   |                 ODR   |<------------------------------+    | TRIGGER     |
   +-----------------------+                               |    +-------------+
                                                           |       ^
@@ -135,3 +135,4 @@ Parallel I/O mode
 
 SDO_PIN_SRC_SEL set to 0x1: Signal on DOUT0 is duplicated on DEC3/SDO pin.
 
+Each of SDI_A to SDI_D connect to a different SPI controller lane/deserializer.
