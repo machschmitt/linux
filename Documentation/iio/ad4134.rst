@@ -94,8 +94,8 @@ example, can be configured to sample AD4134 at high speed sample rates.
 
 .. _AD4134-FMC HDL project: https://analogdevicesinc.github.io/hdl/projects/ad4134_fmc/index.html
 
-Parallel I/O mode
-~~~~~~~~~~~~~~~~~
+Multi-lane offload mode
+^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
