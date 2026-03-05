@@ -58,7 +58,7 @@ mode is:
                                   GND
 
 Single-lane offload mode
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
