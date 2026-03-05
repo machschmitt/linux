@@ -69,9 +69,7 @@ Single-lane offload mode
   |         SCLK |<--+--------------------------------| SCLK        |
   |           CS |<-----------------------------------|  CS         |
   |          SDI |<-----------------------------------| SDO         |
-  |          SDO |----+------------------------------>| SDI         |
-  |              |    |                               |             |
-  |        DOUT0 |----+                               |             |
+  |          SDO |----------------------------------->| SDI         |
   |              |                                    |             |
   |          ODR |<---------------------------+    +->| TRIGGER     |
   +--------------+                            |    |  +-------------+
@@ -79,6 +77,8 @@ Single-lane offload mode
                                               +-------| PWM0        |
                                               +-------| GPIO        |
                                                       +-------------+
+
+SDO_PIN_SRC_SEL set to 0x1: Signal on DOUT0 is duplicated on DEC3/SDO pin.
 
 In this mode, both the ``odr-gpios`` and a ``pwms`` properties are required.
 The ``pwms`` property specifies the PWM that is connected to the ADC ODR pin.
