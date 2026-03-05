@@ -73,7 +73,8 @@ Single-lane offload mode
                                                       +-----------------+
 
 When this configuration is detected, the IIO driver will configure the ADC to
-duplicate the DOUT0 signal on the DEC3/SDO pin (SDO_PIN_SRC_SEL set to 0x1).
+duplicate the signal on DOUT0 to the DEC3/SDO pin (SDO_PIN_SRC_SEL set to 0x1).
+With that, only one bus rx line is needed (``spi-rx-bus-width = <1>``).
 
 In this mode, both the ``odr-gpios`` and a ``pwms`` properties are required.
 The ``pwms`` property specifies the PWM that is connected to the ADC ODR pin.
