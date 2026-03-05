@@ -115,7 +115,5 @@ Multi-lane offload mode
                                                       +-----------------+
 
 
-
-SDO_PIN_SRC_SEL set to 0x1: Signal on DOUT0 is duplicated on DEC3/SDO pin.
-
-Each of SDI_A to SDI_D connect to a different SPI controller lane/deserializer.
+Each of SDI_A to SDI_D connect to a different SPI controller lane/deserializer
+(``spi-rx-bus-width = <4>``).
