@@ -28,6 +28,7 @@
 #include <linux/spi/spi.h>
 #include <linux/unaligned.h>
 #include <linux/units.h>
+#include <linux/util_macros.h>
 #include <linux/types.h>
 
 #include <linux/iio/buffer-dmaengine.h>
