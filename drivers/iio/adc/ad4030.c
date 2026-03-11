@@ -205,6 +205,7 @@ struct ad4030_state {
 	unsigned int scale_avail[ARRAY_SIZE(adaq4216_hw_gains_vpv)][2];
 	struct gpio_descs *pga_gpios;
 	unsigned int pga_index;
+	u8 num_out_lanes;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -1521,6 +1522,18 @@ static int ad4030_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4030_iio_info;
 	indio_dev->available_scan_masks = st->chip->available_masks;
+
+	/*
+	 * For two channel ADC chips, the peripheral can output data from both
+	 * channels at the same time, with data from each channel going out
+	 * through separate sets of phyhsical lines and each set of lines
+	 * delivering a different data word. When more than one output line is
+	 * connected to the SPI controller and the controller is equiped with
+	 * two serializers (lanes), we take advantage of that by configuring
+	 * transfers to simultaneously guather a data word from each set of
+	 * lines connected to the controller.
+	 */
+	st->num_out_lanes = spi->num_rx_lanes;
 
 	st->offload = devm_spi_offload_get(dev, spi, &ad4030_offload_config);
 	ret = PTR_ERR_OR_ZERO(st->offload);
