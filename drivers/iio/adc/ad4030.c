@@ -1200,7 +1200,14 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 		offload_bpw = st->chip->precision_bits;
 
 	st->offload_xfer.bits_per_word = offload_bpw;
-	st->offload_xfer.len = spi_bpw_to_bytes(offload_bpw);
+
+	/*
+	 * When data is read through 2 lanes, each transfer carries twice the
+	 * data a single-lane transfer would.
+	 */
+	st->offload_xfer.len = spi_bpw_to_bytes(offload_bpw) * st->num_out_lanes;
+	if (st->num_out_lanes > 1)
+		st->offload_xfer.multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE;
 	st->offload_xfer.offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 	spi_message_init_with_transfers(&st->offload_msg, &st->offload_xfer, 1);
 }
@@ -1209,7 +1216,7 @@ static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 	unsigned int reg_modes;
-	int ret;
+	int ret, ret2;
 
 	/*
 	 * When data from 2 analog input channels is output through a single
@@ -1230,7 +1237,7 @@ static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 	st->offload_msg.offload = st->offload;
 	ret = spi_optimize_message(st->spi, &st->offload_msg);
 	if (ret)
-		return ret;
+		goto out_restore_lane_mode;
 
 	ret = pwm_set_waveform_might_sleep(st->cnv_trigger, &st->cnv_wf, false);
 	if (ret)
@@ -1247,6 +1254,15 @@ out_pwm_disable:
 	pwm_disable(st->cnv_trigger);
 out_unoptimize:
 	spi_unoptimize_message(&st->offload_msg);
+out_restore_lane_mode:
+	if (st->chip->num_voltage_inputs > 1 && st->num_out_lanes > 1) {
+		ret2 = regmap_update_bits(st->regmap, AD4030_REG_MODES,
+					  AD4030_REG_MODES_MASK_LANE_MODE,
+					  FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
+						     AD4030_LANE_MD_INTERLEAVED));
+		if (ret2)
+			dev_err(&st->spi->dev, "failed to restore lane mode: %d\n", ret2);
+	}
 
 	return ret;
 }
@@ -1365,7 +1381,7 @@ static int ad4030_config(struct ad4030_state *st)
 	st->offset_avail[1] = 1;
 	st->offset_avail[2] = BIT(st->chip->precision_bits - 1) - 1;
 
-	if (st->chip->num_voltage_inputs > 1)
+	if (st->chip->num_voltage_inputs > 1 && st->num_out_lanes == 1)
 		reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
 				       AD4030_LANE_MD_INTERLEAVED);
 	else
@@ -1534,6 +1550,13 @@ static int ad4030_probe(struct spi_device *spi)
 	 * lines connected to the controller.
 	 */
 	st->num_out_lanes = spi->num_rx_lanes;
+
+	/*
+	 * TODO
+	 * To support 2 or 4 lines per channel, we will need to read the bus
+	 * width(s) ("spi-rx-bus-width") and ask for double or quad SPI protocol
+	 * accordingly.
+	 */
 
 	st->offload = devm_spi_offload_get(dev, spi, &ad4030_offload_config);
 	ret = PTR_ERR_OR_ZERO(st->offload);
