@@ -7,6 +7,7 @@
 #include <linux/array_size.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/crc8.h>
 #include <linux/delay.h>
@@ -62,6 +63,12 @@
 #define AD4134_PW_DOWN_CTRL_REG			0x13
 #define AD4134_DEVICE_STATUS_REG		0x15
 #define AD4134_ODR_VAL_INT_LSB_REG		0x16
+#define AD4134_CHAN_DIG_FILTER_SEL_REG		0x1E
+#define AD4134_CHAN_DIG_FILTER_SEL_CH3		GENMASK(7, 6)
+#define AD4134_CHAN_DIG_FILTER_SEL_CH2		GENMASK(5, 4)
+#define AD4134_CHAN_DIG_FILTER_SEL_CH1		GENMASK(3, 2)
+#define AD4134_CHAN_DIG_FILTER_SEL_CH0		GENMASK(1, 0)
+
 #define AD4134_CH3_OFFSET_MSB_REG		0x3E
 #define AD4134_AIN_OR_ERROR_REG			0x48
 
@@ -78,6 +85,20 @@
 #define AD4134_SPI_CRC_POLYNOM			0x07
 #define AD4134_SPI_CRC_INIT_VALUE		0xA5
 static unsigned char ad4134_spi_crc_table[CRC8_TABLE_SIZE];
+
+enum ad4134_filter_type {
+	AD4134_WIDEBAND,
+	AD4134_SINC6,
+	AD4134_SINC3,
+	AD4134_SINC3_REJ60,
+};
+
+static const char * const ad4134_filt_names[] = {
+	[AD4134_WIDEBAND] = "wideband",
+	[AD4134_SINC6] = "sinc6",
+	[AD4134_SINC3] = "sinc3",
+	[AD4134_SINC3_REJ60] = "sinc3+rej60",
+};
 
 struct ad4134_state {
 	struct spi_device *spi;
@@ -117,12 +138,92 @@ static const struct regmap_access_table ad4134_regmap_wr_table = {
 	.n_yes_ranges = ARRAY_SIZE(ad4134_regmap_wr_range),
 };
 
+static int ad4134_set_filter_type(struct iio_dev *indio_dev,
+				  struct iio_chan_spec const *chan,
+				  unsigned int val)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	int ret;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	switch (chan->channel) {
+	case 0:
+		ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
+					 AD4134_CHAN_DIG_FILTER_SEL_CH0,
+					 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_CH0, val));
+		break;
+	case 1:
+		ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
+					 AD4134_CHAN_DIG_FILTER_SEL_CH1,
+					 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_CH1, val));
+		break;
+	case 2:
+		ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
+					 AD4134_CHAN_DIG_FILTER_SEL_CH2,
+					 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_CH2, val));
+		break;
+	case 3:
+		ret = regmap_update_bits(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG,
+					 AD4134_CHAN_DIG_FILTER_SEL_CH3,
+					 FIELD_PREP(AD4134_CHAN_DIG_FILTER_SEL_CH3, val));
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	iio_device_release_direct(indio_dev);
+
+	return ret;
+}
+
+static int ad4134_get_filter_type(struct iio_dev *indio_dev,
+				  struct iio_chan_spec const *chan)
+{
+	struct ad4134_state *st = iio_priv(indio_dev);
+	unsigned int reg_val;
+	int ret;
+
+	ret = regmap_read(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG, &reg_val);
+	if (ret)
+		return ret;
+
+	switch (chan->channel) {
+	case 0:
+		return FIELD_GET(AD4134_CHAN_DIG_FILTER_SEL_CH0, reg_val);
+	case 1:
+		return FIELD_GET(AD4134_CHAN_DIG_FILTER_SEL_CH1, reg_val);
+	case 2:
+		return FIELD_GET(AD4134_CHAN_DIG_FILTER_SEL_CH2, reg_val);
+	case 3:
+		return FIELD_GET(AD4134_CHAN_DIG_FILTER_SEL_CH3, reg_val);
+	default:
+		return -EINVAL;
+	}
+}
+
+static const struct iio_enum ad4134_filter_type_enum = {
+	.items = ad4134_filt_names,
+	.num_items = ARRAY_SIZE(ad4134_filt_names),
+	.get = ad4134_get_filter_type,
+	.set = ad4134_set_filter_type,
+};
+
+static const struct iio_chan_spec_ext_info ad4134_filter_type_ext_info[] = {
+	IIO_ENUM("filter_type", IIO_SEPARATE, &ad4134_filter_type_enum),
+	IIO_ENUM_AVAILABLE("filter_type", IIO_SHARED_BY_TYPE,
+			   &ad4134_filter_type_enum),
+	{ }
+};
+
 #define AD4134_CHANNEL(_index) {						\
 	.type = IIO_VOLTAGE,							\
 	.indexed = 1,								\
 	.channel = (_index),							\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),				\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),			\
+	.ext_info = ad4134_filter_type_ext_info,				\
 }
 
 static const struct iio_chan_spec ad4134_chan_set[] = {
