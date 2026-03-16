@@ -79,21 +79,6 @@
 #define AD4134_SPI_CRC_INIT_VALUE		0xA5
 static unsigned char ad4134_spi_crc_table[CRC8_TABLE_SIZE];
 
-#define AD4134_CHANNEL(_index) {						\
-	.type = IIO_VOLTAGE,							\
-	.indexed = 1,								\
-	.channel = (_index),							\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),				\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),			\
-}
-
-static const struct iio_chan_spec ad4134_chan_set[] = {
-	AD4134_CHANNEL(0),
-	AD4134_CHANNEL(1),
-	AD4134_CHANNEL(2),
-	AD4134_CHANNEL(3),
-};
-
 struct ad4134_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
@@ -130,6 +115,21 @@ static const struct regmap_access_table ad4134_regmap_rd_table = {
 static const struct regmap_access_table ad4134_regmap_wr_table = {
 	.yes_ranges = ad4134_regmap_wr_range,
 	.n_yes_ranges = ARRAY_SIZE(ad4134_regmap_wr_range),
+};
+
+#define AD4134_CHANNEL(_index) {						\
+	.type = IIO_VOLTAGE,							\
+	.indexed = 1,								\
+	.channel = (_index),							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),				\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),			\
+}
+
+static const struct iio_chan_spec ad4134_chan_set[] = {
+	AD4134_CHANNEL(0),
+	AD4134_CHANNEL(1),
+	AD4134_CHANNEL(2),
+	AD4134_CHANNEL(3),
 };
 
 static int ad4134_calc_spi_crc(u8 inst, u8 data)
