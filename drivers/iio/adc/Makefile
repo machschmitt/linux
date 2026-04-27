@@ -85,6 +85,7 @@ obj-$(CONFIG_LTC2378) += ltc2378.o
 
 ltc2378_lib-y += ltc2378-lib-core.o
 ltc2378_lib-$(CONFIG_LTC2378_LIB_OFFLOAD_BUFFER) += ltc2378-offload-buffer.o
+ltc2378_lib-$(CONFIG_LTC2378_LIB_TRIGGERED_BUFFER) += ltc2378-triggered-buffer.o
 obj-$(CONFIG_LTC2378_LIB) += ltc2378_lib.o
 
 obj-$(CONFIG_LTC2471) += ltc2471.o
