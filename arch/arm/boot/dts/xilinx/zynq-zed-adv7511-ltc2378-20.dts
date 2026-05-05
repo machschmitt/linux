@@ -46,7 +46,7 @@
 	trigger_pwm: adc-pwm-trigger {
 		compatible = "pwm-trigger";
 		#trigger-source-cells = <0>;
-		pwms = <&adc_trigger 1 0>;  /* PWM1 for SPI offload trigger */
+		pwms = <&adc_trigger 1 1000000 0>;
 	};
 
 	clocks {
@@ -101,8 +101,7 @@
 		compatible = "adi,axi-pwmgen-2.00.a";
 		reg = <0x44b00000 0x1000>;
 		label = "adc_conversion_trigger";
-		#pwm-cells = <2>;
-		#trigger-source-cells = <0>;  /* Act as direct trigger source */
+		#pwm-cells = <3>;
 		clocks = <&clkc 15>, <&ltc2378_ext_clk>;
 		clock-names = "axi", "ext";
 	};
@@ -144,7 +143,7 @@
 			 * - PWM channel 1: SPI offload trigger
 			 * Note: Driver only controls CNV (PWM0), SPI offload controls trigger (PWM1)
 			 */
-			pwms = <&adc_trigger 0 0>;
+			pwms = <&adc_trigger 0 1000000 0>;
 			pwm-names = "cnv";
                 };
 	};
