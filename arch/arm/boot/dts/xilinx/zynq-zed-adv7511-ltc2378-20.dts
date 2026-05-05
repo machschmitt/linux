@@ -18,7 +18,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	vref: regulator-vref {
+	ltc2378_ref: regulator-vref {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-supply";
 		regulator-min-microvolt = <5000000>;
@@ -26,7 +26,15 @@
 		regulator-always-on;
 	};
 
-	vdd: regulator-vdd {
+	ltc2378_ovdd: regulator-vref {
+		compatible = "regulator-fixed";
+		regulator-name = "LTC2378 OVDD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	ltc2378_vdd: regulator-vdd {
 		compatible = "regulator-fixed";
 		regulator-name = "LTC2378 VDD";
 		regulator-min-microvolt = <3300000>;
@@ -126,8 +134,9 @@
         	        clocks = <&spi_clk>;
         	        clock-names = "spi_clk";
 
-        	        vdd-supply = <&vdd>;
-        	        vref-supply = <&vref>;
+			vdd-supply = <&ltc2378_vdd>;
+			ovdd-supply = <&ltc2378_ovdd>;
+			ref-supply = <&ltc2378_ref>;
 
 			/* PWM configuration for dual PWM architecture:
 			 * - PWM channel 0: CNV signal (conversion trigger)
