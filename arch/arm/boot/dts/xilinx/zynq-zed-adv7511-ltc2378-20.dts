@@ -83,7 +83,7 @@
 		#dma-cells = <1>;
 		interrupt-parent = <&intc>;
 		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc 16>;
+		clocks = <&clkc 15>;
 	};
 
         spi_clk: spi-clock-controller@0x44a70000 {
