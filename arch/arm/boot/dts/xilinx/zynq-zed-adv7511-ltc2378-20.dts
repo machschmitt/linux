@@ -128,9 +128,6 @@
 
                         //spi-cpha; //CPHA = 1 - spi mode 1
 
-        	        clocks = <&spi_clk>;
-        	        clock-names = "spi_clk";
-
 			vdd-supply = <&ltc2378_vdd>;
 			ovdd-supply = <&ltc2378_ovdd>;
 			ref-supply = <&ltc2378_ref>;
