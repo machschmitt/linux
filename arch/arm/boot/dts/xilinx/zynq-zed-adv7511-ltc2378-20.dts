@@ -16,6 +16,7 @@
 #include "zynq-zed-adv7511.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	ltc2378_ref: regulator-vref {
