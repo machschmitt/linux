@@ -1048,6 +1048,7 @@ static const struct ad4630_chip_info ad4630_chip_info[] = {
 		.modes = ad4630_20_modes,
 		.out_modes_mask = GENMASK(3, 0),
 		.name = "ad4630-20",
+		.grade = 0x30,
 		.min_offset = (int)BIT(19) * -1,
 		.max_offset = BIT(19) - 1,
 		.base_word_len = 20,
