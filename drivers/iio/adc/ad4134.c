@@ -642,11 +642,27 @@ static int ad4134_offload_buffer_postenable(struct iio_dev *indio_dev)
 	struct ad4134_state *st = iio_priv(indio_dev);
 	int ret;
 
+	/*
+	 * Data output on the DOUT lines is sampled on the falling edge
+	 * (SPI mode 1).
+	 */
+	st->spi->mode = SPI_MODE_1;
+	//st->spi->mode = SPI_MODE_1 | SPI_NO_CS;
+	ret = spi_setup(st->spi);
+	if (ret)
+		dev_info(&st->spi->dev, "%s: failed spi_setup(1)\n", __func__);
+	else
+		dev_info(&st->spi->dev, "%s: spi_setup(1) success\n", __func__);
+
 	ad4134_prepare_offload_msg(indio_dev);
 	st->msg.offload = st->offload;
-	ret = spi_optimize_message(st->spi_engine, &st->msg);
+	ret = spi_optimize_message(st->spi, &st->msg);
 	if (ret)
 		return ret;
+
+	gpiod_set_value_cansleep(st->input_mux_gpio, 0);
+	dev_info(&st->spi->dev, "%s: Pulled input mux gpio low\n", __func__);
+	fsleep(500000);
 
 	ret = spi_offload_trigger_enable(st->offload, st->offload_trigger,
 					 &st->offload_trigger_config);
@@ -657,6 +673,11 @@ static int ad4134_offload_buffer_postenable(struct iio_dev *indio_dev)
 
 out_unoptimize:
 	spi_unoptimize_message(&st->msg);
+
+	st->spi->mode = SPI_MODE_0;
+	ret = spi_setup(st->spi);
+	if (ret)
+		dev_info(&st->spi->dev, "%s: failed spi_setup()\n", __func__);
 
 	return 0;
 }
@@ -669,6 +690,15 @@ static int ad4134_offload_buffer_predisable(struct iio_dev *indio_dev)
 
 
 	spi_unoptimize_message(&st->msg);
+
+	int ret;
+	st->spi->mode = SPI_MODE_0;
+	ret = spi_setup(st->spi);
+	if (ret)
+		dev_info(&st->spi->dev, "%s: failed spi_setup()\n", __func__);
+
+	dev_info(&st->spi->dev, "%s: Pull input mux gpio high\n", __func__);
+	gpiod_set_value_cansleep(st->input_mux_gpio, 1);
 
 	return 0;
 }
