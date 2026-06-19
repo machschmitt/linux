@@ -210,7 +210,7 @@ struct ad4134_state {
 	struct fwnode_handle		*spi_engine_fwnode;
 	struct regmap			*regmap;
 	struct spi_device		*spi;
-	struct spi_device		*spi_engine;
+	//struct spi_device		*spi_engine;
 
 	unsigned long sys_clk_hz;
 
@@ -234,6 +234,7 @@ struct ad4134_state {
 
 	struct spi_message		buf_read_msg;
 	struct gpio_desc		*cs_gpio;
+	struct gpio_desc		*input_mux_gpio;
 	struct gpio_chip		gpiochip;
 
 	unsigned int			odr;
@@ -625,6 +626,7 @@ static void ad4134_prepare_offload_msg(struct iio_dev *indio_dev)
 	}
 	num_devices = st->ad4134_duo ? 2 : 1;
 
+	st->xfers.cs_off = 1;
 	st->xfers.bits_per_word = bpw;
 	st->xfers.len = base_len * st->num_dout_lines * num_devices;
 	if (st->num_dout_lines > 1)
@@ -679,12 +681,11 @@ static const struct iio_buffer_setup_ops ad4134_offload_buffer_setup_ops = {
 static int ad4134_spi_offload_setup(struct iio_dev *indio_dev,
 				    struct ad4134_state *st)
 {
-	struct device *offload_dev = &st->spi_engine->dev;
 	struct device *dev = &st->spi->dev;
 	struct dma_chan *rx_dma;
 
 
-	st->offload_trigger = devm_spi_offload_trigger_get(offload_dev, st->offload,
+	st->offload_trigger = devm_spi_offload_trigger_get(dev, st->offload,
 							   SPI_OFFLOAD_TRIGGER_PERIODIC);
 	if (IS_ERR(st->offload_trigger))
 		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
@@ -692,12 +693,12 @@ static int ad4134_spi_offload_setup(struct iio_dev *indio_dev,
 
 	st->offload_trigger_config.type = SPI_OFFLOAD_TRIGGER_PERIODIC;
 
-	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(offload_dev, st->offload);
+	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev, st->offload);
 	if (IS_ERR(rx_dma))
-		return dev_err_probe(offload_dev, PTR_ERR(rx_dma),
+		return dev_err_probe(dev, PTR_ERR(rx_dma),
 				     "failed to get offload RX DMA\n");
 
-	return devm_iio_dmaengine_buffer_setup_with_handle(offload_dev,
+	return devm_iio_dmaengine_buffer_setup_with_handle(dev,
 							   indio_dev, rx_dma,
 							   IIO_BUFFER_DIRECTION_IN);
 }
@@ -718,11 +719,10 @@ static int ad4134_pwm_get(struct ad4134_state *st)
 static int ad4134_offload_buffer_setup(struct iio_dev *indio_dev, struct spi_device *spi)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
-	struct device *offload_dev = &st->spi_engine->dev;
 	struct device *dev = &spi->dev;
 	int ret;
 
-	st->offload = devm_spi_offload_get(offload_dev, st->spi_engine, &ad4134_offload_config);
+	st->offload = devm_spi_offload_get(dev, st->spi, &ad4134_offload_config);
 	ret = PTR_ERR_OR_ZERO(st->offload);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to get offload\n");
@@ -981,6 +981,21 @@ static int ad4134_setup(struct ad4134_state *st)
 	if (IS_ERR(st->cs_gpio))
 		return dev_err_probe(dev, PTR_ERR(st->cs_gpio),
 				     "Failed to find cs-gpio\n");
+
+	/* EXPERIMENTAL */
+	st->input_mux_gpio = devm_gpiod_get_optional(dev, "adi,input-mux", GPIOD_OUT_HIGH);
+	if (IS_ERR(st->input_mux_gpio))
+		return dev_err_probe(dev, PTR_ERR(st->input_mux_gpio),
+				     "Failed to find adi,input-mux-gpio\n");
+
+	if (!st->input_mux_gpio)
+		dev_info(dev, "%s: NO adi,input-mux-gpio\n", __func__);
+
+	dev_info(dev, "%s: Pull input mux gpio high\n", __func__);
+	gpiod_set_value_cansleep(st->input_mux_gpio, 1);
+
+	dev_info(dev, "%s, mux gpio is active low: %d\n", __func__,
+			gpiod_is_active_low(st->input_mux_gpio));
 
 	fsleep(AD4134_RESET_TIME_US);
 
