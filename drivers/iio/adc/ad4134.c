@@ -1092,54 +1092,6 @@ static const struct regmap_config ad4134_regmap_config = {
 	.val_bits = 8,
 };
 
-static inline int ad4134_spi_engine_compare_fwnode(struct device *dev, void *data)
-{
-	struct fwnode_handle *fwnode = data;
-
-	return device_match_fwnode(dev, fwnode);
-}
-
-static inline void ad4134_spi_engine_release_fwnode(struct device *dev, void *data)
-{
-	struct fwnode_handle *fwnode = data;
-
-	fwnode_handle_put(fwnode);
-}
-
-static int ad4134_bind(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad4134_state *st = iio_priv(indio_dev);
-	int ret;
-
-	ret = component_bind_all(dev, st);
-	if (ret)
-		return ret;
-
-	ret = ad4134_offload_buffer_setup(indio_dev, st->spi);
-	if (ret)
-		return ret;
-
-	ret = ad4134_update_conversion_rate(st, st->odr_hz);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to set sampling freq\n");
-
-	return iio_device_register(indio_dev);
-}
-
-static void ad4134_unbind(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	iio_device_unregister(indio_dev);
-
-	component_unbind_all(dev, NULL);
-}
-
-static const struct component_master_ops ad4134_comp_ops = {
-	.bind = ad4134_bind,
-	.unbind = ad4134_unbind,
-};
 
 static int ad4134_probe(struct spi_device *spi)
 {
@@ -1251,30 +1203,12 @@ static int ad4134_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad4134_info;
 
-	if (!device_property_present(&st->spi->dev, "adi,spi-engine")) {
-		indio_dev->channels = 0;
-		indio_dev->num_channels = 0;
-		indio_dev->available_scan_masks = 0;
-		return devm_iio_device_register(dev, indio_dev);
-	}
 
 	indio_dev->setup_ops = &ad4134_offload_buffer_setup_ops;
 
-	st->spi_engine_fwnode = fwnode_find_reference(fwnode, "adi,spi-engine", 0);
-	if (IS_ERR(st->spi_engine_fwnode))
-		return dev_err_probe(dev, PTR_ERR(st->spi_engine_fwnode),
-				     "Failed to find SPI engine node\n");
 
-	component_match_add_release(dev, &match, ad4134_spi_engine_release_fwnode,
-				    ad4134_spi_engine_compare_fwnode,
-				    st->spi_engine_fwnode);
 
-	return component_master_add_with_match(dev, &ad4134_comp_ops, match);
-}
 
-static void ad4134_remove(struct spi_device *spi)
-{
-	component_master_del(&spi->dev, &ad4134_comp_ops);
 }
 
 static const struct spi_device_id ad4134_id[] = {
@@ -1297,57 +1231,9 @@ static struct spi_driver ad4134_driver = {
 		.of_match_table = ad4134_of_match,
 	},
 	.probe = ad4134_probe,
-	.remove = ad4134_remove,
 	.id_table = ad4134_id,
 };
 
-static int ad4134_spi_engine_bind(struct device *dev, struct device *master,
-				  void *data)
-{
-	struct ad4134_state *st = data;
-
-	st->spi_engine = to_spi_device(dev);
-
-	return 0;
-}
-
-static const struct component_ops ad4134_spi_engine_ops = {
-	.bind   = ad4134_spi_engine_bind,
-};
-
-static int ad4134_spi_engine_probe(struct spi_device *spi)
-{
-	return component_add(&spi->dev, &ad4134_spi_engine_ops);
-}
-
-static void ad4134_spi_engine_remove(struct spi_device *spi)
-{
-	component_del(&spi->dev, &ad4134_spi_engine_ops);
-}
-
-static const struct spi_device_id ad4134_spi_engine_id[] = {
-	{ "ad4134-spi-engine", 0 },
-	{ },
-};
-MODULE_DEVICE_TABLE(spi, ad4134_spi_engine_id);
-
-static const struct of_device_id ad4134_spi_engine_of_match[] = {
-	{
-		.compatible = "adi,ad4134-spi-engine",
-	},
-	{ }
-};
-MODULE_DEVICE_TABLE(of, ad4134_spi_engine_of_match);
-
-static struct spi_driver ad4134_spi_engine_driver = {
-	.driver = {
-		.name = "ad4134-spi-engine",
-		.of_match_table = ad4134_spi_engine_of_match,
-	},
-	.probe = ad4134_spi_engine_probe,
-	.remove = ad4134_spi_engine_remove,
-	.id_table = ad4134_spi_engine_id,
-};
 
 static int __init ad4134_init(void)
 {
@@ -1357,11 +1243,6 @@ static int __init ad4134_init(void)
 	if (ret)
 		return ret;
 
-	ret = spi_register_driver(&ad4134_spi_engine_driver);
-	if (ret) {
-		spi_unregister_driver(&ad4134_driver);
-		return ret;
-	}
 
 	return 0;
 }
@@ -1369,7 +1250,6 @@ module_init(ad4134_init);
 
 static void __exit ad4134_exit(void)
 {
-	spi_unregister_driver(&ad4134_spi_engine_driver);
 	spi_unregister_driver(&ad4134_driver);
 }
 module_exit(ad4134_exit);
