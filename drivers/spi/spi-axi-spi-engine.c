@@ -22,11 +22,16 @@
 #include <linux/spi/offload/provider.h>
 #include <linux/spi/spi.h>
 #include <trace/events/spi.h>
+#include <linux/timekeeping.h>
 
 #define SPI_ENGINE_REG_DATA_WIDTH		0x0C
 #define   SPI_ENGINE_REG_DATA_WIDTH_NUM_OF_SDIO_MASK	GENMASK(23, 16)
 #define   SPI_ENGINE_REG_DATA_WIDTH_MASK		GENMASK(15, 0)
+#define SPI_ENGINE_REG_SCRATCH			0x8
 #define SPI_ENGINE_REG_OFFLOAD_MEM_ADDR_WIDTH	0x10
+#define SPI_ENGINE_REG_FIFO_ADDR_WIDTH		0x14
+#define SPI_ENGINE_FIFO_ADDRESS_WIDTH_SDI	GENMASK(31, 24)
+#define SPI_ENGINE_FIFO_ADDRESS_WIDTH_SDO	GENMASK(23, 16)
 #define SPI_ENGINE_REG_RESET			0x40
 
 #define SPI_ENGINE_REG_INT_ENABLE		0x80
@@ -198,6 +203,9 @@ static void spi_engine_all_lanes_flags(struct spi_device *spi,
 
 	for (i = 0; i < spi->num_tx_lanes; i++)
 		*tx_lane_flags |= BIT(spi->tx_lane_map[i]);
+
+	dev_info(&spi->dev, "%s: spi->num_rx_lanes: %d, rx_lane_flags: 0x%02X, tx_lane_flags: 0%02X\n",
+		__func__, spi->num_rx_lanes, *rx_lane_flags, *tx_lane_flags);
 }
 
 static void spi_engine_program_add_cmd(struct spi_engine_program *p,
@@ -239,8 +247,16 @@ static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 	else
 		len = xfer->len / 4;
 
+	if (!dry)
+		pr_info("%s: num_lanes: %u, xfer->len: %d, len: %d\n",
+			__func__, num_lanes, xfer->len, len);
+
 	if (xfer->multi_lane_mode == SPI_MULTI_LANE_MODE_STRIPE)
 		len /= num_lanes;
+
+	if (!dry)
+		pr_info("%s: len: %u (i.e. message length is %u transfer)\n",
+			__func__, len, len);
 
 	while (len) {
 		unsigned int n = min(len, 256U);
@@ -248,6 +264,9 @@ static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 
 		if (xfer->tx_buf || (xfer->offload_flags & SPI_OFFLOAD_XFER_TX_STREAM))
 			flags |= SPI_ENGINE_TRANSFER_WRITE;
+		if (!dry)
+			pr_info("%s: add_cmd CMD_TRANSFER, flags: %d, len: %u\n",
+				__func__, flags, len);
 		if (xfer->rx_buf || (xfer->offload_flags & SPI_OFFLOAD_XFER_RX_STREAM))
 			flags |= SPI_ENGINE_TRANSFER_READ;
 
@@ -379,6 +398,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 	bool keep_cs = false;
 	u8 bits_per_word = 0;
 
+	dev_info(&host->dev, "%s: dry: %d\n", __func__, dry);
 	/*
 	 * Take into account instruction execution time for more accurate sleep
 	 * times, especially when the delay is small.
@@ -496,6 +516,14 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 		spi_engine_program_add_cmd(p, dry,
 			SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_SDO_MASK, tx_lane_flags));
 	}
+
+	if (dry)
+		return;
+
+	unsigned int i;
+	for (i = 0; i < p->length; i++)
+		dev_info(&host->dev, "%s: dry: %d, instruction[%d]: 0x%04X\n",
+			 __func__, dry, i, p->instructions[i]);
 }
 
 static void spi_engine_xfer_next(struct spi_message *msg,
@@ -560,11 +588,18 @@ static bool spi_engine_write_cmd_fifo(struct spi_engine *spi_engine,
 	const uint16_t *buf;
 
 	n = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CMD_FIFO_ROOM);
+	dev_info(&msg->spi->controller->dev, "%s: CMD_FIFO_ROOM (0xd0): %u\n",
+		 __func__, n);
 	while (n && st->cmd_length) {
 		m = min(n, st->cmd_length);
 		buf = st->cmd_buf;
 		for (i = 0; i < m; i++)
+		{
+			dev_info(&msg->spi->controller->dev,
+				 "%s: writing buf[%u]: 0x%04X, to REG_CMD_FIFO (0x%04X)\n",
+				 __func__, i, buf[i], SPI_ENGINE_REG_CMD_FIFO);
 			writel_relaxed(buf[i], addr);
+		}
 		st->cmd_buf += m;
 		st->cmd_length -= m;
 		n -= m;
@@ -581,6 +616,8 @@ static bool spi_engine_write_tx_fifo(struct spi_engine *spi_engine,
 	unsigned int n, m, i;
 
 	n = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDO_FIFO_ROOM);
+	dev_info(&msg->spi->controller->dev, "%s: SDO_FIFO_ROOM (0xd4): %u\n",
+		 __func__, n);
 	while (n && st->tx_length) {
 		if (st->tx_xfer->bits_per_word <= 8) {
 			const u8 *buf = st->tx_buf;
@@ -623,6 +660,9 @@ static bool spi_engine_read_rx_fifo(struct spi_engine *spi_engine,
 	unsigned int n, m, i;
 
 	n = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDI_FIFO_LEVEL);
+	dev_info(&msg->spi->controller->dev,
+		 "%s: SDI_FIFO_LEVEL (0xd8): %u, st->rx_length: %d\n",
+		 __func__, n, st->rx_length);
 	while (n && st->rx_length) {
 		if (st->rx_xfer->bits_per_word <= 8) {
 			u8 *buf = st->rx_buf;
@@ -667,6 +707,8 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 	int completed_id = -1;
 
 	pending = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
+	dev_info(&msg->spi->controller->dev, "%s: IRQ_PENDING (0x84): 0x%04X\n",
+		 __func__, pending);
 
 	if (pending & SPI_ENGINE_INT_SYNC) {
 		writel_relaxed(SPI_ENGINE_INT_SYNC,
@@ -770,22 +812,47 @@ static int spi_engine_offload_prepare(struct spi_message *msg)
 			const u8 *buf = xfer->tx_buf;
 
 			for (i = 0; i < xfer->len; i++)
+			{
+				dev_info(&msg->spi->controller->dev,
+					"%s: write buf[%u]: 0x%08X to OFFLOAD_SDO_FIFO (0x%04X)\n",
+					__func__, i, buf[i],
+					SPI_ENGINE_REG_OFFLOAD_SDO_FIFO(priv->offload_num));
 				writel_relaxed(buf[i], sdo_addr);
+			}
 		} else if (xfer->bits_per_word <= 16) {
 			const u16 *buf = xfer->tx_buf;
 
 			for (i = 0; i < xfer->len / 2; i++)
+			{
+				dev_info(&msg->spi->controller->dev,
+					"%s: write buf[%u]: 0x%08X to OFFLOAD_SDO_FIFO (0x%04X)\n",
+					__func__, i, buf[i],
+					SPI_ENGINE_REG_OFFLOAD_SDO_FIFO(priv->offload_num));
 				writel_relaxed(buf[i], sdo_addr);
+			}
 		} else {
 			const u32 *buf = xfer->tx_buf;
 
 			for (i = 0; i < xfer->len / 4; i++)
+			{
+				dev_info(&msg->spi->controller->dev,
+					"%s: write buf[%u]: 0x%08X to OFFLOAD_SDO_FIFO (0x%04X)\n",
+					__func__, i, buf[i],
+					SPI_ENGINE_REG_OFFLOAD_SDO_FIFO(priv->offload_num));
 				writel_relaxed(buf[i], sdo_addr);
+			}
 		}
 	}
 
+	dev_info(&host->dev, "%s: OFFLOAD_CMD_FIFO (0x110):\n", __func__);
 	for (i = 0; i < p->length; i++)
+	{
 		writel_relaxed(p->instructions[i], cmd_addr);
+		dev_info(&host->dev,
+			 "%s: write instruction[%d]: 0x%04X to OFFLOAD_CMD_FIFO (0x%04X)\n",
+			 __func__, i, p->instructions[i],
+			 SPI_ENGINE_REG_OFFLOAD_CMD_FIFO(priv->offload_num));
+	}
 
 	return 0;
 }
@@ -895,6 +962,9 @@ static int spi_engine_setup(struct spi_device *device)
 	else
 		spi_engine->cs_inv &= ~BIT(spi_get_chipselect(device, 0));
 
+	dev_info(&host->dev,
+		 "%s: write 0x%04X to CMD_FIFO (0x%04X)\n",
+		 __func__, SPI_ENGINE_CMD_SYNC(0), SPI_ENGINE_REG_CMD_FIFO);
 	writel_relaxed(SPI_ENGINE_CMD_SYNC(0),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
@@ -918,9 +988,17 @@ static int spi_engine_setup(struct spi_device *device)
 	 * In addition to setting the flags, we have to do a CS assert command
 	 * to make the new setting actually take effect.
 	 */
+	dev_info(&host->dev,
+		 "%s: write 0x%04X to CMD_FIFO (0x%04X)\n",
+		 __func__, SPI_ENGINE_CMD_ASSERT(0, 0xff),
+		 SPI_ENGINE_REG_CMD_FIFO);
 	writel_relaxed(SPI_ENGINE_CMD_ASSERT(0, 0xff),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
+	dev_info(&host->dev,
+		 "%s: write 0x%04X to CMD_FIFO (0x%04X)\n",
+		 __func__, SPI_ENGINE_CMD_SYNC(1),
+		 SPI_ENGINE_REG_CMD_FIFO);
 	writel_relaxed(SPI_ENGINE_CMD_SYNC(1),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
@@ -973,6 +1051,10 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 
 	int_enable |= SPI_ENGINE_INT_SYNC;
 
+	dev_info(&host->dev,
+		 "%s: write int_enable 0x%04X to INT_ENABLE (0x%04X)\n",
+		 __func__, int_enable,
+		 SPI_ENGINE_REG_INT_ENABLE);
 	writel_relaxed(int_enable,
 		spi_engine->base + SPI_ENGINE_REG_INT_ENABLE);
 	spi_engine->int_enable = int_enable;
@@ -1005,27 +1087,57 @@ static int spi_engine_trigger_enable(struct spi_offload *offload)
 	unsigned int reg;
 	int ret;
 
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: write 0x%02X (sync) to SPI_ENGINE_REG_CMD_FIFO (0x%04X)\n",
+		 __func__, SPI_ENGINE_CMD_SYNC(0), SPI_ENGINE_REG_CMD_FIFO);
 	writel_relaxed(SPI_ENGINE_CMD_SYNC(0),
 		spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: write 0x%02X to SPI_ENGINE_REG_CMD_FIFO (0x%04X)\n",
+		 __func__, SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+					    priv->spi_mode_config), SPI_ENGINE_REG_CMD_FIFO);
 	writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
 					    priv->spi_mode_config),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
+	dev_info(spi_engine->offload->provider_dev, "%s: priv->bits_per_word: %d\n",
+		 __func__, priv->bits_per_word);
 	if (priv->bits_per_word)
+	{
+		dev_info(spi_engine->offload->provider_dev,
+			 "%s: write 0x%02X to SPI_ENGINE_REG_CMD_FIFO (0x%04X)\n",
+			 __func__, SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
+						    priv->bits_per_word),
+			 SPI_ENGINE_REG_CMD_FIFO);
 		writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
 						    priv->bits_per_word),
 			       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+		dev_info(spi_engine->offload->provider_dev,
+	"%s: wrote the command 0x%04X to CMD_FIFO (0x%02X). That shall set %d into the Dynamic Transfer Length Register\n",
+			 __func__, SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
+							priv->bits_per_word),
+			SPI_ENGINE_REG_CMD_FIFO, priv->bits_per_word);
+	}
 
 	if (priv->multi_lane_mode == SPI_MULTI_LANE_MODE_STRIPE) {
+		dev_info(spi_engine->offload->provider_dev,
+			 "%s: write 0x%02X to REG_SDI_MASK (0x%04X)\n",
+			 __func__, priv->rx_all_lanes_mask, SPI_ENGINE_CMD_REG_SDI_MASK);
 		writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_SDI_MASK,
 						    priv->rx_all_lanes_mask),
 			       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+		dev_info(spi_engine->offload->provider_dev,
+			 "%s: write 0x%02X to REG_SDO_MASK (0x%04X)\n",
+			 __func__, priv->tx_all_lanes_mask, SPI_ENGINE_CMD_REG_SDO_MASK);
 		writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_SDO_MASK,
 						    priv->tx_all_lanes_mask),
 			       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 	}
 
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: write 0x%02X to SPI_ENGINE_REG_CMD_FIFO (0x%04X)\n",
+		 __func__, SPI_ENGINE_CMD_SYNC(1), SPI_ENGINE_REG_CMD_FIFO);
 	writel_relaxed(SPI_ENGINE_CMD_SYNC(1),
 		spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
@@ -1039,6 +1151,34 @@ static int spi_engine_trigger_enable(struct spi_offload *offload)
 	reg |= SPI_ENGINE_OFFLOAD_CTRL_ENABLE;
 	writel_relaxed(reg, spi_engine->base +
 			    SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num));
+
+	reg = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_FIFO_ADDR_WIDTH);
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: SPI_ENGINE_FIFO_ADDRESS_WIDTH_SDI (0x14): 0x%02lX\n",
+		 __func__, FIELD_GET(SPI_ENGINE_FIFO_ADDRESS_WIDTH_SDI, reg));
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: SPI_ENGINE_FIFO_ADDRESS_WIDTH_SDO (0x14): 0x%02lX\n",
+		 __func__, FIELD_GET(SPI_ENGINE_FIFO_ADDRESS_WIDTH_SDO, reg));
+
+	reg = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDI_FIFO_LEVEL);
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: SDI_FIFO_LEVEL (0xd8): %u\n",
+		 __func__, reg);
+
+	unsigned int status;
+	struct spi_engine_offload *privat = spi_engine->offload->priv;
+	reg = readl_relaxed(spi_engine->base +
+			    SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num));
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: SPI_ENGINE_OFFLOAD_CTRL_ENABLE (0x%p): %u\n",
+		 __func__,
+		 spi_engine->base + SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num),
+		 reg);
+	status = readl_relaxed(spi_engine->base +
+		SPI_ENGINE_REG_OFFLOAD_STATUS(privat->offload_num));
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: offload status %u\n", __func__, status);
+
 	return 0;
 }
 
@@ -1051,14 +1191,44 @@ static void spi_engine_trigger_disable(struct spi_offload *offload)
 	reg = readl_relaxed(spi_engine->base +
 			    SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num));
 	reg &= ~SPI_ENGINE_OFFLOAD_CTRL_ENABLE;
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: write 0x%02X to OFFLOAD_CTRL (0x%04X)\n",
+		 __func__, reg, SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num));
 	writel_relaxed(reg, spi_engine->base +
 			    SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num));
 
+	unsigned int status;
+	struct spi_engine_offload *privat = spi_engine->offload->priv;
+	reg = readl_relaxed(spi_engine->base +
+			    SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num));
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: SPI_ENGINE_OFFLOAD_CTRL_ENABLE (0x%p): %u\n",
+		 __func__,
+		 spi_engine->base + SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num),
+		 reg);
+	status = readl_relaxed(spi_engine->base +
+		SPI_ENGINE_REG_OFFLOAD_STATUS(privat->offload_num));
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: offload status %u\n", __func__, status);
+
+	reg = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDI_FIFO_LEVEL);
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: SDI_FIFO_LEVEL (0xd8): %u\n",
+		 __func__, reg);
+
 	/* Restore single-lane mode. */
 	if (priv->multi_lane_mode == SPI_MULTI_LANE_MODE_STRIPE) {
+		dev_info(spi_engine->offload->provider_dev,
+			 "%s: write 0x%04X to REG_SDI_MASK (0x%04X)\n",
+			 __func__, priv->rx_primary_lane_mask,
+			 SPI_ENGINE_CMD_REG_SDI_MASK);
 		writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_SDI_MASK,
 						    priv->rx_primary_lane_mask),
 			       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+		dev_info(spi_engine->offload->provider_dev,
+			 "%s: write 0x%04X to REG_SDO_MASK (0x%04X)\n",
+			 __func__, priv->tx_primary_lane_mask,
+			 SPI_ENGINE_CMD_REG_SDO_MASK);
 		writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_SDO_MASK,
 						    priv->tx_primary_lane_mask),
 			       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
@@ -1098,8 +1268,24 @@ static void spi_engine_release_hw(void *p)
 {
 	struct spi_engine *spi_engine = p;
 
+	unsigned int status;
+	struct spi_engine_offload *priv = spi_engine->offload->priv;
+	status = readl_relaxed(spi_engine->base +
+		SPI_ENGINE_REG_OFFLOAD_STATUS(priv->offload_num));
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: offload status %u\n", __func__, status);
+
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: write 0x%02X to INT_PENDING (0x%04X)\n",
+		 __func__, 0xff, SPI_ENGINE_REG_INT_PENDING);
 	writel_relaxed(0xff, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: write 0x%02X to INT_ENABLE (0x%04X)\n",
+		 __func__, 0x00, SPI_ENGINE_REG_INT_ENABLE);
 	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_INT_ENABLE);
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: write 0x%02X to RESET (0x%04X)\n",
+		 __func__, 0x01, SPI_ENGINE_REG_RESET);
 	writel_relaxed(0x01, spi_engine->base + SPI_ENGINE_REG_RESET);
 }
 
@@ -1176,6 +1362,11 @@ static int spi_engine_probe(struct platform_device *pdev)
 		return PTR_ERR(spi_engine->base);
 
 	version = readl(spi_engine->base + ADI_AXI_REG_VERSION);
+	dev_info(&pdev->dev, "%s: SPI Engine version: %u.%u.%u\n",
+		 __func__,
+		ADI_AXI_PCORE_VER_MAJOR(version),
+		ADI_AXI_PCORE_VER_MINOR(version),
+		ADI_AXI_PCORE_VER_PATCH(version));
 	if (ADI_AXI_PCORE_VER_MAJOR(version) > 2) {
 		dev_err(&pdev->dev, "Unsupported peripheral version %u.%u.%u\n",
 			ADI_AXI_PCORE_VER_MAJOR(version),
@@ -1185,6 +1376,8 @@ static int spi_engine_probe(struct platform_device *pdev)
 	}
 
 	data_width_reg_val = readl(spi_engine->base + SPI_ENGINE_REG_DATA_WIDTH);
+	dev_info(&pdev->dev, "%s: REG_DATA_WIDTH (0x%04X): 0x%08X\n",
+		 __func__, SPI_ENGINE_REG_DATA_WIDTH, data_width_reg_val);
 
 	if (adi_axi_pcore_ver_gteq(version, 1, 1)) {
 		unsigned int sizes = readl(spi_engine->base +
