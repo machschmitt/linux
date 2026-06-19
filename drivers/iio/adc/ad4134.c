@@ -1207,9 +1207,16 @@ static int ad4134_probe(struct spi_device *spi)
 
 	indio_dev->setup_ops = &ad4134_offload_buffer_setup_ops;
 
+	ret = ad4134_offload_buffer_setup(indio_dev, st->spi);
+	if (ret)
+		return ret;
+
+	ret = ad4134_update_conversion_rate(st, st->odr_hz);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to set sampling freq\n");
 
 
-
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct spi_device_id ad4134_id[] = {
