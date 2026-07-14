@@ -882,6 +882,12 @@ static int ad4134_offload_buffer_setup(struct iio_dev *indio_dev, struct spi_dev
 							   IIO_BUFFER_DIRECTION_IN);
 }
 
+/* The chip converts and outputs all 4 channels on each sample request */
+static const unsigned long ad4134_scan_masks[] = {
+	GENMASK(3, 0),
+	0
+};
+
 static int ad4134_offload_setup(struct iio_dev *indio_dev, struct ad4134_state *st)
 {
 	struct device *dev = &st->spi->dev;
@@ -905,6 +911,7 @@ static int ad4134_offload_setup(struct iio_dev *indio_dev, struct ad4134_state *
 		return dev_err_probe(dev, ret, "failed to set sampling freq\n");
 
 	indio_dev->setup_ops = &ad4134_offload_buffer_setup_ops;
+	indio_dev->available_scan_masks = ad4134_scan_masks;
 
 	switch (st->spi->num_rx_lanes) {
 	case 1:
