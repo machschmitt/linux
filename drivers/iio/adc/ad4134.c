@@ -127,6 +127,13 @@ static const char * const ad4134_filt_names[] = {
 	[AD4134_SINC3_REJ60] = "sinc3+rej60",
 };
 
+static unsigned int ad4134_filter_odr_range_Hz[4][2] = {
+	[AD4134_WIDEBAND] = {10, 374000},
+	[AD4134_SINC6] = {2500, 1496000},
+	[AD4134_SINC3] = {10, 1496000},
+	[AD4134_SINC3_REJ60] = {10, 1496000},
+};
+
 static const int ad4134_max_samp_freq_range_Hz[3] = {
 	AD4134_MIN_ODR_FREQ_HZ, 1, AD4134_MAX_ODR_FREQ_HZ,
 };
