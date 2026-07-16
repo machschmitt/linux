@@ -105,7 +105,6 @@
 			clocks = <&eval_ad4134_xtal>;
 			clock-names = "xtal";
 
-			pwm-names = "odr";
 			pwms = <&ad4134_odr_generator 1 1000000 0>;
 
 			avdd5-supply = <&avdd5>;
