@@ -55,11 +55,11 @@
 	};
 
 	clocks {
-		cnv_ext_clk: ext-clk {
+		eval_ad4134_xtal: ext-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <48000000>;
-			clock-output-names = "cnv_ext_clk";
+			clock-output-names = "ad4134_xtal";
 		};
 	};
 };
@@ -102,8 +102,8 @@
 			//mux on GPIO 46 --> x - 54 = 46 => x = 46 + 54 = 100
 			adi,input-mux-gpios = <&gpio0 100 GPIO_ACTIVE_HIGH>;
 
-			clocks = <&cnv_ext_clk>;
-			clock-names = "cnv_ext_clk";
+			clocks = <&eval_ad4134_xtal>;
+			clock-names = "xtal";
 
 			pwm-names = "odr";
 			pwms = <&ad4134_odr_generator 1 1000000 0>;
