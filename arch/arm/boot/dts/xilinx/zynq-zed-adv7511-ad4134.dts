@@ -108,7 +108,10 @@
 			pwms = <&ad4134_odr_generator 1 1000000 0>;
 
 			avdd5-supply = <&avdd5>;
+			dvdd5-supply = <&avdd5>;
 			avdd1v8-supply = <&avdd1v8>;
+			dvdd1v8-supply = <&avdd1v8>;
+			clkvdd-supply = <&avdd1v8>;
 			iovdd-supply = <&iovdd>;
 			refin-supply = <&refin>;
 
