@@ -79,6 +79,9 @@
 #define AD4134_PW_DOWN_CTRL_REG			0x13
 #define AD4134_DEVICE_STATUS_REG		0x15
 #define AD4134_ODR_VAL_INT_LSB_REG		0x16
+#define AD4134_CHAN_ODR_SEL_REG			0x1D
+#define AD4134_CHAN_SEL_MASK(ch)		(GENMASK(1, 0) << 2 * (ch))
+#define AD4134_CHAN_ODR_SEL_OPTIONS		4
 #define AD4134_CHAN_DIG_FILTER_SEL_REG		0x1E
 #define AD4134_CHAN_DIG_FILTER_SEL_CH_MASK(ch)	(GENMASK(1, 0) << 2 * (ch))
 
@@ -223,6 +226,7 @@ struct ad4134_state {
 	unsigned long sys_clk_hz;
 	struct gpio_desc *odr_gpio;
 	int refin_mv;
+	int odr_rate_tbl[AD4134_CHAN_ODR_SEL_OPTIONS];
 	bool crc_en;
 	enum ad4134_spi_mode spi_mode;
 	struct mux_state *mux_st[2];
@@ -516,6 +520,12 @@ static const struct regmap_config ad4134_regmap_config = {
 	.max_register = AD4134_CH_VREG(ARRAY_SIZE(ad4134_chan_set)),
 };
 
+static void ad4134_fill_odr_tbl(struct ad4134_state *st)
+{
+	for (unsigned int i = 0; i < AD4134_CHAN_ODR_SEL_OPTIONS; i++)
+		st->odr_rate_tbl[i] = st->odr_hz >> i; /* odr_hz / 2^i */
+}
+
 static int ad4134_update_conversion_rate(struct ad4134_state *st,
 					 unsigned int freq_Hz)
 {
@@ -596,6 +606,8 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	st->offload_trigger_config = config;
 	st->odr_wf = odr_wf;
 	st->odr_hz = DIV_ROUND_UP_ULL(NSEC_PER_SEC, odr_wf.period_length_ns);
+
+	ad4134_fill_odr_tbl(st);
 
 	return 0;
 }
@@ -690,6 +702,7 @@ static int ad4134_read_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 }
+
 static int ad4134_read_avail(struct iio_dev *indio_dev,
 			     struct iio_chan_spec const *chan,
 			     const int **vals, int *type, int *length,
