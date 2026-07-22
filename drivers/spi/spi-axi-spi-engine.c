@@ -1199,6 +1199,7 @@ static int spi_engine_probe(struct platform_device *pdev)
 
 	/* IP v1.5 dropped the requirement for SYNC in offload messages. */
 	spi_engine->offload_requires_sync = !adi_axi_pcore_ver_gteq(version, 1, 5);
+	spi_engine->offload_requires_sync = true;
 
 	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_RESET);
 	writel_relaxed(0xff, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
