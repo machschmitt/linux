@@ -627,8 +627,6 @@ static void ad4134_prepare_offload_msg(struct iio_dev *indio_dev)
 
 	st->xfers.bits_per_word = bpw;
 	st->xfers.len = base_len * st->num_dout_lines * num_devices;
-	if (st->num_dout_lines > 1)
-		st->xfers.multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE;
 
 	st->xfers.offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 
