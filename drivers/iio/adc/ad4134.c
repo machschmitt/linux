@@ -367,16 +367,6 @@ static int ad4134_setup_odr(struct ad4134_state *st, unsigned int freq_hz)
 	dev_info(&st->spi->dev, "%s: Updating conversion rate to %u Hz\n",
 		 __func__, freq_hz);
 
-	/*
-	 * Every ODR pulse causes each of the 4 ADCs within the AD4134 chip to
-	 * take a sample simultaneously. The peripheral then outputs the data
-	 * from all those channels over one, two, or four data output lanes. If
-	 * the controller can fetch data from multiple lanes, the throughput is
-	 * increased proportionally to the number of data lanes in use.
-	 * Conversely, when multiple data lanes are enabled, the requested
-	 * sampling frequency can be reached with slower ODR frequencies. ?
-	 */
-	//odr_hz = freq_hz / st->num_dout_lines;
 	odr_hz = freq_hz;
 	dev_info(&st->spi->dev, "%s: ODR frequency: %u Hz (DOUT lines: %u)\n",
 		__func__, odr_hz, st->num_dout_lines);
@@ -426,23 +416,12 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 {
 	struct spi_offload_trigger_config *config = &st->offload_trigger_config;
 	struct pwm_waveform odr_wf = { };
-	u64 offload_period_ns;
 	u64 offload_offset_ns;
 	u64 odr_high_time_ns;
 	unsigned int odr_hz;
 	u64 target = 10;
 	int ret;
 
-	/*
-	 * Every ODR pulse causes each of the 4 ADCs within the AD4134 chip to
-	 * take a sample simultaneously. The peripheral then outputs the data
-	 * from all those channels over one, two, or four data output lanes. If
-	 * the controller can fetch data from multiple lanes, the throughput is
-	 * increased proportionally to the number of data lanes in use.
-	 * Conversely, when multiple data lanes are enabled, the requested
-	 * sampling frequency can be reached with slower ODR frequencies.
-	 */
-	//odr_hz = freq_hz / st->num_dout_lines;
 	odr_hz = freq_hz;
 	if (odr_hz < AD4134_MIN_ODR_FREQ_HZ || odr_hz > AD4134_MAX_ODR_FREQ_HZ)
 		return -EINVAL;
@@ -476,17 +455,7 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	if (odr_wf.period_length_ns < 2 * odr_high_time_ns)
 		return -EINVAL;
 
-	/*
-	 * The controller fetches one sample per active lane each time the
-	 * offload module is triggered. If multiple data lanes are enabled, the
-	 * offload trigger frequency can be proportionally slower. ?
-	 */
-	offload_period_ns = DIV_ROUND_CLOSEST(NSEC_PER_SEC,
-//					      odr_hz * st->num_dout_lines);
-					      odr_hz);
-
-	config->periodic.frequency_hz = DIV_ROUND_UP_ULL(NSEC_PER_SEC,
-							 offload_period_ns);
+	config->periodic.frequency_hz = odr_hz;
 
 	/*
 	 * For gated DCLK, the minimum required time between ODR rising edge
@@ -517,11 +486,6 @@ static ssize_t sampling_frequency_show(struct device *dev,
 {
 	struct ad4134_state *st = iio_priv(dev_to_iio_dev(dev));
 
-	/*
-	 * If the controller can fetch data from multiple lanes, the throughput
-	 * is increased proportionally to the number of data lanes in use.
-	 */
-	//return sysfs_emit(buf, "%u\n", st->odr_hz * st->num_dout_lines);
 	return sysfs_emit(buf, "%u\n", st->odr_hz);
 }
 
@@ -558,8 +522,7 @@ static ssize_t sampling_frequency_available_show(struct device *dev,
 	struct ad4134_state *st = iio_priv(indio_dev);
 
 	return sysfs_emit(buf, "[%u %u %lu]\n",
-			  AD4134_MIN_ODR_FREQ_HZ * st->num_dout_lines, 1,
-			  AD4134_MAX_ODR_FREQ_HZ * st->num_dout_lines);
+			  AD4134_MIN_ODR_FREQ_HZ, 1, AD4134_MAX_ODR_FREQ_HZ);
 }
 
 static IIO_DEVICE_ATTR_RO(sampling_frequency_available, 0);
