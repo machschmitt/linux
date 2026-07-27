@@ -588,6 +588,7 @@ static void ad4134_prepare_offload_msg(struct iio_dev *indio_dev)
 	}
 	num_devices = st->ad4134_duo ? 2 : 1;
 
+	st->xfers.cs_off = 1;
 	st->xfers.bits_per_word = bpw;
 	st->xfers.len = base_len * st->num_dout_lines * num_devices;
 
