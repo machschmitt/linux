@@ -204,6 +204,16 @@ static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 	else
 		len = xfer->len / 4;
 
+	/*
+	 * HACK:
+	 * The HDL is hardconded/configured to simultaneously read from all SDI
+	 * lines. For the ad4134fmc HDL project, that means we get 4 bytes of
+	 * data pushed to the DMA buffer for each SPI Engine transfer byte ran.
+	 * So, scale down the length of the SPI Engine data transfer to cope
+	 * with the struct spi_transfer len field.
+	 */
+	len /= 4;
+
 	while (len) {
 		unsigned int n = min(len, 256U);
 		unsigned int flags = 0;
