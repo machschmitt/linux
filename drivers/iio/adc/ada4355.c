@@ -6,24 +6,23 @@
  */
 
 #include <linux/bitfield.h>
-#include <linux/module.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/err.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/err.h>
-#include <linux/delay.h>
-#include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
-#include <linux/clk-provider.h>
-#include <linux/regmap.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
 #include "cf_axi_adc.h"
-
-#include <linux/clk.h>
 
 #define ADA4355_CHIP_CONFIG_REG			0x00
 #define ADA4355_CHIP_ID_REG			0x01
