@@ -547,5 +547,6 @@ module_spi_driver(ada4355_driver);
 
 MODULE_AUTHOR("Antoniu Miclaus <antoniu.miclaus@analog.com>");
 MODULE_AUTHOR("Pop Ioan Daniel <pop.ioan-daniel@analog.com>");
+MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADA4355");
 MODULE_LICENSE("GPL");
