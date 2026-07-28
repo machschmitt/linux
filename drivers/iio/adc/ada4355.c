@@ -2,7 +2,7 @@
 /*
  * Analog Devices ADA4355 SPI ADC driver
  *
- * Copyright 2025 Analog Devices Inc.
+ * Copyright 2026 Analog Devices Inc.
  */
 
 #include <linux/bitfield.h>
