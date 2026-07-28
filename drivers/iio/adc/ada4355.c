@@ -25,55 +25,35 @@
 
 #include <linux/clk.h>
 
-/** Register Definition */
-
-#define ADA4355_REG_CHIP_CONFIGURATION      0x00
-#define ADA4355_REG_CHIP_ID                 0x01
-#define ADA4355_REG_DEVICE_INDEX            0X05
-#define ADA4355_REG_TRANFER                 0XFF
-#define ADA4355_REG_POWER_MODES             0X08
-#define ADA4355_REG_CLOCK                   0X09
-#define ADA4355_REG_CLOCK_DIVIDE            0X0B
-#define ADA4355_REG_TEST_MODE               0X0D
-#define ADA4355_REG_OUTPUT_MODE             0X14
-#define ADA4355_REG_OUTPUT_ADJUST           0X15
-#define ADA4355_REG_OUTPUT_PHASE            0X16
-#define ADA4355_REG_USER_PATT1_LSB          0X19
-#define ADA4355_REG_USER_PATT1_MSB          0X1A
-#define ADA4355_REG_USER_PATT2_LSB          0X1B
-#define ADA4355_REG_USER_PATT2_MSB          0X1C
-#define ADA4355_REG_SERIAL_OUT_DATA_CNTRL   0X21
-#define ADA4355_REG_SERIAL_CHANNEL_STATUS   0X22
-#define ADA4355_REG_RESOLUTION_SAMPLE_RATE  0X100
-#define ADA4355_REG_USER_IN_OUT_CNTRL       0X101
-
-/*ADA4355_REG_POWER_MODES 0x08*/
-#define ADA4355_DIGITAL_RESET			GENMASK(1, 0)
-#define ADA4355_NORMAL_OPERATION		0xFC
-
-/*CHIP ID*/
+#define ADA4355_CHIP_CONFIG_REG			0x00
+#define ADA4355_CHIP_ID_REG			0x01
 #define ADA4355_CHIP_ID				0x8B
 
-/*REG TRANSFER 0xFF*/
-#define ADA4355_OVERRIDE			BIT(0)
+#define ADA4355_DEVICE_INDEX_REG		0x05
+#define ADA4355_TRANSFER_REG			0xFF
+#define ADA4355_TRANSFER_OVERRIDE		BIT(0)
 
-/*SAMPLE RATE OVERRIDE*/
-#define ADA4355_125_RATE			0x06
+#define ADA4355_POWER_MODES_REG			0x08
+#define ADA4355_PW_MODE_DIGITAL_RESET		GENMASK(1, 0)
+#define ADA4355_PW_MODE_NORMAL			0xFC
 
-/*ADA4355_REG_SERIAL_OUT_DATA_CNTRL */
+#define ADA4355_TEST_MODE_REG			0x0D
+#define ADA4355_TEST_MODE_OFF			0x00
+#define ADA4355_TEST_MODE_USER_INPUT		0x48
+
+#define ADA4355_OUTPUT_MODE_REG			0x14
+#define ADA4355_OUTPUT_MODE_TWOSCOMP		BIT(0)
+
+#define ADA4355_USER_PATT1_LSB_REG		0x19
+#define ADA4355_USER_PATT1_MSB_REG		0x1A
+#define ADA4355_USER_PATT2_LSB_REG		0x1B
+#define ADA4355_USER_PATT2_MSB_REG		0x1C
+#define ADA4355_SERIAL_OUT_DATA_CNTRL_REG	0x21
 #define ADA4355_DDR_TWO_LANE_BITWISE		0x20
 
-/*PATTERN*/
-#define ADA4355_ALT_CHECKERBOARD_PATTERN	0x44
-
-/*INPUT_SIGNALS*/
-#define ADA4355_INPUT_SIGNALS			0x00
-
-/*USER_INPUT*/
-#define ADA4355_USER_INPUT			0x48
-
-// Output Mode
-#define ADA4355_TWOSCOMP			BIT(0)
+#define ADA4355_SERIAL_CHANNEL_STATUS_REG	0x22
+#define ADA4355_RESOLUTION_SAMPLE_RATE_REG	0x100
+#define ADA4355_125_RATE			0x06
 
 //HDL address: 0x32
 #define ADA4355_ENABLE_ERROR_MASK		0x00C8
@@ -333,7 +313,7 @@ static int ada4355_post_setup(struct iio_dev *indio_dev)
 
 	axiadc_write(axi_adc_st, ADI_REG_CHAN_CNTRL(0), 0);
 
-	ret = regmap_write(st->regmap, ADA4355_REG_TEST_MODE, ADA4355_INPUT_SIGNALS);
+	ret = regmap_write(st->regmap, ADA4355_TEST_MODE_REG, ADA4355_TEST_MODE_OFF);
 	if (ret)
 		return ret;
 
@@ -347,37 +327,37 @@ static int ada4355_setup(struct ada4355_state *st)
 
 	struct gpio_desc *gpio_vld_en;
 
-	ret = regmap_write(st->regmap,  ADA4355_REG_POWER_MODES,
-			   ADA4355_DIGITAL_RESET);
+	ret = regmap_write(st->regmap,  ADA4355_POWER_MODES_REG,
+			   ADA4355_PW_MODE_DIGITAL_RESET);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(st->regmap, ADA4355_REG_POWER_MODES, &reg);
+	ret = regmap_read(st->regmap, ADA4355_POWER_MODES_REG, &reg);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap,  ADA4355_REG_POWER_MODES,
-			  (reg & ADA4355_NORMAL_OPERATION));
+	ret = regmap_write(st->regmap,  ADA4355_POWER_MODES_REG,
+			  (reg & ADA4355_PW_MODE_NORMAL));
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_CHIP_CONFIGURATION, 0x00);
+	ret = regmap_write(st->regmap, ADA4355_CHIP_CONFIG_REG, 0x00);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_DEVICE_INDEX, 0x02);
+	ret = regmap_write(st->regmap, ADA4355_DEVICE_INDEX_REG, 0x02);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_SERIAL_CHANNEL_STATUS, 0x03);
+	ret = regmap_write(st->regmap, ADA4355_SERIAL_CHANNEL_STATUS_REG, 0x03);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_DEVICE_INDEX, 0x31);
+	ret = regmap_write(st->regmap, ADA4355_DEVICE_INDEX_REG, 0x31);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(st->regmap, ADA4355_REG_CHIP_ID, &id);
+	ret = regmap_read(st->regmap, ADA4355_CHIP_ID_REG, &id);
 	if (ret)
 		return ret;
 
@@ -386,55 +366,55 @@ static int ada4355_setup(struct ada4355_state *st)
 		return -EINVAL;
 	}
 
-	ret = regmap_read(st->regmap, ADA4355_REG_SERIAL_OUT_DATA_CNTRL, &reg);
+	ret = regmap_read(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG, &reg);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_SERIAL_OUT_DATA_CNTRL,
+	ret = regmap_write(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
 		(reg & ADA4355_DDR_TWO_LANE_BITWISE) | ADA4355_DDR_TWO_LANE_BITWISE);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(st->regmap, ADA4355_REG_TRANFER, &reg);
+	ret = regmap_read(st->regmap, ADA4355_TRANSFER_REG, &reg);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_TRANFER, (reg | ADA4355_OVERRIDE));
+	ret = regmap_write(st->regmap, ADA4355_TRANSFER_REG, (reg | ADA4355_OVERRIDE));
 	if (ret)
 		return ret;
 
 	// Set User input mode
-	ret = regmap_write(st->regmap, ADA4355_REG_TEST_MODE, ADA4355_USER_INPUT);
+	ret = regmap_write(st->regmap, ADA4355_TEST_MODE_REG, ADA4355_TEST_MODE_USER_INPUT);
 	if (ret)
 		return ret;
 
 	// Write test_pattern = 0xFFFC;
-	ret = regmap_write(st->regmap, ADA4355_REG_USER_PATT1_MSB, 0xFF);
+	ret = regmap_write(st->regmap, ADA4355_USER_PATT1_MSB_REG, 0xFF);
 	if (ret)
 		return ret;
-	ret = regmap_write(st->regmap, ADA4355_REG_USER_PATT1_LSB, 0xFC);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(st->regmap, ADA4355_REG_USER_PATT2_MSB, 0xFF);
+	ret = regmap_write(st->regmap, ADA4355_USER_PATT1_LSB_REG, 0xFC);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_USER_PATT2_LSB, 0xFC);
+	ret = regmap_write(st->regmap, ADA4355_USER_PATT2_MSB_REG, 0xFF);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(st->regmap, ADA4355_REG_TEST_MODE, &reg);
+	ret = regmap_write(st->regmap, ADA4355_USER_PATT2_LSB_REG, 0xFC);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_OUTPUT_MODE, ADA4355_TWOSCOMP);
-
-	ret = regmap_read(st->regmap, ADA4355_REG_OUTPUT_MODE, &reg);
+	ret = regmap_read(st->regmap, ADA4355_TEST_MODE_REG, &reg);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_REG_RESOLUTION_SAMPLE_RATE, ADA4355_125_RATE);
+	ret = regmap_write(st->regmap, ADA4355_OUTPUT_MODE_REG, ADA4355_OUTPUT_MODE_TWOSCOMP);
+
+	ret = regmap_read(st->regmap, ADA4355_OUTPUT_MODE_REG, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(st->regmap, ADA4355_RESOLUTION_SAMPLE_RATE_REG, ADA4355_125_RATE);
 		return ret;
 
 	gpio_vld_en = devm_gpiod_get_optional(&st->spi->dev, "gpio-vld-en", GPIOD_OUT_LOW);
