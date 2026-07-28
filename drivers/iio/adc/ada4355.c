@@ -484,7 +484,9 @@ static int ada4355_probe(struct spi_device *spi)
 	st->regmap = regmap;
 	st->spi = spi;
 
-	mutex_init(&st->lock);
+	ret = devm_mutex_init(&st->lock);
+	if (ret)
+		return ret;
 
 	conv = devm_kzalloc(&spi->dev, sizeof(*conv), GFP_KERNEL);
 		if (!conv)
