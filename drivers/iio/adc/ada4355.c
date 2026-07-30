@@ -167,13 +167,6 @@ static const struct axiadc_chip_info ada4355_chip_info = {
 	.channel[0] = ADA4355_CHAN(0, 0, 14, 's', 2),
 };
 
-static void ada4355_clk_disable(void *data)
-{
-	struct axiadc_converter *st = data;
-
-	clk_disable_unprepare(st->clk);
-}
-
 int find_opt(u8 *field, u32 size, u32 *ret_start)
 {
 	int i, cnt = 0, max_cnt = 0, start, max_start = 0;
@@ -430,10 +423,6 @@ static int ada4355_properties_parse(struct ada4355_state *st)
 	unsigned int val;
 	int ret;
 
-	st->clk = devm_clk_get(&spi->dev, "adc_clk");
-	if (IS_ERR(st->clk))
-		return PTR_ERR(st->clk);
-
 	ret = of_property_read_u32(spi->dev.of_node, "num_lanes", &val);
 	if (!ret)
 		st->num_lanes = val;
@@ -477,13 +466,9 @@ static int ada4355_probe(struct spi_device *spi)
 		if (ret)
 			return ret;
 
-	ret = clk_prepare_enable(st->clk);
-		if (ret)
-			return ret;
-
-	ret = devm_add_action_or_reset(&spi->dev, ada4355_clk_disable, st->clk);
-		if (ret)
-			return ret;
+	st->clk = devm_clk_get_enabled(&spi->dev, NULL);
+	if (IS_ERR(st->clk))
+		return PTR_ERR(st->clk);
 
 	ret = ada4355_setup(st);
 	if (ret < 0)
