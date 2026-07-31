@@ -132,6 +132,7 @@ enum iio_backend_capabilities {
  * @debugfs_reg_access: Read or write register value of backend.
  * @filter_type_set: Set filter type.
  * @interface_data_align: Perform the data alignment process.
+ * @frame_setup: Read frame setup
  * @num_lanes_set: Set the number of lanes enabled.
  * @crc_enable: Enable direction-specific CRC handling.
  * @crc_disable: Disable direction-specific CRC handling.
@@ -190,6 +191,7 @@ struct iio_backend_ops {
 	int (*filter_type_set)(struct iio_backend *back,
 			       enum iio_backend_filter_type type);
 	int (*interface_data_align)(struct iio_backend *back, u32 timeout_us);
+	int (*frame_setup)(struct iio_backend *back, unsigned int num_lanes);
 	int (*num_lanes_set)(struct iio_backend *back, unsigned int num_lanes);
 	int (*crc_enable)(struct iio_backend *back);
 	int (*crc_disable)(struct iio_backend *back);
@@ -240,6 +242,7 @@ int devm_iio_backend_request_buffer(struct device *dev,
 int iio_backend_filter_type_set(struct iio_backend *back,
 				enum iio_backend_filter_type type);
 int iio_backend_interface_data_align(struct iio_backend *back, u32 timeout_us);
+int iio_backend_frame_setup(struct iio_backend *back, unsigned int num_lanes);
 int iio_backend_num_lanes_set(struct iio_backend *back, unsigned int num_lanes);
 int iio_backend_crc_enable(struct iio_backend *back);
 int iio_backend_crc_disable(struct iio_backend *back);
