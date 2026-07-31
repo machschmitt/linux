@@ -60,6 +60,10 @@
 #define ADI_AXI_ADC_REG_DRP_STATUS		0x0074
 #define   ADI_AXI_ADC_DRP_LOCKED		BIT(17)
 
+#define ADI_AXI_ADC_REG_LVDS			0x00c8
+#define   ADI_AXI_ADC_LVDS_FRAME_ERROR		BIT(2)
+#define   ADI_AXI_ADC_LVDS_LANE_ERROR		GENMASK(1, 0)
+
 /* ADC Channel controls */
 
 #define ADI_AXI_REG_CHAN_CTRL(c)		(0x0400 + (c) * 0x40)
@@ -454,6 +458,173 @@ static int axi_adc_ad408x_interface_data_align(struct iio_backend *back,
 					1, timeout_us);
 }
 
+int find_opt(u8 *field, u32 size, u32 *ret_start)
+{
+	int i, cnt = 0, max_cnt = 0, start, max_start = 0;
+
+	for (i = 0, start = -1; i < size; i++) {
+		if (field[i] == 0) {
+			if (start == -1)
+				start = i;
+			cnt++;
+		} else {
+			if (cnt > max_cnt) {
+				max_cnt = cnt;
+				max_start = start;
+			}
+				start = -1;
+				cnt = 0;
+		}
+	}
+
+	if (cnt > max_cnt) {
+		max_cnt = cnt;
+		max_start = start;
+	}
+
+	*ret_start = max_start;
+
+	return max_cnt;
+}
+
+/* TODO check out whether can split _frame_setup() code by lane */
+static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
+					    unsigned int lane)
+{
+	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
+	u8 pn_status[3][32];
+	int opt_delay, c, s;
+	int ret;
+	unsigned int reg_cntrl;
+	unsigned int i;
+	unsigned int j;
+	unsigned int delay;
+	unsigned int val;
+
+	// frame calibration
+	//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, (1 << 2));
+	ret = regmap_set_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
+			      ADI_AXI_ADC_LVDS_FRAME_ERROR);
+	for (delay = 0; delay < 32; delay++) {
+		ret = axi_adc_iodelays_set(st->back, 0, delay);
+		if (ret)
+			return ret;
+
+		ret = axi_adc_iodelays_set(st->back, 1, delay);
+		if (ret)
+			return ret;
+
+		ret = axi_adc_chan_status(st->back, 0, &val);
+		if (ret)
+			return ret;
+
+		//val = axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0));
+		//axiadc_write(axi_adc_st, ADI_REG_CHAN_STATUS(0), val);
+		//axiadc_write(axi_adc_st, 0x808, delay);
+		//mdelay(1);
+		//if (axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0)) & ADI_PN_ERR)
+		if (val)
+			pn_status[0][delay] = 1;
+		else
+			pn_status[0][delay] = 0;
+	}
+
+	dev_info(back->dev, "digital interface frame tuning:\n");
+
+	pr_cont("  ");
+	for (i = 0; i < 31; i++)
+		pr_cont("%02d:", i);
+	pr_cont("31\n");
+
+	pr_info("%x:", 0);
+	for (j = 0; j < 32; j++) {
+		if (pn_status[0][j])
+			pr_cont(" # ");
+		else
+			pr_cont(" o ");
+	}
+	pr_cont("\n");
+
+	c = find_opt(&pn_status[0][0], 32, &s);
+	opt_delay = s + c / 2;
+	//axiadc_write(axi_adc_st, 0x808, opt_delay);
+	ret = axi_adc_iodelays_set(st->back, 0, opt_delay);
+	if (ret)
+		return ret;
+	ret = axi_adc_iodelays_set(st->back, 1, opt_delay);
+	if (ret)
+		return ret;
+	dev_info(back->dev, "frame lane : selected delay: %d\n", opt_delay);
+
+	//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, 0);
+	ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
+				ADI_AXI_ADC_LVDS_FRAME_ERROR);
+	// data calibration
+	for (i = 0; i < (st->num_lanes); i++) {
+		//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, (1 << i));
+		ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
+					ADI_AXI_ADC_LVDS_LANE_ERROR, i);
+		if (ret)
+			return ret;
+
+		for (delay = 0; delay < 32; delay++) {
+			//val = axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0));
+			//axiadc_write(axi_adc_st, ADI_REG_CHAN_STATUS(0), val);
+			ret = axi_adc_chan_status(st->back, i, &val);
+			if (ret)
+				return ret;
+
+			//axiadc_write(axi_adc_st, 0x800 + (i * 4), delay);
+			ret = axi_adc_iodelays_set(st->back, i, delay);
+			if (ret)
+				return ret;
+			mdelay(1);
+			ret = axi_adc_chan_status(st->back, i, &val);
+			if (ret)
+				return ret;
+			//if (axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0)) & ADI_PN_ERR)
+			if (val)
+				pn_status[i][delay] = 1;
+			else
+				pn_status[i][delay] = 0;
+		}
+		//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, 0);
+		ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
+					ADI_AXI_ADC_LVDS_LANE_ERROR, i);
+		if (ret)
+			return ret;
+	}
+
+	dev_info(back->dev, "digital interface lanes tuning:\n");
+
+	pr_cont("  ");
+	for (i = 0; i < 31; i++)
+		pr_cont("%02d:", i);
+	pr_cont("31\n");
+
+	for (i = 0; i < (st->num_lanes); i++) {
+		pr_info("%x:", i);
+		for (j = 0; j < 32; j++) {
+			if (pn_status[i][j])
+				pr_cont(" # ");
+			else
+				pr_cont(" o ");
+		}
+		pr_cont("\n");
+	}
+
+	for (i = 0; i < (st->num_lanes); i++) {
+		c = find_opt(&pn_status[i][0], 32, &s);
+		opt_delay = s + c / 2;
+		//axiadc_write(axi_adc_st, 0x800 + (i * 4), opt_delay);
+		ret = axi_adc_iodelays_set(st->back, i, opt_delay);
+		if (ret)
+			return ret;
+		dev_info(back->dev, "lane %d: selected delay: %d\n",
+			i, opt_delay);
+	}
+}
+
 static int axi_adc_num_lanes_set(struct iio_backend *back,
 				 unsigned int num_lanes)
 {
@@ -671,6 +842,32 @@ static const struct iio_backend_info axi_ad408x = {
 	.caps = IIO_BACKEND_CAP_BUFFER | IIO_BACKEND_CAP_ENABLE,
 };
 
+static const struct iio_backend_ops adi_ada435x_ops = {
+	.enable = axi_adc_enable,
+	.disable = axi_adc_disable,
+	.data_format_set = axi_adc_data_format_set,
+	.chan_enable = axi_adc_chan_enable,
+	.chan_disable = axi_adc_chan_disable,
+	.request_buffer = axi_adc_request_buffer,
+	.free_buffer = axi_adc_free_buffer,
+	.data_sample_trigger = axi_adc_data_sample_trigger,
+	.iodelay_set = axi_adc_iodelays_set,
+	.test_pattern_set = axi_adc_test_pattern_set,
+	.chan_status = axi_adc_chan_status,
+	.interface_type_get = axi_adc_interface_type_get,
+	.oversampling_ratio_set = axi_adc_oversampling_ratio_set,
+	.interface_data_align = axi_adc_ada4355_data_frame_setup,
+	.num_lanes_set = axi_adc_num_lanes_set,
+	.debugfs_reg_access = iio_backend_debugfs_ptr(axi_adc_reg_access),
+	.debugfs_print_chan_status = iio_backend_debugfs_ptr(axi_adc_debugfs_print_chan_status),
+};
+
+static const struct iio_backend_info axi_ada435x = {
+	.name = "axi-ada4355",
+	.ops = &adi_ada435x_ops,
+	.caps = IIO_BACKEND_CAP_BUFFER | IIO_BACKEND_CAP_ENABLE,
+};
+
 static int adi_axi_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -786,12 +983,18 @@ static const struct axi_adc_info adi_axi_ad408x = {
 	.backend_info = &axi_ad408x,
 };
 
+static const struct axi_adc_info adi_axi_ada435x = {
+	.version = ADI_AXI_PCORE_VER(10, 0, 'a'),
+	.backend_info = &axi_ada435x,
+};
+
 /* Match table for of_platform binding */
 static const struct of_device_id adi_axi_adc_of_match[] = {
 	{ .compatible = "adi,axi-adc-10.0.a", .data = &adc_generic },
 	{ .compatible = "adi,axi-ad408x", .data = &adi_axi_ad408x },
 	{ .compatible = "adi,axi-ad485x", .data = &adi_axi_ad485x },
 	{ .compatible = "adi,axi-ad7606x", .data = &adc_ad7606 },
+	{ .compatible = "adi,axi-ada435x", .data = &adi_axi_ada435x },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adi_axi_adc_of_match);
