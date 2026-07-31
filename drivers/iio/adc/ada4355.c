@@ -452,7 +452,7 @@ static int ada4355_probe(struct spi_device *spi)
 	st->regmap = regmap;
 	st->spi = spi;
 
-	ret = devm_mutex_init(&st->lock);
+	ret = devm_mutex_init(&spi->dev, &st->lock);
 	if (ret)
 		return ret;
 
