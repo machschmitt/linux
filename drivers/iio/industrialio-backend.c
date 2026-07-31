@@ -870,6 +870,29 @@ int iio_backend_interface_data_align(struct iio_backend *back, u32 timeout_us)
 EXPORT_SYMBOL_NS_GPL(iio_backend_interface_data_align, "IIO_BACKEND");
 
 /**
+ * iio_backend_calibration_source_set - Select the monitored error source
+ * @back: Backend device
+ * @source: Error source to monitor.
+ * @lane: Data lane to monitor. Only meaningful for
+ *	  %IIO_BACKEND_CALIB_SOURCE_DATA_LANE.
+ *
+ * Restrict the error reported through iio_backend_chan_status() to a single
+ * source of the digital interface so that each lane can be calibrated
+ * independently. Backends are expected to report every error source again
+ * once %IIO_BACKEND_CALIB_SOURCE_NONE is selected.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_calibration_source_set(struct iio_backend *back,
+				       enum iio_backend_calib_source source,
+				       unsigned int lane)
+{
+	return iio_backend_op_call(back, calibration_source_set, source, lane);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_calibration_source_set, "IIO_BACKEND");
+
+/**
  * iio_backend_num_lanes_set - Number of lanes enabled.
  * @back: Backend device
  * @num_lanes: Number of lanes.
