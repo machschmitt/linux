@@ -67,6 +67,10 @@
 #define ADI_AXI_ADC_REG_DRP_STATUS		0x0074
 #define   ADI_AXI_ADC_DRP_LOCKED		BIT(17)
 
+#define ADI_AXI_ADC_REG_LVDS			0x00c8
+#define   ADI_AXI_ADC_LVDS_FRAME_ERROR		BIT(2)
+#define   ADI_AXI_ADC_LVDS_LANE_ERROR		GENMASK(1, 0)
+
 /* ADC Channel controls */
 
 #define ADI_AXI_REG_CHAN_CTRL(c)		(0x0400 + (c) * 0x40)
@@ -486,6 +490,34 @@ static int axi_adc_ad408x_interface_data_align(struct iio_backend *back,
 					1, timeout_us);
 }
 
+static int axi_adc_ada4355_calibration_source_set(struct iio_backend *back,
+						  enum iio_backend_calib_source source,
+						  unsigned int lane)
+{
+	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
+	u32 val;
+
+	switch (source) {
+	case IIO_BACKEND_CALIB_SOURCE_NONE:
+		val = 0;
+		break;
+	case IIO_BACKEND_CALIB_SOURCE_FRAME:
+		val = ADI_AXI_ADC_LVDS_FRAME_ERROR;
+		break;
+	case IIO_BACKEND_CALIB_SOURCE_DATA_LANE:
+		if (BIT(lane) & ~ADI_AXI_ADC_LVDS_LANE_ERROR)
+			return -EINVAL;
+		val = BIT(lane);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
+				  ADI_AXI_ADC_LVDS_FRAME_ERROR |
+				  ADI_AXI_ADC_LVDS_LANE_ERROR, val);
+}
+
 static int axi_adc_num_lanes_set(struct iio_backend *back,
 				 unsigned int num_lanes)
 {
@@ -722,6 +754,34 @@ static const struct iio_backend_info axi_ad408x = {
 	.caps = IIO_BACKEND_CAP_BUFFER | IIO_BACKEND_CAP_ENABLE,
 };
 
+static const struct iio_backend_ops adi_ada4355_ops = {
+	.enable = axi_adc_enable,
+	.disable = axi_adc_disable,
+	.data_format_set = axi_adc_data_format_set,
+	.chan_enable = axi_adc_chan_enable,
+	.chan_disable = axi_adc_chan_disable,
+	.request_buffer = axi_adc_request_buffer,
+	.free_buffer = axi_adc_free_buffer,
+	.data_sample_trigger = axi_adc_data_sample_trigger,
+	.iodelay_set = axi_adc_iodelays_set,
+	.test_pattern_set = axi_adc_test_pattern_set,
+	.chan_status = axi_adc_chan_status,
+	.interface_type_get = axi_adc_interface_type_get,
+	.oversampling_ratio_set = axi_adc_oversampling_ratio_set,
+	.interface_data_align = axi_adc_ad408x_interface_data_align,
+	.calibration_source_set = axi_adc_ada4355_calibration_source_set,
+	.num_lanes_set = axi_adc_num_lanes_set,
+	.debugfs_reg_access = iio_backend_debugfs_ptr(axi_adc_reg_access),
+	.debugfs_print_chan_status = iio_backend_debugfs_ptr(axi_adc_debugfs_print_chan_status),
+};
+
+static const struct iio_backend_info axi_ada4355 = {
+	.name = "axi-ada4355",
+	.ops = &adi_ada4355_ops,
+	.caps = IIO_BACKEND_CAP_CALIBRATION | IIO_BACKEND_CAP_BUFFER |
+		IIO_BACKEND_CAP_ENABLE,
+};
+
 static int adi_axi_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -841,12 +901,18 @@ static const struct axi_adc_info adi_axi_ad408x = {
 	.backend_info = &axi_ad408x,
 };
 
+static const struct axi_adc_info adi_axi_ada4355 = {
+	.version = ADI_AXI_PCORE_VER(10, 0, 'a'),
+	.backend_info = &axi_ada4355,
+};
+
 /* Match table for of_platform binding */
 static const struct of_device_id adi_axi_adc_of_match[] = {
 	{ .compatible = "adi,axi-adc-10.0.a", .data = &adc_generic },
 	{ .compatible = "adi,axi-ad408x", .data = &adi_axi_ad408x },
 	{ .compatible = "adi,axi-ad485x", .data = &adi_axi_ad485x },
 	{ .compatible = "adi,axi-ad7606x", .data = &adc_ad7606 },
+	{ .compatible = "adi,axi-ada4355", .data = &adi_axi_ada4355 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adi_axi_adc_of_match);
