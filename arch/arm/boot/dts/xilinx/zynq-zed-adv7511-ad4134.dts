@@ -74,6 +74,15 @@
 		clocks = <&clkc 15>;
 	};
 
+	/* One consumer of a 2-way mux controller (one GPIO-line) */
+	ad4134fmc_mux: mux-controller {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+
+		mux-gpios = <&gpio0 100 GPIO_ACTIVE_HIGH>;
+		idle-state = <1>;
+	};
+
 	spi_engine: spi@44a00000 {
 		compatible = "adi,axi-spi-engine-1.00.a";
 		reg = <0x44a00000 0x10000>;
@@ -100,7 +109,8 @@
 			reset-gpios = <&gpio0 86 GPIO_ACTIVE_LOW>;
 
 			//mux on GPIO 46 --> x - 54 = 46 => x = 46 + 54 = 100
-			adi,input-mux-gpios = <&gpio0 100 GPIO_ACTIVE_HIGH>;
+			mux-controls = <&ad4134fmc_mux>;
+			mux-control-names = "adc_input_mux";
 
 			clocks = <&eval_ad4134_xtal>;
 			clock-names = "xtal";
