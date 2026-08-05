@@ -77,7 +77,7 @@
 	/* One consumer of a 2-way mux controller (one GPIO-line) */
 	ad4134fmc_mux: mux-controller {
 		compatible = "gpio-mux";
-		#mux-control-cells = <0>;
+		#mux-state-cells = <1>;
 
 		mux-gpios = <&gpio0 100 GPIO_ACTIVE_HIGH>;
 		idle-state = <1>;
@@ -109,8 +109,8 @@
 			reset-gpios = <&gpio0 86 GPIO_ACTIVE_LOW>;
 
 			//mux on GPIO 46 --> x - 54 = 46 => x = 46 + 54 = 100
-			mux-controls = <&ad4134fmc_mux>;
-			mux-control-names = "adc_input_mux";
+			mux-states = <&ad4134fmc_mux 0>, <&ad4134fmc_mux 1>;
+			mux-state-names = "data_read", "reg_access";
 
 			clocks = <&eval_ad4134_xtal>;
 			clock-names = "xtal";
