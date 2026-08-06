@@ -737,6 +737,12 @@ static int ad4134_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int ad4134_read_label(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan, char *label)
+{
+        return sysfs_emit(label, "AIN%d+_AIN%d-\n", chan->channel, chan->channel);
+}
+
 static int ad4134_debugfs_reg_access(struct iio_dev *indio_dev,
 				     unsigned int reg, unsigned int writeval,
 				     unsigned int *readval)
@@ -787,6 +793,7 @@ static const struct iio_info ad4134_offload_info = {
 	.read_raw = ad4134_read_raw,
 	.read_avail = ad4134_read_avail,
 	.write_raw = ad4134_write_raw,
+	.read_label = ad4134_read_label,
 	.debugfs_reg_access = ad4134_debugfs_reg_access,
 };
 
