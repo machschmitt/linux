@@ -489,7 +489,7 @@ int find_opt(u8 *field, u32 size, u32 *ret_start)
 
 /* TODO check out whether can split _frame_setup() code by lane */
 static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
-					    unsigned int lane)
+					    unsigned int num_lanes)
 {
 	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
 	u8 pn_status[3][32];
@@ -506,15 +506,16 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 	ret = regmap_set_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
 			      ADI_AXI_ADC_LVDS_FRAME_ERROR);
 	for (delay = 0; delay < 32; delay++) {
-		ret = axi_adc_iodelays_set(st->back, 0, delay);
+		ret = axi_adc_iodelays_set(back, 0, delay);
 		if (ret)
 			return ret;
 
-		ret = axi_adc_iodelays_set(st->back, 1, delay);
+		ret = axi_adc_iodelays_set(back, 1, delay);
 		if (ret)
 			return ret;
 
-		ret = axi_adc_chan_status(st->back, 0, &val);
+		bool chan_status;
+		ret = axi_adc_chan_status(back, 0, &chan_status);
 		if (ret)
 			return ret;
 
@@ -523,13 +524,13 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 		//axiadc_write(axi_adc_st, 0x808, delay);
 		//mdelay(1);
 		//if (axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0)) & ADI_PN_ERR)
-		if (val)
+		if (chan_status)
 			pn_status[0][delay] = 1;
 		else
 			pn_status[0][delay] = 0;
 	}
 
-	dev_info(back->dev, "digital interface frame tuning:\n");
+	dev_info(st->dev, "digital interface frame tuning\n");
 
 	pr_cont("  ");
 	for (i = 0; i < 31; i++)
@@ -548,61 +549,62 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 	c = find_opt(&pn_status[0][0], 32, &s);
 	opt_delay = s + c / 2;
 	//axiadc_write(axi_adc_st, 0x808, opt_delay);
-	ret = axi_adc_iodelays_set(st->back, 0, opt_delay);
+	ret = axi_adc_iodelays_set(back, 0, opt_delay);
 	if (ret)
 		return ret;
-	ret = axi_adc_iodelays_set(st->back, 1, opt_delay);
+	ret = axi_adc_iodelays_set(back, 1, opt_delay);
 	if (ret)
 		return ret;
-	dev_info(back->dev, "frame lane : selected delay: %d\n", opt_delay);
+	dev_info(st->dev, "frame lane : selected delay: %d\n", opt_delay);
 
 	//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, 0);
 	ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
 				ADI_AXI_ADC_LVDS_FRAME_ERROR);
 	// data calibration
-	for (i = 0; i < (st->num_lanes); i++) {
+	for (unsigned int i = 0; i < num_lanes; i++) {
 		//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, (1 << i));
 		ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
-					ADI_AXI_ADC_LVDS_LANE_ERROR, i);
+					ADI_AXI_ADC_LVDS_LANE_ERROR);
 		if (ret)
 			return ret;
 
 		for (delay = 0; delay < 32; delay++) {
 			//val = axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0));
 			//axiadc_write(axi_adc_st, ADI_REG_CHAN_STATUS(0), val);
-			ret = axi_adc_chan_status(st->back, i, &val);
+			bool chan_status;
+			ret = axi_adc_chan_status(back, i, &chan_status);
 			if (ret)
 				return ret;
 
 			//axiadc_write(axi_adc_st, 0x800 + (i * 4), delay);
-			ret = axi_adc_iodelays_set(st->back, i, delay);
+			ret = axi_adc_iodelays_set(back, i, delay);
 			if (ret)
 				return ret;
 			mdelay(1);
-			ret = axi_adc_chan_status(st->back, i, &val);
+			ret = axi_adc_chan_status(back, i, &chan_status);
 			if (ret)
 				return ret;
 			//if (axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0)) & ADI_PN_ERR)
-			if (val)
+			if (chan_status)
 				pn_status[i][delay] = 1;
 			else
 				pn_status[i][delay] = 0;
 		}
 		//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, 0);
 		ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
-					ADI_AXI_ADC_LVDS_LANE_ERROR, i);
+					ADI_AXI_ADC_LVDS_LANE_ERROR);
 		if (ret)
 			return ret;
 	}
 
-	dev_info(back->dev, "digital interface lanes tuning:\n");
+	dev_info(st->dev, "second? digital interface lanes tuning:\n");
 
 	pr_cont("  ");
 	for (i = 0; i < 31; i++)
 		pr_cont("%02d:", i);
 	pr_cont("31\n");
 
-	for (i = 0; i < (st->num_lanes); i++) {
+	for (i = 0; i < num_lanes; i++) {
 		pr_info("%x:", i);
 		for (j = 0; j < 32; j++) {
 			if (pn_status[i][j])
@@ -613,16 +615,18 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 		pr_cont("\n");
 	}
 
-	for (i = 0; i < (st->num_lanes); i++) {
+	for (unsigned int i = 0; i < num_lanes; i++) {
 		c = find_opt(&pn_status[i][0], 32, &s);
 		opt_delay = s + c / 2;
 		//axiadc_write(axi_adc_st, 0x800 + (i * 4), opt_delay);
-		ret = axi_adc_iodelays_set(st->back, i, opt_delay);
+		ret = axi_adc_iodelays_set(back, i, opt_delay);
 		if (ret)
 			return ret;
-		dev_info(back->dev, "lane %d: selected delay: %d\n",
+		dev_info(st->dev, "lane %d: selected delay: %d\n",
 			i, opt_delay);
 	}
+
+	return 0;
 }
 
 static int axi_adc_num_lanes_set(struct iio_backend *back,
