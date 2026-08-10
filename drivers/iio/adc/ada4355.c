@@ -67,6 +67,7 @@ struct ada4355_state {
 	struct clk		*clk;
 	/* Protect against concurrent accesses to the device and data content */
 	struct mutex		lock;
+	struct ada4355_chip_info chip_info;
 	unsigned int		num_lanes;
 };
 
@@ -341,6 +342,10 @@ static int ada4355_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
+	st->chip_info = spi_get_device_match_data(spi);
+	if (!st->chip_info)
+		return -EINVAL;
+
 	regmap = devm_regmap_init_spi(spi, &ada4355_regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
@@ -383,6 +388,7 @@ static int ada4355_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(&st->spi->dev, ret, "failed post_setup");
 
+	indio_dev->name = st->chip_info->name;
 	indio_dev->channels = &ada4355_channel;
 	indio_dev->num_channels = 1;
 	indio_dev->modes = INDIO_DIRECT_MODE;
