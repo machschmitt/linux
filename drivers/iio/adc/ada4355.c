@@ -139,6 +139,10 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static const struct iio_info ada4355_iio_info = {
+	.read_raw = ada4355_read_raw,
+};
+
 #define ADA4355_CHAN(_chan, _si, _bits, _sign, _shift)			\
 {									\
 	.type = IIO_VOLTAGE,						\
