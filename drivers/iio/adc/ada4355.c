@@ -142,20 +142,21 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
-#define ADA4355_CHAN(_chan, _si, _bits, _sign, _shift) {	 \
-	.type = IIO_VOLTAGE,					 \
-	.indexed = 1,						 \
-	.channel = _chan,					 \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE),		 \
-	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ), \
-	.scan_index = _si,					 \
-	.scan_type = {						 \
-		.sign = _sign,					 \
-		.realbits = _bits,				 \
-		.storagebits = 16,				 \
-		.shift = _shift,				 \
-		},						 \
-	}
+#define ADA4355_CHAN(_chan, _si, _bits, _sign, _shift)			\
+{									\
+	.type = IIO_VOLTAGE,						\
+	.indexed = 1,							\
+	.channel = _chan,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE),			\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.scan_index = _si,						\
+	.scan_type = {							\
+		.sign = _sign,						\
+		.realbits = _bits,					\
+		.storagebits = 16,					\
+		.shift = _shift,					\
+	},								\
+}
 
 static const struct axiadc_chip_info ada4355_chip_info = {
 	.name = "ADA4355",
