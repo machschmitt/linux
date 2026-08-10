@@ -78,11 +78,10 @@ static const struct regmap_config ada4355_regmap_config = {
 
 static struct ada4355_state *ada4355_get_data(struct iio_dev *indio_dev)
 {
-	struct axiadc_converter *conv;
+	struct ada4355_state *st = iio_priv(indio_dev);
 
-	conv = iio_device_get_drvdata(indio_dev);
 
-	return conv->phy;
+	return st;
 };
 
 static int ada4355_reg_access(struct iio_dev *indio_dev, unsigned int reg,
@@ -96,12 +95,11 @@ static int ada4355_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 	return regmap_write(st->regmap, reg, writeval);
 }
 
-static int ada4355_get_scale(struct axiadc_converter *conv, int *val, int *val2)
+static int ada4355_get_scale(struct ada4355_state *st, int *val, int *val2)
 {
 	unsigned int tmp;
 
-	tmp = (conv->chip_info->scale_table[0][0] * 1000000ULL) >>
-	       conv->chip_info->channel[0].scan_type.realbits;
+	tmp = (ada4355_scale_table[0][0] * 1000000ULL) >> 14;
 	*val = tmp / 1000000;
 	*val2 = tmp % 1000000;
 
@@ -112,12 +110,11 @@ static int ada4355_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int *val, int *val2, long m)
 {
-	struct axiadc_converter *conv = iio_device_get_drvdata(indio_dev);
 	struct ada4355_state *st = ada4355_get_data(indio_dev);
 
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:
-		return ada4355_get_scale(conv, val, val2);
+		return ada4355_get_scale(st, val, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = clk_get_rate(st->clk);
 		return IIO_VAL_INT;
@@ -173,9 +170,7 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 
 static int ada4355_post_setup(struct iio_dev *indio_dev)
 {
-	struct axiadc_state *axi_adc_st = iio_priv(indio_dev);
 	struct ada4355_state *st = ada4355_get_data(indio_dev);
-	struct axiadc_converter *conv = iio_device_get_drvdata(indio_dev);
 	u8 pn_status[3][32];
 	int opt_delay, c, s;
 	int ret;
@@ -186,22 +181,22 @@ static int ada4355_post_setup(struct iio_dev *indio_dev)
 	unsigned int val;
 
 	// Set the numbers of lanes
-	ret = axi_adc_num_lanes_set(st->back, st->num_lanes);
+	ret = iio_backend_num_lanes_set(st->back, st->num_lanes);
 	if (ret)
 		return ret;
 
 	// enable the sync
-	ret = axi_adc_ad408x_interface_data_align(st->back, 1000);
+	ret = iio_backend_interface_data_align(st->back, 1000);
 
-	ret = axi_adc_chan_enable(st->back, 0);
-	ret = axi_adc_chan_enable(st->back, 1);
+	ret = iio_backend_chan_enable(st->back, 0);
+	ret = iio_backend_chan_enable(st->back, 1);
 
-	ret = axi_adc_ada4355_data_frame_setup(st->back, 0);
+	ret = iio_backend_frame_setup(st->back, st->num_lanes);
 	if (ret)
 		return ret;
 
-	ret = axi_adc_chan_disable(st->back, 0);
-	ret = axi_adc_chan_disable(st->back, 1);
+	ret = iio_backend_chan_disable(st->back, 0);
+	ret = iio_backend_chan_disable(st->back, 1);
 
 	ret = regmap_write(st->regmap, ADA4355_TEST_MODE_REG, ADA4355_TEST_MODE_OFF);
 	if (ret)
@@ -334,7 +329,6 @@ static int ada4355_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct regmap *regmap;
-	struct axiadc_converter *conv;
 	struct ada4355_state *st;
 	int ret;
 
@@ -354,11 +348,6 @@ static int ada4355_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	conv = devm_kzalloc(&spi->dev, sizeof(*conv), GFP_KERNEL);
-		if (!conv)
-			return -ENOMEM;
-	/* Without this, the axi_adc won't find the converter data */
-	spi_set_drvdata(st->spi, conv);
 
 	ret = ada4355_properties_parse(st);
 		if (ret)
@@ -372,16 +361,29 @@ static int ada4355_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	conv->spi = st->spi;
-	conv->clk = st->clk;
-	conv->chip_info = &ada4355_chip_info;
-	conv->reg_access = ada4355_reg_access;
-	conv->read_raw = ada4355_read_raw;
-	conv->write_raw = ada4355_write_raw;
-	conv->post_setup = ada4355_post_setup;
-	conv->phy = st;
+	st->back = devm_iio_backend_get(&spi->dev, NULL);
+	if (IS_ERR(st->back))
+		return dev_err_probe(&spi->dev, PTR_ERR(st->back),
+				     "failed to get IIO backend\n");
 
-	return 0;
+	ret = devm_iio_backend_request_buffer(&spi->dev, st->back, indio_dev);
+	if (ret)
+		return ret;
+
+	ret = devm_iio_backend_enable(&spi->dev, st->back);
+	if (ret)
+		return ret;
+
+	ret = ada4355_post_setup(indio_dev);
+	if (ret)
+		return dev_err_probe(&st->spi->dev, ret, "failed post_setup");
+
+	indio_dev->channels = &ada4355_channel;
+	indio_dev->num_channels = 1;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->info = &ada4355_iio_info;
+
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ada4355_id[] = {
@@ -414,3 +416,4 @@ MODULE_AUTHOR("Pop Ioan Daniel <pop.ioan-daniel@analog.com>");
 MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADA4355");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_BACKEND");
