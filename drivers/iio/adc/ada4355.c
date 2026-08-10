@@ -60,6 +60,18 @@ static const int ada4355_scale_table[][2] = {
 	{2000, 0}, /* 2V differential range (±1V) for 1V reference ADC */
 };
 
+struct ada4355_chip_info {
+	const char *name;
+	unsigned int id;
+	unsigned int max_samp_rate_hz;
+};
+
+static const struct ada4355_chip_info ada4355_chip_info = {
+	.name = "ADA4355",
+	.id = ADA4355_CHIP_ID,
+	.max_samp_rate_hz = 125000000UL,
+};
+
 struct ada4355_state {
 	struct iio_backend *back;
 	struct spi_device	*spi;
@@ -67,7 +79,7 @@ struct ada4355_state {
 	struct clk		*clk;
 	/* Protect against concurrent accesses to the device and data content */
 	struct mutex		lock;
-	struct ada4355_chip_info chip_info;
+	const struct ada4355_chip_info *chip_info;
 	unsigned int		num_lanes;
 };
 
@@ -161,17 +173,6 @@ static const struct iio_info ada4355_iio_info = {
 	},								\
 }
 
-struct ada4355_chip_info {
-	const char *name;
-	unsigned int id;
-	unsigned int max_samp_rate_hz;
-};
-
-static const struct ada4355_chip_info ada4355_chip_info = {
-	.name = "ADA4355",
-	.id = ADA4355_CHIP_ID,
-	.max_samp_rate_hz = 125000000UL,
-};
 
 
 static int ada4355_post_setup(struct iio_dev *indio_dev)
