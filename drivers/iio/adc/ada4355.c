@@ -84,10 +84,10 @@ static struct ada4355_state *ada4355_get_data(struct iio_dev *indio_dev)
 	return st;
 };
 
-static int ada4355_reg_access(struct iio_dev *indio_dev, unsigned int reg,
-			      unsigned int writeval, unsigned int *readval)
+static int ada4355_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int reg,
+				      unsigned int writeval, unsigned int *readval)
 {
-	struct ada4355_state *st = ada4355_get_data(indio_dev);
+	struct ada4355_state *st = iio_priv(indio_dev);
 
 	if (readval)
 		return regmap_read(st->regmap, reg, readval);
@@ -141,6 +141,7 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info ada4355_iio_info = {
 	.read_raw = ada4355_read_raw,
+	.debugfs_reg_access = ada4355_debugfs_reg_access,
 };
 
 #define ADA4355_CHAN(_chan, _si, _bits, _sign, _shift)			\
