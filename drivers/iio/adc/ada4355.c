@@ -158,14 +158,16 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 	},								\
 }
 
-static const struct axiadc_chip_info ada4355_chip_info = {
+struct ada4355_chip_info {
+	const char *name;
+	unsigned int id;
+	unsigned int max_samp_rate_hz;
+};
+
+static const struct ada4355_chip_info ada4355_chip_info = {
 	.name = "ADA4355",
 	.id = ADA4355_CHIP_ID,
-	.max_rate = 125000000UL,
-	.scale_table = ada4355_scale_table,
-	.num_scales = ARRAY_SIZE(ada4355_scale_table),
-	.num_channels = 1,
-	.channel[0] = ADA4355_CHAN(0, 0, 14, 's', 2),
+	.max_samp_rate_hz = 125000000UL,
 };
 
 
@@ -383,16 +385,16 @@ static int ada4355_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ada4355_id[] = {
-	{ .name = "ada4355" },
-	{ .name = "ada4356" },
+	{ .name = "ada4355", .driver_data = (kernel_ulong_t)&ada4355_chip_info },
+	{ .name = "ada4356", .driver_data = (kernel_ulong_t)&ada4355_chip_info },
 	{ }
 };
 
 MODULE_DEVICE_TABLE(spi, ada4355_id);
 
 static const struct of_device_id ada4355_of_match[] = {
-	{ .compatible = "adi,ada4355" },
-	{ .compatible = "adi,ada4356" },
+	{ .compatible = "adi,ada4355", .data = &ada4355_chip_info },
+	{ .compatible = "adi,ada4356", .data = &ada4355_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ada4355_of_match);
