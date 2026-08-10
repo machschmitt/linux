@@ -343,6 +343,7 @@ static int ada4355_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
+	st = iio_priv(indio_dev);
 	st->chip_info = spi_get_device_match_data(spi);
 	if (!st->chip_info)
 		return -EINVAL;
@@ -351,7 +352,6 @@ static int ada4355_probe(struct spi_device *spi)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	st = iio_priv(indio_dev);
 	st->regmap = regmap;
 	st->spi = spi;
 
