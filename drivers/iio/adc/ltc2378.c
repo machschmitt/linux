@@ -665,15 +665,12 @@ static int ltc2378_refin_setup(struct device *dev, struct ltc2378_state *st)
 	 * and REFIN by a factor of 2.
 	 */
 	ret = devm_regulator_get_enable_read_voltage(dev, "refin");
-	if (ret == -ENODEV) { /* refin is optional */
+	if (ret == -ENODEV) /* refin is optional */
 		st->ref_uV = st->info->internal_ref_uV * 2;
-		return 0;
-	}
-
-	if (ret < 0)
+	else if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to read refin regulator\n");
-
-	st->ref_uV = ret * 2;
+	else
+		st->ref_uV = ret * 2;
 
 	return 0;
 }
