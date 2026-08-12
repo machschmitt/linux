@@ -74,7 +74,7 @@
 	.indexed = 1,								\
 	.differential = _sign,							\
 	.channel = 0,								\
-	.channel2 = _sign ? 1 : 0,						\
+	.channel2 = 0,								\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
 			      BIT(IIO_CHAN_INFO_SCALE) |			\
 			      BIT(IIO_CHAN_INFO_SAMP_FREQ),			\
