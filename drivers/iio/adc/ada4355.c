@@ -173,7 +173,10 @@ static const struct iio_info ada4355_iio_info = {
 	},								\
 }
 
-
+static const struct iio_chan_spec ada4355_channels[] = {
+	ADA4355_CHAN(0, 0, 14, 's', 2),
+	ADA4355_CHAN(1, 1, 14, 's', 2),
+};
 
 static int ada4355_post_setup(struct iio_dev *indio_dev)
 {
@@ -390,8 +393,8 @@ static int ada4355_probe(struct spi_device *spi)
 		return dev_err_probe(&st->spi->dev, ret, "failed post_setup");
 
 	indio_dev->name = st->chip_info->name;
-	indio_dev->channels = &ada4355_channel;
-	indio_dev->num_channels = 1;
+	indio_dev->channels = ada4355_channels;
+	indio_dev->num_channels = ARRAY_SIZE(ada4355_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ada4355_iio_info;
 
