@@ -394,7 +394,7 @@ static int ltc2378_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	}
-	case IIO_CHAN_INFO_SCALE:
+	case IIO_CHAN_INFO_SCALE: {
 		struct u32_fract fract = st->info->internal_div;
 		*val = st->ref_uV / MILLI;
 		if (fract.numerator && fract.denominator)
@@ -411,6 +411,7 @@ static int ltc2378_read_raw(struct iio_dev *indio_dev,
 			*val2 = chan->scan_type.realbits;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
+	}
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = st->cnv_Hz;
 		return IIO_VAL_INT;
