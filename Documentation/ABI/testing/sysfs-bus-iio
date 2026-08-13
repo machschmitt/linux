@@ -166,7 +166,9 @@ Description:
 		separately available. Even though differential-only parts had
 		been merely required to have consistent channel labeling, this
 		ABI is preferred over the non-differential one for those chips.
-		Units after application of scale and offset are millivolts.
+		Special configuration options may have the same index for both Y
+		and Z. Units after application of scale and offset are
+		millivolts.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltageY_rms_raw
 KernelVersion:	6.18
