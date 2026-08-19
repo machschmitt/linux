@@ -152,8 +152,28 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static int ada4355_update_scan_mode(struct iio_dev *indio_dev,
+				    const unsigned long *scan_mask)
+{
+	struct ada4355_state *st = iio_priv(indio_dev);
+	unsigned int c;
+	int ret;
+
+	for (c = 0; c < iio_get_masklength(indio_dev); c++) {
+		if (test_bit(c, scan_mask))
+			ret = iio_backend_chan_enable(st->back, c);
+		else
+			ret = iio_backend_chan_disable(st->back, c);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct iio_info ada4355_iio_info = {
 	.read_raw = ada4355_read_raw,
+	.update_scan_mode = ada4355_update_scan_mode,
 	.debugfs_reg_access = ada4355_debugfs_reg_access,
 };
 
