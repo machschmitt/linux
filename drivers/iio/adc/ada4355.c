@@ -274,7 +274,7 @@ static int ada4355_setup(struct ada4355_state *st)
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_TRANSFER_REG, (reg | ADA4355_OVERRIDE));
+	ret = regmap_write(st->regmap, ADA4355_TRANSFER_REG, (reg | ADA4355_TRANSFER_OVERRIDE));
 	if (ret)
 		return ret;
 
