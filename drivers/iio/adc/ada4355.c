@@ -312,10 +312,10 @@ static int ada4355_setup(struct ada4355_state *st)
 	ret = regmap_write(st->regmap, ADA4355_RESOLUTION_SAMPLE_RATE_REG, ADA4355_125_RATE);
 		return ret;
 
-	gpio_vld_en = devm_gpiod_get_optional(&st->spi->dev, "gpio-vld-en", GPIOD_OUT_LOW);
-		if (IS_ERR(gpio_vld_en))
-			return dev_err_probe(&st->spi->dev, PTR_ERR(gpio_vld_en),
-					     "Failed to find gpio_vld_en \n");
+	gpio_vld_en = devm_gpiod_get_optional(&st->spi->dev, "vld-en", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio_vld_en))
+		return dev_err_probe(&st->spi->dev, PTR_ERR(gpio_vld_en),
+				     "Failed to find vld-en-gpios \n");
 
 	gpiod_set_value_cansleep(gpio_vld_en, 1);
 }
