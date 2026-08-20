@@ -395,7 +395,7 @@ static int ada4355_probe(struct spi_device *spi)
 		return PTR_ERR(st->clk);
 
 	ret = ada4355_setup(st);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	st->back = devm_iio_backend_get(&spi->dev, NULL);
