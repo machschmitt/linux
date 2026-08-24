@@ -2375,23 +2375,32 @@ static const char * const sclk_source_str[] = {
 	[PERIPHERAL] = "peripheral",
 };
 
-static void of_spi_parse_dt_sclk_source(struct spi_controller *ctlr,
+static int of_spi_parse_dt_sclk_source(struct spi_controller *ctlr,
 					struct device_node *nc)
 {
-	const char *sclk_src;
-	unsigned int i;
+	//const char *sclk_src;
+	//unsigned int i;
+	int ret;
 
-	//ret = device_property_match_property_string(dev, "spi-sclk-source",
-	//					    sclk_source_str,
-	//					    ARRAY_SIZE(sclk_source_str));
-	if (!of_property_read_string(nc, "spi-sclk-source", &sclk_src)) {
-		for (i = 0; i < ARRAY_SIZE(sclk_source_str); i++)
-			if (strcmp(sclk_source_str[i], sclk_src) == 0)
-				break;
-
-		if (i == ARRAY_SIZE(sclk_source_str))
-			dev_err(&ctlr->dev, "unknown spi-sclk-source: %s\n", sclk_src);
+	ret = device_property_match_property_string(&ctlr->dev, "spi-sclk-source",
+						    sclk_source_str,
+						    ARRAY_SIZE(sclk_source_str));
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(&ctlr->dev,
+			"failed to read spi-sclk-source property: %d\n", ret);
+		return -EINVAL;
 	}
+	//if (!of_property_read_string(nc, "spi-sclk-source", &sclk_src)) {
+	//	//for (i = 0; i < ARRAY_SIZE(sclk_source_str); i++)
+	//	//	if (strcmp(sclk_source_str[i], sclk_src) == 0)
+	//	//		break;
+
+	//	//if (i == ARRAY_SIZE(sclk_source_str))
+	//	//	dev_err(&ctlr->dev, "unknown spi-sclk-source: %s\n", sclk_src);
+
+	//	if (strcmp(sclk_source_str, sclk_src) == 0)
+	//}
+	return 0;
 }
 
 
@@ -2636,7 +2645,9 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 		spi->max_speed_hz = value;
 
 	/* Data frame clock source */
-	of_spi_parse_dt_sclk_source(ctlr, nc);
+	rc = of_spi_parse_dt_sclk_source(ctlr, nc);
+	if (rc)
+		return rc;
 
 	/* Device CS delays */
 	of_spi_parse_dt_cs_delay(nc, &spi->cs_setup, "spi-cs-setup-delay-ns");
