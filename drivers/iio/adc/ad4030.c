@@ -83,7 +83,7 @@
 	(AD4030_REG_GAIN_X0_MSB + (AD4030_REG_GAIN_BYTES_NB * (ch)))
 #define AD4030_REG_MODES			0x20
 #define     AD4030_REG_MODES_MASK_OUT_DATA_MODE	GENMASK(2, 0)
-#define     AD4030_REG_MODES_MASK_CLK_MD	GENMASK(4, 5)
+#define     AD4030_REG_MODES_MASK_CLK_MD	GENMASK(5, 4)
 #define     AD4030_REG_MODES_MASK_LANE_MODE	GENMASK(7, 6)
 #define AD4030_REG_OSCILATOR			0x21
 #define AD4030_REG_IO				0x22
@@ -1419,7 +1419,7 @@ static int ad4030_config(struct ad4030_state *st)
 		return dev_err_probe(&st->spi->dev, ret,
 				     "getting spi-sclk-source property failed\n");
 	else
-		reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_CLK_MD, ret);
+		reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_CLK_MD, ret);
 
 	ret = regmap_write(st->regmap, AD4030_REG_MODES, reg_modes);
 	if (ret)
