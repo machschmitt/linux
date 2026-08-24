@@ -45,6 +45,7 @@
 #define AD4030_REG_CHIP_GRADE				0x06
 #define     AD4030_REG_CHIP_GRADE_AD4030_24_GRADE	0x10
 #define     AD4030_REG_CHIP_GRADE_AD4630_16_GRADE	0x03
+#define     AD4030_REG_CHIP_GRADE_AD4630_20_GRADE	0x30
 #define     AD4030_REG_CHIP_GRADE_AD4630_24_GRADE	0x00
 #define     AD4030_REG_CHIP_GRADE_AD4632_16_GRADE	0x05
 #define     AD4030_REG_CHIP_GRADE_AD4632_24_GRADE	0x02
@@ -1684,6 +1685,29 @@ static const struct ad4030_chip_info ad4630_16_chip_info = {
 	.max_sample_rate_hz = 2 * HZ_PER_MHZ,
 };
 
+static const struct ad4030_chip_info ad4630_20_chip_info = {
+	.name = "ad4630-20",
+	.available_masks = ad4630_channel_masks,
+	.channels = {
+		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
+		AD4030_CHAN_DIFF(1, ad4030_24_scan_types),
+		AD4030_CHAN_CMO(2, 0),
+		AD4030_CHAN_CMO(3, 1),
+		IIO_CHAN_SOFT_TIMESTAMP(4),
+	},
+	.offload_channels = {
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_offload_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_24_offload_scan_types),
+		AD4030_OFFLOAD_CHAN_CMO(2, 0),
+		AD4030_OFFLOAD_CHAN_CMO(3, 1),
+	},
+	.grade = AD4030_REG_CHIP_GRADE_AD4630_20_GRADE,
+	.precision_bits = 20,
+	.num_voltage_inputs = 2,
+	.tcyc_ns = AD4030_TCYC_ADJUSTED_NS,
+	.max_sample_rate_hz = 2 * HZ_PER_MHZ,
+};
+
 static const struct ad4030_chip_info ad4630_24_chip_info = {
 	.name = "ad4630-24",
 	.available_masks = ad4630_channel_masks,
@@ -1725,6 +1749,29 @@ static const struct ad4030_chip_info ad4632_16_chip_info = {
 	},
 	.grade = AD4030_REG_CHIP_GRADE_AD4632_16_GRADE,
 	.precision_bits = 16,
+	.num_voltage_inputs = 2,
+	.tcyc_ns = AD4632_TCYC_ADJUSTED_NS,
+	.max_sample_rate_hz = 500 * HZ_PER_KHZ,
+};
+
+static const struct ad4030_chip_info ad4632_20_chip_info = {
+	.name = "ad4632-20",
+	.available_masks = ad4630_channel_masks,
+	.channels = {
+		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
+		AD4030_CHAN_DIFF(1, ad4030_24_scan_types),
+		AD4030_CHAN_CMO(2, 0),
+		AD4030_CHAN_CMO(3, 1),
+		IIO_CHAN_SOFT_TIMESTAMP(4),
+	},
+	.offload_channels = {
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_offload_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_24_offload_scan_types),
+		AD4030_OFFLOAD_CHAN_CMO(2, 0),
+		AD4030_OFFLOAD_CHAN_CMO(3, 1),
+	},
+	.grade = AD4030_REG_CHIP_GRADE_AD4632_24_GRADE,
+	.precision_bits = 20,
 	.num_voltage_inputs = 2,
 	.tcyc_ns = AD4632_TCYC_ADJUSTED_NS,
 	.max_sample_rate_hz = 500 * HZ_PER_KHZ,
@@ -1796,8 +1843,10 @@ static const struct ad4030_chip_info adaq4224_chip_info = {
 static const struct spi_device_id ad4030_id_table[] = {
 	{ .name = "ad4030-24", .driver_data = (kernel_ulong_t)&ad4030_24_chip_info },
 	{ .name = "ad4630-16", .driver_data = (kernel_ulong_t)&ad4630_16_chip_info },
+	{ .name = "ad4630-20", .driver_data = (kernel_ulong_t)&ad4630_20_chip_info },
 	{ .name = "ad4630-24", .driver_data = (kernel_ulong_t)&ad4630_24_chip_info },
 	{ .name = "ad4632-16", .driver_data = (kernel_ulong_t)&ad4632_16_chip_info },
+	{ .name = "ad4632-20", .driver_data = (kernel_ulong_t)&ad4632_20_chip_info },
 	{ .name = "ad4632-24", .driver_data = (kernel_ulong_t)&ad4632_24_chip_info },
 	{ .name = "adaq4216", .driver_data = (kernel_ulong_t)&adaq4216_chip_info },
 	{ .name = "adaq4224", .driver_data = (kernel_ulong_t)&adaq4224_chip_info },
@@ -1808,8 +1857,10 @@ MODULE_DEVICE_TABLE(spi, ad4030_id_table);
 static const struct of_device_id ad4030_of_match[] = {
 	{ .compatible = "adi,ad4030-24", .data = &ad4030_24_chip_info },
 	{ .compatible = "adi,ad4630-16", .data = &ad4630_16_chip_info },
+	{ .compatible = "adi,ad4630-20", .data = &ad4630_20_chip_info },
 	{ .compatible = "adi,ad4630-24", .data = &ad4630_24_chip_info },
 	{ .compatible = "adi,ad4632-16", .data = &ad4632_16_chip_info },
+	{ .compatible = "adi,ad4632-20", .data = &ad4632_20_chip_info },
 	{ .compatible = "adi,ad4632-24", .data = &ad4632_24_chip_info },
 	{ .compatible = "adi,adaq4216", .data = &adaq4216_chip_info },
 	{ .compatible = "adi,adaq4224", .data = &adaq4224_chip_info },
