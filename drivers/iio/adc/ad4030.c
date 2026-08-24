@@ -83,6 +83,7 @@
 	(AD4030_REG_GAIN_X0_MSB + (AD4030_REG_GAIN_BYTES_NB * (ch)))
 #define AD4030_REG_MODES			0x20
 #define     AD4030_REG_MODES_MASK_OUT_DATA_MODE	GENMASK(2, 0)
+#define     AD4030_REG_MODES_MASK_CLK_MD	GENMASK(4, 5)
 #define     AD4030_REG_MODES_MASK_LANE_MODE	GENMASK(7, 6)
 #define AD4030_REG_OSCILATOR			0x21
 #define AD4030_REG_IO				0x22
@@ -1379,6 +1380,21 @@ static int ad4030_pwm_get(struct ad4030_state *st)
 	return 0;
 }
 
+enum ad4630_clock_mode {
+	AD4630_CLOCK_MODE_CONTROLLER,
+	AD4630_CLOCK_MODE_ECHO,
+	AD4630_CLOCK_MODE_HOST,
+};
+
+/* maps clock_mode property value to enum */
+static const char * const ad4630_clock_mode_str[] = {
+	[AD4630_CLOCK_MODE_CONTROLLER] = "controller",
+	//[AD4630_CLOCK_MODE_ECHO] = "echo",
+	//[AD4630_CLOCK_MODE_HOST] = "host",
+	[AD4630_CLOCK_MODE_ECHO] = "peripheral",
+	[AD4630_CLOCK_MODE_HOST] = "host",
+};
+
 static int ad4030_config(struct ad4030_state *st)
 {
 	int ret;
@@ -1394,6 +1410,16 @@ static int ad4030_config(struct ad4030_state *st)
 	else
 		reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
 				       AD4030_LANE_MD_1_PER_CH);
+
+	ret = device_property_match_property_string(&st->spi->dev,
+						    "spi-sclk-source",
+						    ad4630_clock_mode_str,
+						    ARRAY_SIZE(ad4630_clock_mode_str));
+	if (ret < 0 && ret != -EINVAL)
+		return dev_err_probe(&st->spi->dev, ret,
+				     "getting spi-sclk-source property failed\n");
+	else
+		reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_CLK_MD, ret);
 
 	ret = regmap_write(st->regmap, AD4030_REG_MODES, reg_modes);
 	if (ret)
