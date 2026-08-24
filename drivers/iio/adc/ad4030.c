@@ -1643,6 +1643,40 @@ static const struct iio_scan_type ad4030_24_offload_scan_types[] = {
 	},
 };
 
+static const struct iio_scan_type ad4030_20_scan_types[] = {
+	[AD4030_SCAN_TYPE_NORMAL] = {
+		.sign = 's',
+		.storagebits = 32,
+		.realbits = 20,
+		.shift = 12,
+		.endianness = IIO_BE,
+	},
+	[AD4030_SCAN_TYPE_AVG] = {
+		.sign = 's',
+		.storagebits = 32,
+		.realbits = 30,
+		.shift = 2,
+		.endianness = IIO_BE,
+	},
+};
+
+static const struct iio_scan_type ad4030_20_offload_scan_types[] = {
+	[AD4030_SCAN_TYPE_NORMAL] = {
+		.sign = 's',
+		.realbits = 20,
+		.storagebits = 32,
+		.shift = 0,
+		.endianness = IIO_CPU,
+	},
+	[AD4030_SCAN_TYPE_AVG] = {
+		.sign = 's',
+		.realbits = 30,
+		.storagebits = 32,
+		.shift = 2,
+		.endianness = IIO_CPU,
+	},
+};
+
 static const struct iio_scan_type ad4030_16_scan_types[] = {
 	[AD4030_SCAN_TYPE_NORMAL] = {
 		.sign = 's',
@@ -1723,15 +1757,15 @@ static const struct ad4030_chip_info ad4630_20_chip_info = {
 	.name = "ad4630-20",
 	.available_masks = ad4630_channel_masks,
 	.channels = {
-		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
-		AD4030_CHAN_DIFF(1, ad4030_24_scan_types),
+		AD4030_CHAN_DIFF(0, ad4030_20_scan_types),
+		AD4030_CHAN_DIFF(1, ad4030_20_scan_types),
 		AD4030_CHAN_CMO(2, 0),
 		AD4030_CHAN_CMO(3, 1),
 		IIO_CHAN_SOFT_TIMESTAMP(4),
 	},
 	.offload_channels = {
-		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_offload_scan_types),
-		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_24_offload_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_20_offload_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_20_offload_scan_types),
 		AD4030_OFFLOAD_CHAN_CMO(2, 0),
 		AD4030_OFFLOAD_CHAN_CMO(3, 1),
 	},
@@ -1792,15 +1826,15 @@ static const struct ad4030_chip_info ad4632_20_chip_info = {
 	.name = "ad4632-20",
 	.available_masks = ad4630_channel_masks,
 	.channels = {
-		AD4030_CHAN_DIFF(0, ad4030_24_scan_types),
-		AD4030_CHAN_DIFF(1, ad4030_24_scan_types),
+		AD4030_CHAN_DIFF(0, ad4030_20_scan_types),
+		AD4030_CHAN_DIFF(1, ad4030_20_scan_types),
 		AD4030_CHAN_CMO(2, 0),
 		AD4030_CHAN_CMO(3, 1),
 		IIO_CHAN_SOFT_TIMESTAMP(4),
 	},
 	.offload_channels = {
-		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_24_offload_scan_types),
-		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_24_offload_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(0, ad4030_20_offload_scan_types),
+		AD4030_OFFLOAD_CHAN_DIFF(1, ad4030_20_offload_scan_types),
 		AD4030_OFFLOAD_CHAN_CMO(2, 0),
 		AD4030_OFFLOAD_CHAN_CMO(3, 1),
 	},
