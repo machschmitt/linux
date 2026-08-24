@@ -115,6 +115,7 @@
 			reg = <0>;
 			spi-max-frequency = <80000000>;
 			spi-rx-bus-width = <1>, <1>;
+			spi-sclk-source = "peripheral";
 			vdd-5v-supply = <&vref>;
 			vdd-1v8-supply = <&vdd_1_8>;
 			vio-supply = <&vio>;
