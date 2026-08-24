@@ -2365,8 +2365,7 @@ static void of_spi_parse_dt_cs_delay(struct device_node *nc,
 
 enum sclk_source {
 	CONTROLLER = 0,
-	ECHO = 1,
-	PERIPHERAL = 2,
+	PERIPHERAL = 1,
 };
 
 /* maps spi-sclk-source property value to enum */
