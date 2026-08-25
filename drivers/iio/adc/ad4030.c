@@ -206,6 +206,7 @@ struct ad4030_state {
 	unsigned int scale_avail[ARRAY_SIZE(adaq4216_hw_gains_vpv)][2];
 	struct gpio_descs *pga_gpios;
 	unsigned int pga_index;
+	bool ddr_mode;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
@@ -329,6 +330,7 @@ static int ad4030_enter_config_mode(struct ad4030_state *st)
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_data,
 		.len = 1,
+		.dtr_mode = st->ddr_mode,
 		.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED,
 	};
 
@@ -344,6 +346,7 @@ static int ad4030_exit_config_mode(struct ad4030_state *st)
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_data,
 		.len = 3,
+		.dtr_mode = st->ddr_mode,
 		.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED,
 	};
 
@@ -359,6 +362,7 @@ static int ad4030_spi_read(void *context, const void *reg, size_t reg_size,
 		.tx_buf = st->tx_data,
 		.rx_buf = st->rx_data.raw,
 		.len = reg_size + val_size,
+		.dtr_mode = st->ddr_mode,
 		.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED,
 	};
 
@@ -393,6 +397,7 @@ static int ad4030_spi_write(void *context, const void *data, size_t count)
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_data,
 		.len = count,
+		.dtr_mode = st->ddr_mode,
 		.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED,
 	};
 
@@ -1212,6 +1217,7 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 
 	st->offload_xfer[0].bits_per_word = offload_bpw;
 	st->offload_xfer[0].len = spi_bpw_to_bytes(offload_bpw);
+	st->offload_xfer[0].dtr_mode = st->ddr_mode;
 	st->offload_xfer[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 
 	common_mode = st->mode == AD4030_OUT_DATA_MD_24_DIFF_8_COM ||
@@ -1221,6 +1227,7 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 		offload_bpw = 8;
 		st->offload_xfer[1].bits_per_word = offload_bpw;
 		st->offload_xfer[1].len = spi_bpw_to_bytes(offload_bpw);
+		st->offload_xfer[1].dtr_mode = st->ddr_mode;
 		st->offload_xfer[1].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 	}
 
@@ -1420,6 +1427,8 @@ static int ad4030_config(struct ad4030_state *st)
 				     "getting spi-sclk-source property failed\n");
 	else
 		reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_CLK_MD, ret);
+
+	st->ddr_mode = st->spi->controller->dtr_caps;
 
 	ret = regmap_write(st->regmap, AD4030_REG_MODES, reg_modes);
 	if (ret)
