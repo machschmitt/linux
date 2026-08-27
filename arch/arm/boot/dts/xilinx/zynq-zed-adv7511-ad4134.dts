@@ -125,6 +125,7 @@
 			iovdd-supply = <&iovdd>;
 			refin-supply = <&refin>;
 
+			adi,spi-mode = "4-wire";
 			//adi,spi-engine = <&ad4134_spi_engine>;
 		};
 	};
