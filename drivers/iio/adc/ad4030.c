@@ -83,6 +83,7 @@
 	(AD4030_REG_GAIN_X0_MSB + (AD4030_REG_GAIN_BYTES_NB * (ch)))
 #define AD4030_REG_MODES			0x20
 #define     AD4030_REG_MODES_MASK_OUT_DATA_MODE	GENMASK(2, 0)
+#define     AD4030_REG_MODES_MASK_DDR_MD	BIT(3)
 #define     AD4030_REG_MODES_MASK_CLK_MD	GENMASK(5, 4)
 #define     AD4030_REG_MODES_MASK_LANE_MODE	GENMASK(7, 6)
 #define AD4030_REG_OSCILATOR			0x21
@@ -1216,8 +1217,9 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 	}
 
 	st->offload_xfer[0].bits_per_word = offload_bpw;
-	st->offload_xfer[0].len = spi_bpw_to_bytes(offload_bpw);
+	st->offload_xfer[0].len = spi_bpw_to_bytes(offload_bpw) * st->spi->num_rx_lanes;
 	st->offload_xfer[0].dtr_mode = st->ddr_mode;
+	st->offload_xfer[0].multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE;
 	st->offload_xfer[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 
 	common_mode = st->mode == AD4030_OUT_DATA_MD_24_DIFF_8_COM ||
@@ -1226,8 +1228,9 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 	if (common_mode) {
 		offload_bpw = 8;
 		st->offload_xfer[1].bits_per_word = offload_bpw;
-		st->offload_xfer[1].len = spi_bpw_to_bytes(offload_bpw);
+		st->offload_xfer[1].len = spi_bpw_to_bytes(offload_bpw) * st->spi->num_rx_lanes;
 		st->offload_xfer[1].dtr_mode = st->ddr_mode;
+		st->offload_xfer[1].multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE;
 		st->offload_xfer[1].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
 	}
 
@@ -1411,7 +1414,7 @@ static int ad4030_config(struct ad4030_state *st)
 	st->offset_avail[1] = 1;
 	st->offset_avail[2] = BIT(st->chip->precision_bits - 1) - 1;
 
-	if (st->chip->num_voltage_inputs > 1)
+	if (st->chip->num_voltage_inputs > 1 && st->spi->num_rx_lanes == 1)
 		reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
 				       AD4030_LANE_MD_INTERLEAVED);
 	else
@@ -1429,6 +1432,7 @@ static int ad4030_config(struct ad4030_state *st)
 		reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_CLK_MD, ret);
 
 	st->ddr_mode = st->spi->controller->dtr_caps;
+	reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_DDR_MD, st->ddr_mode);
 
 	ret = regmap_write(st->regmap, AD4030_REG_MODES, reg_modes);
 	if (ret)
