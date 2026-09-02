@@ -132,6 +132,7 @@ enum iio_backend_capabilities {
  * @debugfs_reg_access: Read or write register value of backend.
  * @filter_type_set: Set filter type.
  * @interface_data_align: Perform the data alignment process.
+ * @frame_setup: Read frame setup
  * @num_lanes_set: Set the number of lanes enabled.
  * @ddr_enable: Enable interface DDR (Double Data Rate) mode.
  * @ddr_disable: Disable interface DDR (Double Data Rate) mode.
