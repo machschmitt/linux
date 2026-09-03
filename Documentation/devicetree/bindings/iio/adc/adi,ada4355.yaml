@@ -75,7 +75,7 @@ examples:
             vcc-supply = <&supply_3_3V>;
             clocks = <&ref_clk>;
             clock-names = "adc_clk";
-            vld-en-gpios = <&gpio0 89 GPIO_ACTIVE_HIGH>;
+            adi,vld-en-gpios = <&gpio0 89 GPIO_ACTIVE_HIGH>;
             io-backends = <&axi_adc>;
         };
     };
