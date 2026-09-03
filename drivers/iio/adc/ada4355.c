@@ -89,14 +89,6 @@ static const struct regmap_config ada4355_regmap_config = {
 	.read_flag_mask = BIT(7),
 };
 
-static struct ada4355_state *ada4355_get_data(struct iio_dev *indio_dev)
-{
-	struct ada4355_state *st = iio_priv(indio_dev);
-
-
-	return st;
-};
-
 static int ada4355_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 				      unsigned int writeval, unsigned int *readval)
 {
@@ -123,7 +115,7 @@ static int ada4355_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int *val, int *val2, long m)
 {
-	struct ada4355_state *st = ada4355_get_data(indio_dev);
+	struct ada4355_state *st = iio_priv(indio_dev);
 
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:
@@ -200,7 +192,7 @@ static const struct iio_chan_spec ada4355_channels[] = {
 
 static int ada4355_post_setup(struct iio_dev *indio_dev)
 {
-	struct ada4355_state *st = ada4355_get_data(indio_dev);
+	struct ada4355_state *st = iio_priv(indio_dev);
 	u8 pn_status[3][32];
 	int opt_delay, c, s;
 	int ret;
