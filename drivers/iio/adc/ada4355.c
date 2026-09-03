@@ -386,6 +386,12 @@ static int ada4355_probe(struct spi_device *spi)
 	if (IS_ERR(st->clk))
 		return PTR_ERR(st->clk);
 
+	indio_dev->name = st->chip_info->name;
+	indio_dev->channels = ada4355_channels;
+	indio_dev->num_channels = ARRAY_SIZE(ada4355_channels);
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->info = &ada4355_iio_info;
+
 	ret = ada4355_setup(st);
 	if (ret)
 		return ret;
@@ -395,11 +401,11 @@ static int ada4355_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, PTR_ERR(st->back),
 				     "failed to get IIO backend\n");
 
-	ret = devm_iio_backend_request_buffer(&spi->dev, st->back, indio_dev);
+	ret = devm_iio_backend_enable(&spi->dev, st->back);
 	if (ret)
 		return ret;
 
-	ret = devm_iio_backend_enable(&spi->dev, st->back);
+	ret = devm_iio_backend_request_buffer(&spi->dev, st->back, indio_dev);
 	if (ret)
 		return ret;
 
@@ -407,11 +413,6 @@ static int ada4355_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(&st->spi->dev, ret, "failed post_setup");
 
-	indio_dev->name = st->chip_info->name;
-	indio_dev->channels = ada4355_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ada4355_channels);
-	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->info = &ada4355_iio_info;
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
