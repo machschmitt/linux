@@ -333,10 +333,10 @@ static int ada4355_setup(struct ada4355_state *st)
 	if (ret)
 		return ret;
 
-	gpio_vld_en = devm_gpiod_get_optional(&st->spi->dev, "vld-en", GPIOD_OUT_LOW);
+	gpio_vld_en = devm_gpiod_get_optional(&st->spi->dev, "adi,vld-en", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio_vld_en))
 		return dev_err_probe(&st->spi->dev, PTR_ERR(gpio_vld_en),
-				     "Failed to find vld-en-gpios \n");
+				     "Failed to find adi,vld-en-gpios \n");
 
 	gpiod_set_value_cansleep(gpio_vld_en, 1);
 
