@@ -161,7 +161,7 @@ struct ad4134_state {
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
 	 */
-	u32 scan[AD4134_NUM_CHANNELS] __aligned(IIO_DMA_MINALIGN);
+	u32 scan[ARRAY_SIZE(ad4134_chan_set)] __aligned(IIO_DMA_MINALIGN);
 	u8 rx_buf[AD4134_SPI_MAX_XFER_LEN];
 	u8 tx_buf[AD4134_SPI_MAX_XFER_LEN];
 };
@@ -282,7 +282,7 @@ static int ad4134_data_read(struct ad4134_state *st, unsigned int reg,
 	 * interface. Now we read data from all channels but keep only the bits
 	 * from the requested one.
 	 */
-	for (i = 0; i < ARRAY_SIZE(ad4134_chan_set); i++) {
+	for (i = 0; i < AD4134_NUM_CHANNELS; i++) {
 		ret = spi_write_then_read(st->spi, NULL, 0, st->rx_buf,
 					  BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS));
 		if (ret)
@@ -358,13 +358,13 @@ static irqreturn_t ad4134_trigger_handler(int irq, void *p)
 	fsleep(1);
 	gpiod_set_value_cansleep(st->odr_gpio, 0);
 
-	for (unsigned int ch = 0; ch < iio_get_masklength(indio_dev); ch++) {
+	for (unsigned int ch = 0; ch < AD4134_NUM_CHANNELS; ch++) {
 		ret = spi_write_then_read(st->spi, NULL, 0, &st->scan[ch],
 					  BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS));
 		if (ret)
 			goto err_out;
 
-		if (test_bit(ch, indio_dev->active_scan_mask))
+		if (test_bit(ch, indio_dev->active_scan_mask) && ch != i)
 			memcpy(&st->scan[i++], &st->scan[ch], sizeof(st->scan[ch]));
 	}
 
