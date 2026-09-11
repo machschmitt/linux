@@ -171,14 +171,14 @@ struct ad4134_state {
 	 * atomicity of consecutive register access operations.
 	 */
 	struct mutex lock;
-	struct mux_state *mux_st[2]; /* For external multiplexer control */
-	enum ad4134_spi_mode spi_mode;
-	int refin_mv;
-	bool crc_en;
 	/*
 	 * Ensure atomicity of access mode switch operations.
 	 */
 	struct mutex access_mode_lock;
+	struct mux_state *mux_st[2]; /* For external multiplexer control */
+	enum ad4134_spi_mode spi_mode;
+	int refin_mv;
+	bool crc_en;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
