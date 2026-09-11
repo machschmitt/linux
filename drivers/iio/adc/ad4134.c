@@ -1125,7 +1125,8 @@ static int ad4134_probe(struct spi_device *spi)
 		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 						      iio_pollfunc_store_time,
 						      ad4134_trigger_handler,
-						      NULL);
+						      st->spi_mode != AD4134_SPI_MODE_NO_CS ?
+						      &ad4134_buffer_setup_ops : NULL);
 		if (ret)
 			return ret;
 	} else if (ret) {
