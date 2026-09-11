@@ -430,7 +430,7 @@ static int ad4134_register_read(struct ad4134_state *st, unsigned int reg,
 static int ad4134_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct ad4134_state *st = context;
-	int ret, ret2;
+	int ret, access_ret;
 
 	if (reg >= AD4134_CH_VREG(0)) {
 		if (st->spi_mode == AD4134_SPI_MODE_NO_CS) {
@@ -442,9 +442,9 @@ static int ad4134_reg_read(void *context, unsigned int reg, unsigned int *val)
 
 			ret = ad4134_data_read(st, reg, val);
 
-			ret2 = ad4134_set_register_access(st);
-			if (ret2)
-				dev_err(&st->spi->dev, "access mode error: %d\n", ret2);
+			access_ret = ad4134_set_register_access(st);
+			if (access_ret)
+				dev_err(&st->spi->dev, "access mode error: %d\n", access_ret);
 
 			return ret;
 		}
