@@ -100,12 +100,12 @@ struct ad4134_state {
 	struct regmap *regmap;
 	unsigned long sys_clk_hz;
 	struct gpio_desc *odr_gpio;
-	int refin_mv;
 	/*
 	 * Synchronize access to members the of driver state, and ensure
 	 * atomicity of consecutive register access operations.
 	 */
 	struct mutex lock;
+	int refin_mv;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
