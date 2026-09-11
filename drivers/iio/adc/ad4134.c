@@ -261,6 +261,7 @@ static int ad4134_set_register_access(struct ad4134_state *st)
 	int ret;
 
 	guard(mutex)(&st->access_mode_lock);
+
 	st->spi->mode = SPI_MODE_0;
 	ret = spi_setup(st->spi);
 	if (ret)
@@ -288,6 +289,7 @@ static int ad4134_set_sample_access(struct ad4134_state *st)
 	int mux_state_ret, ret;
 
 	guard(mutex)(&st->access_mode_lock);
+
 	ret = mux_state_deselect(st->mux_st[AD4134_SDO_INPUT]);
 	if (ret)
 		dev_err(&st->spi->dev, "error on SDO deselect: %d\n", ret);
