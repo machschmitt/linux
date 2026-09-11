@@ -528,7 +528,7 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	u64 offload_offset_ns;
 	u64 odr_high_time_ns;
 	unsigned int count;
-	u64 target = 10;
+	u64 target_ns;
 	int ret;
 
 	if (!in_range(freq_Hz, AD4134_MIN_ODR_FREQ_HZ, AD4134_MAX_ODR_FREQ_HZ))
@@ -542,13 +542,14 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	 * again, until the minimum (or try count limit) is reached.
 	 */
 	odr_high_time_ns = div64_ul(6ULL * NSEC_PER_SEC, st->sys_clk_hz);
+	target_ns = 0;
 	count = 100;
 	do {
-		odr_wf.duty_length_ns = target;
+		target_ns += 10; /* Increment by PWM duty cycle period */
+		odr_wf.duty_length_ns = target_ns;
 		ret = pwm_round_waveform_might_sleep(st->odr_pwm, &odr_wf);
 		if (ret)
 			return ret;
-		target += 10; /* Increment by PWM duty cycle period */
 	} while (count-- && odr_wf.duty_length_ns < odr_high_time_ns);
 
 	/* Check the minimum ODR high time is met */
@@ -897,7 +898,7 @@ static int ad4134_offload_buffer_setup(struct iio_dev *indio_dev, struct spi_dev
 
 /* The chip converts and outputs all 4 channels on each sample request */
 static const unsigned long ad4134_scan_masks[] = {
-	GENMASK(3, 0),
+	BIT(3) | BIT(2) | BIT(1) | BIT(0),
 	0
 };
 
