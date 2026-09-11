@@ -113,8 +113,7 @@ static const struct iio_enum ad4134_filter_type_enum = {
 
 static const struct iio_chan_spec_ext_info ad4134_filter_type_ext_info[] = {
 	IIO_ENUM("filter_type", IIO_SEPARATE, &ad4134_filter_type_enum),
-	IIO_ENUM_AVAILABLE("filter_type", IIO_SEPARATE,
-			   &ad4134_filter_type_enum),
+	IIO_ENUM_AVAILABLE("filter_type", IIO_SEPARATE, &ad4134_filter_type_enum),
 	{ }
 };
 
@@ -177,7 +176,6 @@ static int ad4134_get_filter_type(struct iio_dev *indio_dev,
 				  struct iio_chan_spec const *chan)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
-	enum ad4134_filter_type f_type;
 	unsigned int mask, reg_val;
 	int ret;
 
@@ -190,9 +188,7 @@ static int ad4134_get_filter_type(struct iio_dev *indio_dev,
 		return ret;
 
 	mask = AD4134_CHAN_DIG_FILTER_SEL_CH_MASK(chan->channel);
-	f_type = field_get(mask, reg_val);
-
-	return f_type;
+	return field_get(mask, reg_val);
 }
 
 static const struct regmap_range ad4134_regmap_rd_range[] = {
