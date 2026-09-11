@@ -719,8 +719,8 @@ static int ad4134_probe(struct spi_device *spi)
 	ret = device_property_match_property_string(dev, "adi,spi-mode",
 						    ad4134_spi_modes,
 						    ARRAY_SIZE(ad4134_spi_modes));
-	/* Default to "no-cs" mode if adi,spi-mode is not specified */
 	if (ret == -EINVAL)
+		/* Default to no-cs mode if adi,spi-mode is not specified */
 		if (!device_property_present(dev, "adi,spi-mode"))
 			st->spi_mode = AD4134_SPI_MODE_NO_CS;
 		else
