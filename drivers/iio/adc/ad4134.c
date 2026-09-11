@@ -721,6 +721,7 @@ static int ad4134_write_raw(struct iio_dev *indio_dev,
 		return -EBUSY;
 
 	guard(mutex)(&st->lock);
+
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return ad4134_update_conversion_rate(st, val);
