@@ -1132,6 +1132,10 @@ static int ad4134_probe(struct spi_device *spi)
 	} else if (ret) {
 		return dev_err_probe(dev, ret, "failed to get offload\n");
 	} else {
+		if (st->spi_mode == AD4134_SPI_MODE_NO_CS)
+			return dev_err_probe(dev, -EPROTONOSUPPORT,
+					     "Unsupported min I/O + offload config\n");
+
 		indio_dev->info = &ad4134_offload_info;
 		indio_dev->channels = ad4134_offload_chan_set;
 		indio_dev->num_channels = ARRAY_SIZE(ad4134_offload_chan_set);
