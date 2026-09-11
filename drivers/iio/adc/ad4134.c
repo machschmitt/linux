@@ -225,13 +225,13 @@ struct ad4134_state {
 	struct mux_state *mux_st[2]; /* For external multiplexer control */
 	enum ad4134_spi_mode spi_mode;
 	int refin_mv;
-	struct spi_transfer xfers;
 	struct spi_message msg;
-	struct spi_offload *offload;
-	struct spi_offload_trigger *offload_trigger;
+	struct spi_transfer xfers;
 	struct spi_offload_trigger_config offload_trigger_config;
-	struct pwm_device *odr_pwm;
+	struct spi_offload_trigger *offload_trigger;
+	struct spi_offload *offload;
 	struct pwm_waveform odr_wf;
+	struct pwm_device *odr_pwm;
 	unsigned int odr_hz;
 	bool crc_en;
 	/*
