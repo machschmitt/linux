@@ -706,6 +706,10 @@ static int ad4134_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	ret = devm_mutex_init(dev, &st->access_mode_lock);
+	if (ret)
+		return ret;
+
 	st->regmap = devm_regmap_init(dev, NULL, st, &ad4134_regmap_config);
 	if (IS_ERR(st->regmap))
 		return dev_err_probe(dev, PTR_ERR(st->regmap),
