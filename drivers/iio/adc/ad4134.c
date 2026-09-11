@@ -284,7 +284,8 @@ static int ad4134_set_register_access(struct ad4134_state *st)
  */
 static int ad4134_set_sample_access(struct ad4134_state *st)
 {
-	int ret, ret2;
+	struct device *dev = &st->spi->dev;
+	int mux_state_ret, ret;
 
 	guard(mutex)(&st->access_mode_lock);
 	ret = mux_state_deselect(st->mux_st[AD4134_SDO_INPUT]);
@@ -305,13 +306,13 @@ static int ad4134_set_sample_access(struct ad4134_state *st)
 	ret = spi_setup(st->spi);
 	if (ret) {
 		dev_err(&st->spi->dev, "failed to setup SPI mode 1: %d\n", ret);
-		ret2 = mux_state_deselect(st->mux_st[AD4134_DOUT0_INPUT]);
-		if (ret2)
-			dev_err(&st->spi->dev, "error on DOUT0 deselect: %d\n", ret2);
+		mux_state_ret = mux_state_deselect(st->mux_st[AD4134_DOUT0_INPUT]);
+		if (mux_state_ret)
+			dev_err(dev, "error on DOUT0 deselect: %d\n", mux_state_ret);
 
-		ret2 = mux_state_select(st->mux_st[AD4134_SDO_INPUT]);
-		if (ret2)
-			dev_err(&st->spi->dev, "error on SDO select: %d\n", ret2);
+		mux_state_ret = mux_state_select(st->mux_st[AD4134_SDO_INPUT]);
+		if (mux_state_ret)
+			dev_err(dev, "error on SDO select: %d\n", mux_state_ret);
 
 		return ret;
 	}
