@@ -716,7 +716,11 @@ static int ad4134_probe(struct spi_device *spi)
 						    ARRAY_SIZE(ad4134_spi_modes));
 	/* Default to "no-cs" mode if adi,spi-mode is not specified */
 	if (ret == -EINVAL)
-		st->spi_mode = AD4134_SPI_MODE_NO_CS;
+		if (!device_property_present(dev, "adi,spi-mode"))
+			st->spi_mode = AD4134_SPI_MODE_NO_CS;
+		else
+			return dev_err_probe(dev, ret,
+					     "unsupported adi,spi-mode\n");
 	else if (ret < 0)
 		return dev_err_probe(dev, ret,
 				     "getting adi,spi-mode property failed\n");
