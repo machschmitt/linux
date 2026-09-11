@@ -804,7 +804,7 @@ static void ad4134_prepare_offload_msg(struct iio_dev *indio_dev)
 static int ad4134_offload_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4134_state *st = iio_priv(indio_dev);
-	int ret, ret2;
+	int ret, access_ret;
 
 	if (st->spi_mode == AD4134_SPI_MODE_4_WIRE) {
 		ret = ad4134_set_sample_access(st);
@@ -829,9 +829,9 @@ out_unoptimize:
 	spi_unoptimize_message(&st->msg);
 
 out_set_register_input:
-	ret2 = ad4134_set_register_access(st);
-	if (ret2)
-		dev_err(&st->spi->dev, "reg input select error: %d\n", ret2);
+	access_ret = ad4134_set_register_access(st);
+	if (access_ret)
+		dev_err(&st->spi->dev, "reg input select error: %d\n", access_ret);
 
 	return ret;
 }
