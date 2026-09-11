@@ -271,6 +271,11 @@ static int ad4134_set_register_access(struct ad4134_state *st)
 	if (ret)
 		dev_err(&st->spi->dev, "error on DOUT0 deselect: %d\n", ret);
 
+	/*
+	 * Try to update the multiplexer state to route SDO to the SPI
+	 * controller. If the SDO mux state is BUSY (i.e. locked), that means
+	 * the desired state is already selected and we should not block here.
+	 */
 	ret = mux_state_try_select(st->mux_st[AD4134_SDO_INPUT]);
 	if (ret && ret != -EBUSY)
 		return ret;
