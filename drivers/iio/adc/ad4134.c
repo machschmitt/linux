@@ -433,21 +433,21 @@ static int ad4134_reg_read(void *context, unsigned int reg, unsigned int *val)
 	int ret, ret2;
 
 	if (reg >= AD4134_CH_VREG(0)) {
-		if (st->spi_mode == AD4134_SPI_MODE_4_WIRE) {
+		if (st->spi_mode == AD4134_SPI_MODE_NO_CS) {
+			return ad4134_data_read(st, reg, val);
+		} else {
 			ret = ad4134_set_sample_access(st);
 			if (ret)
 				return ret;
-		}
 
-		ret = ad4134_data_read(st, reg, val);
+			ret = ad4134_data_read(st, reg, val);
 
-		if (st->spi_mode == AD4134_SPI_MODE_4_WIRE) {
 			ret2 = ad4134_set_register_access(st);
 			if (ret2)
 				dev_err(&st->spi->dev, "access mode error: %d\n", ret2);
-		}
 
-		return ret;
+			return ret;
+		}
 	}
 
 	return ad4134_register_read(st, reg, val);
