@@ -725,18 +725,19 @@ static int ad4134_probe(struct spi_device *spi)
 	ret = device_property_match_property_string(dev, "adi,spi-mode",
 						    ad4134_spi_modes,
 						    ARRAY_SIZE(ad4134_spi_modes));
-	if (ret == -EINVAL)
+	if (ret == -EINVAL) {
 		/* Default to no-cs mode if adi,spi-mode is not specified */
 		if (!device_property_present(dev, "adi,spi-mode"))
 			st->spi_mode = AD4134_SPI_MODE_NO_CS;
 		else
 			return dev_err_probe(dev, ret,
 					     "unsupported adi,spi-mode\n");
-	else if (ret < 0)
+	} else if (ret < 0) {
 		return dev_err_probe(dev, ret,
 				     "getting adi,spi-mode property failed\n");
-	else
+	} else {
 		st->spi_mode = ret;
+	}
 
 	if (st->spi_mode == AD4134_SPI_MODE_NO_CS) {
 		st->mux_st[AD4134_SDO_INPUT] =
