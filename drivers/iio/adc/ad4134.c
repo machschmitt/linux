@@ -171,7 +171,7 @@ struct ad4134_state {
 	 * atomicity of consecutive register access operations.
 	 */
 	struct mutex lock;
-	struct mux_state *mux_st[2];
+	struct mux_state *mux_st[2]; /* For external multiplexer control */
 	enum ad4134_spi_mode spi_mode;
 	int refin_mv;
 	bool crc_en;
