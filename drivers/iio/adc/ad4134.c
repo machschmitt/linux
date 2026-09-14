@@ -250,7 +250,7 @@ static int ad4134_reg_write(void *context, unsigned int reg, unsigned int val)
 	struct ad4134_state *st = context;
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_buf,
-		.rx_buf = st->rx_buf,
+		.rx_buf = st->rx_buf.reg,
 		.len = st->crc_en ? AD4134_SPI_MAX_XFER_LEN : 2,
 	};
 	int ret;
@@ -261,7 +261,7 @@ static int ad4134_reg_write(void *context, unsigned int reg, unsigned int val)
 	if (ret)
 		return ret;
 
-	if (st->crc_en && st->rx_buf[2] != st->tx_buf[2])
+	if (st->crc_en && st->rx_buf.reg[2] != st->tx_buf[2])
 		dev_dbg(&st->spi->dev, "reg write CRC check failed\n");
 
 	return 0;
@@ -285,7 +285,7 @@ static int ad4134_data_read(struct ad4134_state *st, unsigned int reg,
 	 * from the requested one.
 	 */
 	for (i = 0; i < AD4134_NUM_CHANNELS; i++) {
-		ret = spi_write_then_read(st->spi, NULL, 0, st->rx_buf,
+		ret = spi_write_then_read(st->spi, NULL, 0, st->rx_buf.reg,
 					  BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS));
 		if (ret)
 			return ret;
@@ -296,7 +296,7 @@ static int ad4134_data_read(struct ad4134_state *st, unsigned int reg,
 		 * Clock out data from all channels to avoid that.
 		 */
 		if (i == AD4134_VREG_CH(reg))
-			sample = get_unaligned_be24(st->rx_buf);
+			sample = get_unaligned_be24(st->rx_buf.reg);
 	}
 	*val = sign_extend32(sample, AD4134_CHAN_PRECISION_BITS - 1);
 
@@ -308,7 +308,7 @@ static int ad4134_register_read(struct ad4134_state *st, unsigned int reg,
 {
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_buf,
-		.rx_buf = st->rx_buf,
+		.rx_buf = st->rx_buf.reg,
 		.len = st->crc_en ? AD4134_SPI_MAX_XFER_LEN : 2,
 	};
 	unsigned int inst;
@@ -321,10 +321,10 @@ static int ad4134_register_read(struct ad4134_state *st, unsigned int reg,
 	if (ret)
 		return ret;
 
-	*val = st->rx_buf[1];
+	*val = st->rx_buf.reg[1];
 
 	/* Check CRC */
-	if (st->crc_en && st->rx_buf[2] != st->tx_buf[2])
+	if (st->crc_en && st->rx_buf.reg[2] != st->tx_buf[2])
 		dev_dbg(&st->spi->dev, "reg read CRC check failed\n");
 
 	return 0;
