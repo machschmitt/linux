@@ -161,8 +161,10 @@ struct ad4134_state {
 	 * DMA (thus cache coherency maintenance) requires the transfer buffers
 	 * to live in their own cache lines.
 	 */
-	u32 scan[ARRAY_SIZE(ad4134_chan_set)] __aligned(IIO_DMA_MINALIGN);
-	u8 rx_buf[AD4134_SPI_MAX_XFER_LEN];
+	union {
+		u8 reg[AD4134_SPI_MAX_XFER_LEN];
+		u32 scan[ARRAY_SIZE(ad4134_chan_set)];
+	} rx_buf __aligned(IIO_DMA_MINALIGN);
 	u8 tx_buf[AD4134_SPI_MAX_XFER_LEN];
 };
 
@@ -359,17 +361,18 @@ static irqreturn_t ad4134_trigger_handler(int irq, void *p)
 	gpiod_set_value_cansleep(st->odr_gpio, 0);
 
 	for (unsigned int ch = 0; ch < AD4134_NUM_CHANNELS; ch++) {
-		ret = spi_write_then_read(st->spi, NULL, 0, &st->scan[ch],
+		ret = spi_write_then_read(st->spi, NULL, 0, &st->rx_buf.scan[ch],
 					  BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS));
 		if (ret)
 			goto err_out;
 
 		if (test_bit(ch, indio_dev->active_scan_mask) && ch != i)
-			memcpy(&st->scan[i++], &st->scan[ch], sizeof(st->scan[ch]));
+			memcpy(&st->rx_buf.scan[i++], &st->rx_buf.scan[ch],
+			       sizeof(st->rx_buf.scan[ch]));
 	}
 
-	iio_push_to_buffers_with_ts(indio_dev, &st->scan, sizeof(st->scan),
-				    pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &st->rx_buf.scan,
+				    sizeof(st->rx_buf.scan), pf->timestamp);
 
 err_out:
 	iio_trigger_notify_done(indio_dev->trig);
