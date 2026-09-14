@@ -73,13 +73,14 @@ select between SDO (for register data) and DOUT0 (for ADC sample data).::
   | Data interface        |        |MUX  >--------->| SDI             |
   | for ADC sample  DOUT0 |------->|____/           |                 |
   | data read             |          ^              |                 |
-  |                       |          +--------------| GPIO            |
+  |                       |          |              |                 |
   |                  DCLK |<------------------------| DCLK            |
   |                   ODR |<----------------+    +->| Offload Trigger |
-  +-----------------------+                 |    |  +-----------------+
-                                            |    +--| PWM1            |
-                                            +-------| PWM0            |
-                                            +-------| GPIO            |
+  +-----------------------+          |      |    |  +-----------------+
+                                     |      |    +--| PWM1            |
+                                     |      +-------| PWM0            |
+                                     |      +-------| GPIO0           |
+                                     +--------------| GPIO1           |
                                                     +-----------------+
 
 Set ``adi,spi-mode = "4-wire"`` in device tree to indicate the device is
@@ -106,22 +107,23 @@ Maximum througput rate can be achieved by reading 4 input lines simultaneously.:
   +-----------------------+                         +-----------------+
   |         AD4134        |                         | SPI Controller  |
   |                       |                         |                 |
-  | SPI interface         |                         |                 |
-  | for register     SCLK |<------------------------| SCLK            |
-  | access             CS |<------------------------| CS              |
-  |                   SDI |<------------------------| SDO             |
+  | SPI interface    SCLK |<------------------------| SCLK            |
+  | for register       CS |<------------------------| CS              |
+  | access            SDI |<------------------------| SDO             |
   |                   SDO |------->|¯¯¯¯\           |                 |
-  | Data interface        |        |MUX  >--------->| SDI0            |
-  | for ADC sample  DOUT0 |------->|____/<--------- | GPIO            |
+  |                       |        |MUX  >--------->| SDI0            |
+  | Data interface  DOUT0 |------->|____/           |                 |
+  | for ADC sample        |          ^              |                 |
   | data read       DOUT1 |------------------------>| SDI1            |
   |                 DOUT2 |------------------------>| SDI2            |
   |                 DOUT3 |------------------------>| SDI3            |
   |                  DCLK |<------------------------| DCLK            |
   |                   ODR |<----------------+    +->| Offload Trigger |
-  +-----------------------+                 |    |  +-----------------+
-                                            |    +--| PWM1            |
-                                            +-------| PWM0            |
-                                            +-------| GPIO            |
+  +-----------------------+          |      |    |  +-----------------+
+                                     |      |    +--| PWM1            |
+                                     |      +-------| PWM0            |
+                                     |      +-------| GPIO0           |
+                                     +--------------| GPIO1           |
                                                     +-----------------+
 
 Each of SDI0 to SDI3 connect to a different SPI controller deserializer
