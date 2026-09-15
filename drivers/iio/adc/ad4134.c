@@ -253,7 +253,7 @@ static const struct regmap_access_table ad4134_regmap_wr_table = {
 };
 
 /*
- * This function controls a multiplexer setup OUTSIDE OF AD4134 SILICON.
+ * This function controls a multiplexer OUTSIDE OF AD4134 SILICON.
  * When AD4134 SDO and DOUT0 pins are multiplexed, this function changes the
  * multiplexer state to route SDO to the SPI controller. See AD4134 IIO
  * documentation for details.
@@ -286,7 +286,7 @@ static int ad4134_set_register_access(struct ad4134_state *st)
 }
 
 /*
- * This function controls a multiplexer setup OUTSIDE OF AD4134 SILICON.
+ * This function controls a multiplexer OUTSIDE OF AD4134 SILICON.
  * When AD4134 SDO and DOUT0 pins are multiplexed, this function changes the
  * multiplexer state to route DOUT0 to the SPI controller. On failure, fall
  * back to routing SDO to the controller and return an errno. See AD4134 IIO
@@ -744,6 +744,14 @@ static int ad4134_probe(struct spi_device *spi)
 	}
 
 	if (st->spi_mode == AD4134_SPI_MODE_NO_CS) {
+		/*
+		 * The support hardware for AD4134 may have a multiplexer for
+		 * selecting between AD4134 SDO and AD4134 DOUT0. If that mux
+		 * is set but the user still wants to run AD4134 in minimum I/O
+		 * mode, then DOUT0 is not used and the multiplexer OUTSIDE OF
+		 * AD4134 SILICON must be set to select AD4134 SDO. See AD4134
+		 * IIO documentation for details.
+		 */
 		st->mux_st[AD4134_SDO_INPUT] =
 			devm_mux_state_get_optional_selected(dev, "reg_access");
 		if (IS_ERR(st->mux_st[AD4134_SDO_INPUT]))
@@ -756,7 +764,7 @@ static int ad4134_probe(struct spi_device *spi)
 					     "failed to setup minimum I/O mode\n");
 	} else {
 		/*
-		 * This controls a multiplexer setup OUTSIDE OF AD4134 SILICON.
+		 * This controls a multiplexer OUTSIDE OF AD4134 SILICON.
 		 * See AD4134 IIO documentation for details.
 		 */
 		st->mux_st[AD4134_SDO_INPUT] = devm_mux_state_get_selected(dev, "reg_access");
