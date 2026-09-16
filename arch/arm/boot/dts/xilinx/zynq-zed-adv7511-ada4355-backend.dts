@@ -92,7 +92,7 @@
 		spi-cpha;
 		clocks = <&ada4355_fixed_clock>;
 		clock-names = "adc_clk";
-		vld-en-gpios = <&gpio0 89 GPIO_ACTIVE_HIGH>;
+		adi,vld-en-gpios = <&gpio0 89 GPIO_ACTIVE_HIGH>;
 		io-backends = <&iio_backend>;
 		num_lanes = <2>;
 	};
