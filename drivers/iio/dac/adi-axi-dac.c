@@ -847,6 +847,7 @@ static const struct iio_backend_ops axi_dac_generic_ops = {
 	.ext_info_set = axi_dac_ext_info_set,
 	.ext_info_get = axi_dac_ext_info_get,
 	.data_source_set = axi_dac_data_source_set,
+	.data_source_get = axi_dac_data_source_get,
 	.set_sample_rate = axi_dac_set_sample_rate,
 	.debugfs_reg_access = iio_backend_debugfs_ptr(axi_dac_reg_access),
 };
