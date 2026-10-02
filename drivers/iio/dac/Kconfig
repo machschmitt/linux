@@ -210,6 +210,21 @@ config AD9739A
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad9739a.
 
+config AD9740
+	tristate "Analog Devices AD9740 family TxDAC driver"
+	select IIO_BACKEND
+	help
+	  Say yes here to build support for the Analog Devices AD9748, AD9740,
+	  AD9742 and AD9744 8/10/12/14-bit, 210 MSPS Digital-to-Analog
+	  Converters.
+
+	  The driver requires the assistance of the AXI DAC IP core to operate,
+	  since the devices have no control interface and data has to be
+	  streamed into them from memory via DMA.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad9740.
+
 config ADI_AXI_DAC
 	tristate "Analog Devices Generic AXI DAC IP core driver"
 	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_INTEL_SOCFPGA || COMPILE_TEST
