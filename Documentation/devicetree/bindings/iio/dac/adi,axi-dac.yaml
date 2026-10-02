@@ -26,6 +26,7 @@ properties:
     enum:
       - adi,axi-dac-9.1.b
       - adi,axi-ad3552r
+      - adi,axi-ad9740
 
   reg:
     maxItems: 1
@@ -64,6 +65,17 @@ allOf:
             const: adi,axi-ad3552r
     then:
       $ref: /schemas/spi/spi-controller.yaml#
+
+  # The IP cores that control the DAC over a dedicated interface need the
+  # converter sampling clock in addition to the AXI interface clock.
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,axi-ad3552r
+              - adi,axi-ad9740
+    then:
       properties:
         clocks:
           minItems: 2
@@ -77,6 +89,22 @@ allOf:
           maxItems: 1
         clock-names:
           maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,axi-ad9740
+    then:
+      properties:
+        '#address-cells':
+          const: 1
+        '#size-cells':
+          const: 0
+      patternProperties:
+        '^dac@[0-9a-f]+$':
+          type: object
+          description: The DAC device attached to this IP core.
 
 unevaluatedProperties: false
 
