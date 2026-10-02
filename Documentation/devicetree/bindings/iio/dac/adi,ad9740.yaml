@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad9740.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD9740 family of TxDAC digital to analog converters
+
+maintainers:
+  - Marcelo Schmitt <marcelo.schmitt@analog.com>
+  - Sergiu Arpadi <sergiu.arpadi@analog.com>
+
+description: |
+  The AD9740 family are single supply, 210 MSPS current output digital to
+  analog converters differing only in resolution. Data is clocked into the
+  device over a parallel CMOS interface, so the devices rely on an IIO
+  backend (typically the AXI DAC IP core) to stream samples from memory.
+
+    AD9748 -  8-bit
+    AD9740 - 10-bit
+    AD9742 - 12-bit
+    AD9744 - 14-bit
+
+  https://www.analog.com/media/en/technical-documentation/data-sheets/AD9740.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/AD9742.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/AD9744.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/AD9748.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,ad9740
+      - adi,ad9742
+      - adi,ad9744
+      - adi,ad9748
+
+  reg:
+    maxItems: 1
+
+  io-backends:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  adi,twos-complement:
+    description:
+      Configure the backend to feed the device with two's complement data
+      instead of the default offset binary (straight unsigned) encoding.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - io-backends
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    axi_dac: dac@44a70000 {
+        compatible = "adi,axi-ad9740";
+        reg = <0x44a70000 0x1000>;
+        dmas = <&dac_tx_dma 0>;
+        dma-names = "tx";
+        clocks = <&clkc 15>, <&dac_clk>;
+        clock-names = "s_axi_aclk", "dac_clk";
+        #io-backend-cells = <0>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dac@0 {
+            compatible = "adi,ad9740";
+            reg = <0>;
+            io-backends = <&axi_dac>;
+            reset-gpios = <&gpio0 92 GPIO_ACTIVE_LOW>;
+        };
+    };
+...
