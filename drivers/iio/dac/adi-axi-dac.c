@@ -917,14 +917,18 @@ static int axi_dac_probe(struct platform_device *pdev)
 
 	if (st->info->has_dac_clk) {
 		struct clk *dac_clk;
+		unsigned long rate;
 
 		dac_clk = devm_clk_get_enabled(&pdev->dev, "dac_clk");
 		if (IS_ERR(dac_clk))
 			return dev_err_probe(&pdev->dev, PTR_ERR(dac_clk),
 					     "failed to get dac_clk clock\n");
 
+		rate = clk_get_rate(dac_clk);
 		/* We only care about the streaming mode rate */
-		st->dac_clk_rate = clk_get_rate(dac_clk) / 2;
+		st->dac_clk_rate = rate / 2;
+		/* DDS frequency calculations use the full converter rate */
+		st->dac_clk = rate;
 	}
 
 	base = devm_platform_ioremap_resource(pdev, 0);
