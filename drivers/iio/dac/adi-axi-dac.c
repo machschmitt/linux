@@ -1023,9 +1023,17 @@ static const struct axi_dac_info dac_ad3552r = {
 	.has_child_nodes = true,
 };
 
+static const struct axi_dac_info dac_ad9740 = {
+	.version = ADI_AXI_PCORE_VER(9, 1, 'b'),
+	.backend_info = &axi_dac_generic,
+	.has_dac_clk = true,
+	.has_child_nodes = true,
+};
+
 static const struct of_device_id axi_dac_of_match[] = {
 	{ .compatible = "adi,axi-dac-9.1.b", .data = &dac_generic },
 	{ .compatible = "adi,axi-ad3552r", .data = &dac_ad3552r },
+	{ .compatible = "adi,axi-ad9740", .data = &dac_ad9740 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, axi_dac_of_match);
