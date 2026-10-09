@@ -1203,6 +1203,8 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
 	bool common_mode;
+	unsigned int scratch_pad = 0;
+	int ret;
 	u8 offload_bpw;
 
 	if (st->mode == AD4030_OUT_DATA_MD_30_AVERAGED_DIFF)
@@ -1210,20 +1212,51 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 	else
 	{
 		offload_bpw = st->chip->precision_bits;
+		//offload_bpw *= st->ddr_mode ? 2 : 1; //DEBUG experimental config
 		//TODO REVISIT
 		//offload_bpw += (st->mode == AD4030_OUT_DATA_MD_24_DIFF_8_COM ||
 		//              st->mode == AD4030_OUT_DATA_MD_16_DIFF_8_COM) ? 8 : 0;
 		//???
 	}
 
-	st->offload_xfer[0].bits_per_word = offload_bpw;
+	//st->offload_xfer[0].bits_per_word = offload_bpw;
+	ret = regmap_read(st->regmap, AD4030_REG_SCRATCH_PAD, &scratch_pad);
+	if (ret)
+		dev_err(&st->spi->dev, "%s: ret %d\n", __func__, ret);
+	dev_info(&st->spi->dev, "%s: scratch_pad %u\n",
+		 __func__, scratch_pad);
+	st->offload_xfer[0].bits_per_word = scratch_pad;
+	//st->offload_xfer[0].len = spi_bpw_to_bytes(offload_bpw);
+	/*
+	 * When data is read through multiple lanes, each transfer carries
+	 * proportionally more the data than a single-lane transfer would.
+	 */
 	st->offload_xfer[0].len = spi_bpw_to_bytes(offload_bpw) * st->spi->num_rx_lanes;
 	st->offload_xfer[0].dtr_mode = st->ddr_mode;
-	st->offload_xfer[0].multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE;
+	if (st->spi->num_rx_lanes > 1)
+		st->offload_xfer[0].multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE;
 	st->offload_xfer[0].offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
+	dev_info(&st->spi->dev, "%s: xfer bits_per_word %u\n",
+		 __func__, st->offload_xfer[0].bits_per_word);
+	dev_info(&st->spi->dev, "%s: xfer len %u\n",
+		 __func__, st->offload_xfer[0].len);
+
+//echo mode SDR
+//[  328.712586] ad4030 spi0.0: ad4030_prepare_offload_msg: xfer bits_per_word 20
+//[  328.712605] ad4030 spi0.0: ad4030_prepare_offload_msg: xfer len 8
+//[  328.712619] ad4030 spi0.0: ad4030_prepare_offload_msg: common_mode 0
+//[  328.712636] ad4030 spi0.0: spi_engine_all_lanes_flags: spi->num_rx_lanes: 2, rx_lane_flags: 0x03, tx_lane_flags: 001
+
+
+// echo mode DDR
+//[  447.601968] ad4030 spi0.0: ad4030_prepare_offload_msg: xfer bits_per_word 20
+//[  447.601983] ad4030 spi0.0: ad4030_prepare_offload_msg: xfer len 8
+//[  447.601996] ad4030 spi0.0: ad4030_prepare_offload_msg: common_mode 0
+//[  447.602011] ad4030 spi0.0: spi_engine_all_lanes_flags: spi->num_rx_lanes: 2, rx_lane_flags: 0x03, tx_lane_flags: 001
 
 	common_mode = st->mode == AD4030_OUT_DATA_MD_24_DIFF_8_COM ||
 		      st->mode == AD4030_OUT_DATA_MD_16_DIFF_8_COM;
+	dev_info(&st->spi->dev, "%s: common_mode %u\n", __func__, common_mode);
 
 	if (common_mode) {
 		offload_bpw = 8;
@@ -1241,8 +1274,8 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
-	unsigned int reg_modes;
-	int ret;
+	unsigned int reg_modes, spi_mode;
+	int ret, ret2;
 
 	/*
 	 * When data from 2 analog input channels is output through a single
@@ -1259,11 +1292,35 @@ static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 	    FIELD_GET(AD4030_REG_MODES_MASK_LANE_MODE, reg_modes) == AD4030_LANE_MD_INTERLEAVED)
 		return -EINVAL;
 
+	/* TODO ADC to DDR */
+
+	dev_info(&st->spi->dev, "%s: st->ddr_mode: %d\n", __func__, st->ddr_mode);
+	reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_DDR_MD, st->ddr_mode);
+	dev_info(&st->spi->dev, "%s: write 0x%02X to modes register\n",
+		 __func__, reg_modes);
+
+	ret = regmap_write(st->regmap, AD4030_REG_MODES, reg_modes);
+	if (ret)
+		return ret;
+
+	/* TODO change to DDR */
+
+	spi_mode = st->spi->mode;
+	st->spi->mode &= ~SPI_MODE_X_MASK;
+	st->spi->mode |= SPI_MODE_1;
+	ret = spi_setup(st->spi);
+	if (ret) {
+		dev_err(&st->spi->dev, "spi_setup() fail %d\n", ret);
+		st->spi->mode = spi_mode;
+		return ret;
+	}
+
 	ad4030_prepare_offload_msg(indio_dev);
 	st->offload_msg.offload = st->offload;
 	ret = spi_optimize_message(st->spi, &st->offload_msg);
 	if (ret)
-		return ret;
+	//	return ret;
+		goto out_restore_lane_mode;
 
 	ret = pwm_set_waveform_might_sleep(st->cnv_trigger, &st->cnv_wf, false);
 	if (ret)
@@ -1280,6 +1337,16 @@ out_pwm_disable:
 	pwm_disable(st->cnv_trigger);
 out_unoptimize:
 	spi_unoptimize_message(&st->offload_msg);
+out_restore_lane_mode:
+	//if (st->chip->num_voltage_inputs > 1 && st->num_out_lanes == 1) {
+	if (st->chip->num_voltage_inputs > 1 && st->spi->num_rx_lanes == 1) {
+		ret2 = regmap_update_bits(st->regmap, AD4030_REG_MODES,
+					  AD4030_REG_MODES_MASK_LANE_MODE,
+					  FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
+						     AD4030_LANE_MD_INTERLEAVED));
+		if (ret2)
+			dev_err(&st->spi->dev, "failed to restore lane mode: %d\n", ret2);
+       }
 
 	return ret;
 }
@@ -1287,12 +1354,39 @@ out_unoptimize:
 static int ad4030_offload_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
+	unsigned int reg_modes, spi_mode;
+	int ret;
 
 	spi_offload_trigger_disable(st->offload, st->offload_trigger);
 
 	pwm_disable(st->cnv_trigger);
 
 	spi_unoptimize_message(&st->offload_msg);
+
+	spi_mode = st->spi->mode;
+	st->spi->mode &= ~SPI_MODE_X_MASK;
+	st->spi->mode |= SPI_MODE_0;
+	ret = spi_setup(st->spi);
+	if (ret) {
+		dev_err(&st->spi->dev, "spi_setup() fail %d\n", ret);
+		st->spi->mode = spi_mode;
+		return ret;
+	}
+
+	/* TODO change SPI Controller to SDR */
+
+	/* TODO ADC to SDR */
+
+	if (st->ddr_mode) {
+		dev_info(&st->spi->dev, "%s: unset ADC DDR\n", __func__);
+
+		//ret = regmap_write(st->regmap, AD4030_REG_MODES, reg_modes);
+		ret = regmap_update_bits(st->regmap, AD4030_REG_MODES,
+					 AD4030_REG_MODES_MASK_DDR_MD, 0);
+		if (ret)
+			return ret;
+	}
+
 
 	return 0;
 }
@@ -1415,24 +1509,56 @@ static int ad4030_config(struct ad4030_state *st)
 	st->offset_avail[2] = BIT(st->chip->precision_bits - 1) - 1;
 
 	if (st->chip->num_voltage_inputs > 1 && st->spi->num_rx_lanes == 1)
+	{
 		reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
 				       AD4030_LANE_MD_INTERLEAVED);
+	}
 	else
+	{
 		reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
 				       AD4030_LANE_MD_1_PER_CH);
+		//switch (st->spi->num_rx_lanes_PER_CHANNEL) {
+		//case 1:
+		//	reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
+		//			       AD4030_LANE_MD_1_PER_CH);
+		//	break;
+		//case 2:
+		//	reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
+		//			       AD4030_LANE_MD_2_PER_CH);
+		//	break;
+		//case 4:
+		//	reg_modes = FIELD_PREP(AD4030_REG_MODES_MASK_LANE_MODE,
+		//			       AD4030_LANE_MD_4_PER_CH);
+		//	break;
+		//default:
+		//	return dev_err_probe(&st->spi->dev, ret,
+		//			     "unsupported num_rx_lanes: %u\n",
+		//			     st->spi->num_rx_lanes);
+		//}
+	}
 
 	ret = device_property_match_property_string(&st->spi->dev,
 						    "spi-sclk-source",
 						    ad4630_clock_mode_str,
 						    ARRAY_SIZE(ad4630_clock_mode_str));
 	if (ret < 0 && ret != -EINVAL)
+	{
 		return dev_err_probe(&st->spi->dev, ret,
 				     "getting spi-sclk-source property failed\n");
+	}
 	else
+	{
+		dev_info(&st->spi->dev, "found spi-sclk-source property %d: %s\n",
+			 ret, ad4630_clock_mode_str[ret]);
 		reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_CLK_MD, ret);
+	}
 
+	dev_info(&st->spi->dev, "%s: dtr_caps: %d\n",
+		 __func__, st->spi->controller->dtr_caps);
 	st->ddr_mode = st->spi->controller->dtr_caps;
-	reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_DDR_MD, st->ddr_mode);
+	//reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_DDR_MD, st->ddr_mode);
+	//dev_info(&st->spi->dev, "%s: write 0x%02X to modes register\n",
+	//	 __func__, reg_modes);
 
 	ret = regmap_write(st->regmap, AD4030_REG_MODES, reg_modes);
 	if (ret)
@@ -1497,6 +1623,7 @@ static int ad4030_probe(struct spi_device *spi)
 	struct ad4030_state *st;
 	int ret;
 
+	dev_info(dev, "probing ...\n");
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
@@ -1524,13 +1651,13 @@ static int ad4030_probe(struct spi_device *spi)
 	 */
 	fsleep(3000);
 
-	ret = ad4030_reset(st);
-	if (ret)
-		return ret;
+	//ret = ad4030_reset(st);
+	//if (ret)
+	//	return ret;
 
-	ret = ad4030_detect_chip_info(st);
-	if (ret)
-		return ret;
+	//ret = ad4030_detect_chip_info(st);
+	//if (ret)
+	//	return ret;
 
 	if (st->chip->has_pga) {
 		ret = ad4030_setup_pga(dev, indio_dev, st);
@@ -1540,9 +1667,9 @@ static int ad4030_probe(struct spi_device *spi)
 		ad4030_fill_scale_avail(st);
 	}
 
-	ret = ad4030_config(st);
-	if (ret)
-		return ret;
+	//ret = ad4030_config(st);
+	//if (ret)
+	//	return ret;
 
 	dev_info(dev, "%s: TODO re-add cnv_gpio\n", __func__);
 	//st->cnv_gpio = devm_gpiod_get(dev, "cnv", GPIOD_OUT_LOW);

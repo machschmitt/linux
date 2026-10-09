@@ -75,6 +75,7 @@
 #define SPI_ENGINE_CONFIG_CPOL			BIT(1)
 #define SPI_ENGINE_CONFIG_3WIRE			BIT(2)
 #define SPI_ENGINE_CONFIG_SDO_IDLE_HIGH		BIT(3)
+#define SPI_ENGINE_CONFIG_DTR			BIT(4)
 
 #define SPI_ENGINE_INST_TRANSFER		0x0
 #define SPI_ENGINE_INST_ASSERT			0x1
@@ -253,6 +254,11 @@ static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 
 	if (xfer->multi_lane_mode == SPI_MULTI_LANE_MODE_STRIPE)
 		len /= num_lanes;
+		//len = (len / num_lanes) * 3; //DEBUG
+		//len = 1; //DEBUG for DDR
+
+	pr_info("%s: ajustado num_lanes: %u, xfer->len: %d, len: %d\n",
+		__func__, num_lanes, xfer->len, len);
 
 	if (!dry)
 		pr_info("%s: len: %u (i.e. message length is %u transfer)\n",
@@ -393,6 +399,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 	struct spi_controller *host = spi->controller;
 	struct spi_engine_offload *priv;
 	struct spi_transfer *xfer;
+	struct spi_transfer *prev_xfer;
 	int clk_div, new_clk_div, inst_ns;
 	int prev_multi_lane_mode = SPI_MULTI_LANE_MODE_SINGLE;
 	bool keep_cs = false;
@@ -431,6 +438,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 	spi_engine_gen_cs(p, dry, spi, !xfer->cs_off);
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		//prev_xfer = xfer;
 		if (xfer->rx_buf || xfer->offload_flags & SPI_OFFLOAD_XFER_RX_STREAM ||
 		    xfer->tx_buf || xfer->offload_flags & SPI_OFFLOAD_XFER_TX_STREAM) {
 			if (xfer->multi_lane_mode != prev_multi_lane_mode) {
@@ -443,15 +451,42 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 					spi_engine_primary_lane_flag(spi, &rx_lane_flags,
 								     &tx_lane_flags);
 
+				dev_info(&host->dev, "%s: dry: %d,add SDI_MASK cmd with 0x%02X\n",
+					__func__, dry, rx_lane_flags);
 				spi_engine_program_add_cmd(p, dry,
 					SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_SDI_MASK,
 							     rx_lane_flags));
+				dev_info(&host->dev, "%s: dry: %d,add SDO_MASK cmd with 0x%02X\n",
+					__func__, dry, rx_lane_flags);
 				spi_engine_program_add_cmd(p, dry,
 					SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_SDO_MASK,
 							     tx_lane_flags));
 			}
 			prev_multi_lane_mode = xfer->multi_lane_mode;
 		}
+
+		if (xfer->dtr_mode) {
+			if (host->dtr_caps) {
+				dev_err(&host->dev, "DTR not upported\n");
+				return;
+			}
+			dev_info(&host->dev,
+				 "%s: add command 0x%08lX to SPI Engine CMD FIFO\n",
+				 __func__, SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+					spi_engine_get_config(spi) | SPI_ENGINE_CONFIG_DTR));
+			spi_engine_program_add_cmd(p, dry,
+				SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+					spi_engine_get_config(spi) | SPI_ENGINE_CONFIG_DTR));
+		}
+		//} else if (prev_xfer->dtr_mode) {
+		//	dev_info(&host->dev,
+		//		 "%s: add command 0x%08X to SPI Engine CMD FIFO\n",
+		//		 __func__, SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+		//			spi_engine_get_config(spi)));
+		//	spi_engine_program_add_cmd(p, dry,
+		//		SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+		//			spi_engine_get_config(spi)));
+		//}
 
 		new_clk_div = host->max_speed_hz / xfer->effective_speed_hz;
 		if (new_clk_div != clk_div) {
@@ -491,6 +526,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 			   xfer->cs_off != list_next_entry(xfer, transfer_list)->cs_off) {
 			spi_engine_gen_cs(p, dry, spi, xfer->cs_off);
 		}
+		//prev_xfer = xfer;
 	}
 
 	if (!keep_cs)
@@ -984,6 +1020,13 @@ static int spi_engine_setup(struct spi_device *device)
 			       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 	}
 
+	/* Set DTR config */
+	// if (host->dtr_caps)
+	//	spi_engine_program_add_cmd(p, dry,
+	//		SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+	//			spi_engine_get_config(spi)));
+	//	SPI_ENGINE_CONFIG_DTR
+
 	/*
 	 * In addition to setting the flags, we have to do a CS assert command
 	 * to make the new setting actually take effect.
@@ -1159,6 +1202,11 @@ static int spi_engine_trigger_enable(struct spi_offload *offload)
 	dev_info(spi_engine->offload->provider_dev,
 		 "%s: SPI_ENGINE_FIFO_ADDRESS_WIDTH_SDO (0x14): 0x%02lX\n",
 		 __func__, FIELD_GET(SPI_ENGINE_FIFO_ADDRESS_WIDTH_SDO, reg));
+
+	reg = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CFG_INFO_(3));
+	dev_info(spi_engine->offload->provider_dev,
+		 "%s: REG_CFG_INFO (0x%04X): 0x%04X\n",
+		 __func__, SPI_ENGINE_REG_CFG_INFO_(3), reg);
 
 	reg = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDI_FIFO_LEVEL);
 	dev_info(spi_engine->offload->provider_dev,
@@ -1418,7 +1466,10 @@ static int spi_engine_probe(struct platform_device *pdev)
 	host->get_offload = spi_engine_get_offload;
 	host->put_offload = spi_engine_put_offload;
 	host->num_chipselect = 8;
-	host->dtr_caps = !!(readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CFG_INFO_(3)));
+	//host->dtr_caps = !!(readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CFG_INFO_(3)));
+	dev_info(&pdev->dev, "%s: DDR cap %d\n", __func__,
+		 !!(readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CFG_INFO_(3))));
+	host->dtr_caps = true;
 
 	if (adi_axi_pcore_ver_gteq(version, 1, 2)) {
 		host->mode_bits |= SPI_CS_HIGH;
