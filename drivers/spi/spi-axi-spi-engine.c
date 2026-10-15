@@ -1522,10 +1522,10 @@ static int spi_engine_probe(struct platform_device *pdev)
 	host->get_offload = spi_engine_get_offload;
 	host->put_offload = spi_engine_put_offload;
 	host->num_chipselect = 8;
-	//host->dtr_caps = !!(readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CFG_INFO_(3)));
+	host->dtr_caps = !!(readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CFG_INFO_(3)));
 	dev_info(&pdev->dev, "%s: DDR cap CFG_INFO3 %d\n", __func__,
 		 !!(readl_relaxed(spi_engine->base + SPI_ENGINE_REG_CFG_INFO_(3))));
-	host->dtr_caps = true;
+	//host->dtr_caps = true;
 	//host->dtr_caps = false;
 
 	if (adi_axi_pcore_ver_gteq(version, 1, 2)) {
