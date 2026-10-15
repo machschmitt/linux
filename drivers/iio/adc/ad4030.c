@@ -1233,6 +1233,8 @@ static void ad4030_prepare_offload_msg(struct iio_dev *indio_dev)
 	 * proportionally more the data than a single-lane transfer would.
 	 */
 	st->offload_xfer[0].len = spi_bpw_to_bytes(offload_bpw) * st->spi->num_rx_lanes;
+	// TODO check se echo clock.
+	// não habilitar dtr set não echo clock
 	st->offload_xfer[0].dtr_mode = st->ddr_mode;
 	if (st->spi->num_rx_lanes > 1)
 		st->offload_xfer[0].multi_lane_mode = SPI_MULTI_LANE_MODE_STRIPE;
@@ -1306,15 +1308,15 @@ static int ad4030_offload_buffer_postenable(struct iio_dev *indio_dev)
 
 	/* TODO change to DDR */
 
-	spi_mode = st->spi->mode;
-	st->spi->mode &= ~SPI_MODE_X_MASK;
-	st->spi->mode |= SPI_MODE_1;
-	ret = spi_setup(st->spi);
-	if (ret) {
-		dev_err(&st->spi->dev, "spi_setup() fail %d\n", ret);
-		st->spi->mode = spi_mode;
-		return ret;
-	}
+	//spi_mode = st->spi->mode;
+	//st->spi->mode &= ~SPI_MODE_X_MASK;
+	//st->spi->mode |= SPI_MODE_1;
+	//ret = spi_setup(st->spi);
+	//if (ret) {
+	//	dev_err(&st->spi->dev, "spi_setup() fail %d\n", ret);
+	//	st->spi->mode = spi_mode;
+	//	return ret;
+	//}
 
 	ad4030_prepare_offload_msg(indio_dev);
 	st->offload_msg.offload = st->offload;
@@ -1364,15 +1366,15 @@ static int ad4030_offload_buffer_predisable(struct iio_dev *indio_dev)
 
 	spi_unoptimize_message(&st->offload_msg);
 
-	spi_mode = st->spi->mode;
-	st->spi->mode &= ~SPI_MODE_X_MASK;
-	st->spi->mode |= SPI_MODE_0;
-	ret = spi_setup(st->spi);
-	if (ret) {
-		dev_err(&st->spi->dev, "spi_setup() fail %d\n", ret);
-		st->spi->mode = spi_mode;
-		return ret;
-	}
+	//spi_mode = st->spi->mode;
+	//st->spi->mode &= ~SPI_MODE_X_MASK;
+	//st->spi->mode |= SPI_MODE_0;
+	//ret = spi_setup(st->spi);
+	//if (ret) {
+	//	dev_err(&st->spi->dev, "spi_setup() fail %d\n", ret);
+	//	st->spi->mode = spi_mode;
+	//	return ret;
+	//}
 
 	/* TODO change SPI Controller to SDR */
 
@@ -1539,28 +1541,37 @@ static int ad4030_config(struct ad4030_state *st)
 		//}
 	}
 
-	ret = device_property_match_property_string(&st->spi->dev,
-						    "spi-sclk-source",
-						    ad4630_clock_mode_str,
-						    ARRAY_SIZE(ad4630_clock_mode_str));
-	if (ret < 0 && ret != -EINVAL)
-	{
-		return dev_err_probe(&st->spi->dev, ret,
-				     "getting spi-sclk-source property failed\n");
-	}
-	else
-	{
-		dev_info(&st->spi->dev, "found spi-sclk-source property %d: %s\n",
-			 ret, ad4630_clock_mode_str[ret]);
-		reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_CLK_MD, ret);
-	}
+	if (device_property_present(&st->spi->dev, "spi-sclk-source")) {
 
-	dev_info(&st->spi->dev, "%s: dtr_caps: %d\n",
-		 __func__, st->spi->controller->dtr_caps);
-	st->ddr_mode = st->spi->controller->dtr_caps;
-	//reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_DDR_MD, st->ddr_mode);
-	//dev_info(&st->spi->dev, "%s: write 0x%02X to modes register\n",
-	//	 __func__, reg_modes);
+		ret = device_property_match_property_string(&st->spi->dev,
+							    "spi-sclk-source",
+							    ad4630_clock_mode_str,
+							    ARRAY_SIZE(ad4630_clock_mode_str));
+		if (ret < 0 && ret != -EINVAL)
+		{
+			return dev_err_probe(&st->spi->dev, ret,
+					     "getting spi-sclk-source property failed\n");
+		}
+		else
+		{
+			dev_info(&st->spi->dev, "found spi-sclk-source property %d: %s\n",
+				 ret, ad4630_clock_mode_str[ret]);
+		}
+
+		dev_info(&st->spi->dev, "%s: dtr_caps: %d\n",
+			 __func__, st->spi->controller->dtr_caps);
+		//TODO check if echo clock
+		if (ret == AD4630_CLOCK_MODE_ECHO) {
+			reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_CLK_MD, ret);
+			dev_info(&st->spi->dev, "%s: set ADC to use DDR: %d\n",
+				 __func__, st->spi->controller->dtr_caps);
+			st->ddr_mode = st->spi->controller->dtr_caps;
+		}
+		// TODO use DDR for register access too?
+		//reg_modes |= FIELD_PREP(AD4030_REG_MODES_MASK_DDR_MD, st->ddr_mode);
+		//dev_info(&st->spi->dev, "%s: write 0x%02X to modes register\n",
+		//	 __func__, reg_modes);
+	}
 
 	dev_info(&st->spi->dev, "%s: about to write REG_MODES\n", __func__);
 	ret = regmap_write(st->regmap, AD4030_REG_MODES, reg_modes);
