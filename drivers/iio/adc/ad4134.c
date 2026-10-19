@@ -147,6 +147,8 @@ static int ad4134_get_filter_type(struct iio_dev *indio_dev,
 	if (IIO_DEV_ACQUIRE_FAILED(claim))
 		return -EBUSY;
 
+	guard(mutex)(&st->sync_lock);
+
 	ret = regmap_read(st->regmap, AD4134_CHAN_DIG_FILTER_SEL_REG, &reg_val);
 	if (ret)
 		return ret;
