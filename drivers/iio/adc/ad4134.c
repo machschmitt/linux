@@ -521,6 +521,7 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 {
 	struct spi_offload_trigger_config config = st->offload_trigger_config;
 	struct pwm_waveform odr_wf = { };
+	u64 max_odr_high_time_ns;
 	u64 offload_period_ns;
 	u64 offload_offset_ns;
 	u64 odr_high_time_ns;
@@ -583,7 +584,8 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 							AD4134_DCLK_RISING_OFFSET_NS);
 
 	/* Check the minimum ODR to DCLK delay is met */
-	if (config.periodic.offset_ns < odr_high_time_ns + AD4134_DCLK_RISING_OFFSET_NS)
+	max_odr_high_time_ns = max_t(u64, odr_high_time_ns, odr_wf.duty_length_ns);
+	if (config.periodic.offset_ns < max_odr_high_time_ns + AD4134_DCLK_RISING_OFFSET_NS)
 		return -EDOM;
 
 	/* Check the PWM periods remain the same */
