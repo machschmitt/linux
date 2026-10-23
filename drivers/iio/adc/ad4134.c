@@ -756,8 +756,7 @@ static int ad4134_probe(struct spi_device *spi)
 
 		ret = ad4134_min_io_mode_setup(st);
 		if (ret)
-			return dev_err_probe(dev, ret,
-					     "failed to setup minimum I/O mode\n");
+			return dev_err_probe(dev, ret, "failed to setup minimum I/O mode\n");
 	} else {
 		/*
 		 * This controls a multiplexer OUTSIDE OF AD4134 SILICON.
