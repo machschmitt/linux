@@ -496,19 +496,19 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int ad4134_buffer_postenable(struct iio_dev *indio_dev)
+static int ad4134_buffer_preenable(struct iio_dev *indio_dev)
 {
 	return ad4134_claim_sample_access(iio_priv(indio_dev));
 }
 
-static int ad4134_buffer_predisable(struct iio_dev *indio_dev)
+static int ad4134_buffer_postdisable(struct iio_dev *indio_dev)
 {
 	return ad4134_release_sample_access(iio_priv(indio_dev));
 }
 
 static const struct iio_buffer_setup_ops ad4134_buffer_setup_ops = {
-	.postenable = &ad4134_buffer_postenable,
-	.predisable = &ad4134_buffer_predisable,
+	.preenable = &ad4134_buffer_preenable,
+	.postdisable = &ad4134_buffer_postdisable,
 };
 
 static int ad4134_read_raw(struct iio_dev *indio_dev,
