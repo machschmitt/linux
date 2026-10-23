@@ -558,14 +558,14 @@ static int ad4134_update_conversion_rate(struct ad4134_state *st,
 	 * again, until the minimum (or try count limit) is reached.
 	 */
 	odr_high_time_ns = div64_ul(6ULL * NSEC_PER_SEC, st->sys_clk_hz);
-	target_ns = 0;
+	target_ns = odr_high_time_ns;
 	count = 100;
 	do {
-		target_ns += 10; /* Increment by PWM duty cycle period */
 		odr_wf.duty_length_ns = target_ns;
 		ret = pwm_round_waveform_might_sleep(st->odr_pwm, &odr_wf);
-		if (ret)
+		if (ret < 0)
 			return ret;
+		target_ns += 10; /* Increment by PWM duty cycle period */
 	} while (--count && odr_wf.duty_length_ns < odr_high_time_ns);
 
 	/* Check the minimum ODR high time is met */
