@@ -251,14 +251,18 @@ static const struct regmap_access_table ad4134_regmap_wr_table = {
  */
 static int ad4134_claim_reg_access(struct ad4134_state *st)
 {
+	unsigned int spi_mode = st->spi->mode & SPI_MODE_X_MASK;
 	int ret;
 
-	if (st->spi_mode != AD4134_SPI_MODE_NO_CS && st->spi->mode != SPI_MODE_0) {
+	if (st->spi_mode != AD4134_SPI_MODE_NO_CS && spi_mode != SPI_MODE_0) {
 		st->spi->mode &= ~SPI_MODE_X_MASK;
 		st->spi->mode |= SPI_MODE_0;
 		ret = spi_setup(st->spi);
-		if (ret)
+		if (ret) {
+			st->spi->mode &= ~SPI_MODE_X_MASK;
+			st->spi->mode |= spi_mode;
 			return ret;
+		}
 	}
 
 	if (st->spi_mode != AD4134_SPI_MODE_NO_CS && st->mux_st[AD4134_SDO_INPUT])
@@ -289,14 +293,18 @@ static int ad4134_release_reg_access(struct ad4134_state *st)
  */
 static int ad4134_claim_sample_access(struct ad4134_state *st)
 {
+	unsigned int spi_mode = st->spi->mode & SPI_MODE_X_MASK;
 	int ret;
 
-	if (st->spi_mode != AD4134_SPI_MODE_NO_CS && st->spi->mode != SPI_MODE_1) {
+	if (st->spi_mode != AD4134_SPI_MODE_NO_CS && spi_mode != SPI_MODE_1) {
 		st->spi->mode &= ~SPI_MODE_X_MASK;
 		st->spi->mode |= SPI_MODE_1;
 		ret = spi_setup(st->spi);
-		if (ret)
+		if (ret) {
+			st->spi->mode &= ~SPI_MODE_X_MASK;
+			st->spi->mode |= spi_mode;
 			return ret;
+		}
 	}
 
 	if (st->spi_mode != AD4134_SPI_MODE_NO_CS && st->mux_st[AD4134_DOUT0_INPUT])
