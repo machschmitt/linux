@@ -282,6 +282,10 @@ static int ad4134_release_reg_access(struct ad4134_state *st)
 	return 0;
 }
 
+DEFINE_GUARD(__ad4134_reg_access_mode, struct ad4134_state *,
+	     ad4134_claim_reg_access(_T), ad4134_release_reg_access(_T));
+DEFINE_GUARD_COND(__ad4134_reg_access_mode, _try, ad4134_claim_reg_access(_T));
+
 /*
  * When operating in modes other than minimum I/O mode, AD4134 ADC sample data
  * on the DOUT lines is sampled on SCLK falling edge (SPI mode 1). In addition
@@ -324,6 +328,10 @@ static int ad4134_release_sample_access(struct ad4134_state *st)
 	return 0;
 }
 
+DEFINE_GUARD(__ad4134_sample_access_mode, struct ad4134_state *,
+	     ad4134_claim_sample_access(_T), ad4134_release_sample_access(_T));
+DEFINE_GUARD_COND(__ad4134_sample_access_mode, _try, ad4134_claim_sample_access(_T));
+
 static int ad4134_calc_spi_crc(u8 inst, u8 data)
 {
 	u8 buf[] = { inst, data };
@@ -347,27 +355,22 @@ static int ad4134_reg_write(void *context, unsigned int reg, unsigned int val)
 		.rx_buf = st->rx_buf,
 		.len = st->crc_en ? AD4134_SPI_MAX_XFER_LEN : 2,
 	};
-	int access_ret, ret;
+	int ret;
 
-	ret = ad4134_claim_reg_access(st);
-	if (ret)
-		return ret;
+	ACQUIRE(__ad4134_reg_access_mode, claim)(st);
+	if (ACQUIRE_ERR(__ad4134_reg_access_mode, &claim))
+		return -EBUSY;
 
 	ad4134_prepare_spi_tx_buf(reg, val, st->tx_buf);
 
 	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	if (ret)
-		goto out_write_release;
+		return ret;
 
 	if (st->crc_en && st->rx_buf[2] != st->tx_buf[2])
 		dev_dbg(&st->spi->dev, "reg write CRC check failed\n");
 
-out_write_release:
-	access_ret = ad4134_release_reg_access(st);
-	if (access_ret)
-		dev_err(&st->spi->dev, "error on access release: %d\n", access_ret);
-
-	return ret;
+	return 0;
 }
 
 static int ad4134_data_read(struct ad4134_state *st, unsigned int reg,
@@ -375,11 +378,11 @@ static int ad4134_data_read(struct ad4134_state *st, unsigned int reg,
 {
 	unsigned int i;
 	u32 sample = 0;
-	int access_ret, ret;
+	int ret;
 
-	ret = ad4134_claim_sample_access(st);
-	if (ret)
-		return ret;
+	ACQUIRE(__ad4134_sample_access_mode, claim)(st);
+	if (ACQUIRE_ERR(__ad4134_sample_access_mode, &claim))
+		return -EBUSY;
 
 	/*
 	 * To be able to read data from all 4 channels through a single line, we
@@ -395,7 +398,7 @@ static int ad4134_data_read(struct ad4134_state *st, unsigned int reg,
 		ret = spi_write_then_read(st->spi, NULL, 0, st->rx_buf,
 					  BITS_TO_BYTES(AD4134_CHAN_PRECISION_BITS));
 		if (ret)
-			goto out_data_read_release;
+			return ret;
 
 		/*
 		 * AD4134 has a built-in feature that flags when data transfers
@@ -407,12 +410,7 @@ static int ad4134_data_read(struct ad4134_state *st, unsigned int reg,
 	}
 	*val = sign_extend32(sample, AD4134_CHAN_PRECISION_BITS - 1);
 
-out_data_read_release:
-	access_ret = ad4134_release_sample_access(st);
-	if (access_ret)
-		dev_err(&st->spi->dev, "error on access release: %d\n", access_ret);
-
-	return ret;
+	return 0;
 }
 
 static int ad4134_register_read(struct ad4134_state *st, unsigned int reg,
@@ -424,18 +422,18 @@ static int ad4134_register_read(struct ad4134_state *st, unsigned int reg,
 		.len = st->crc_en ? AD4134_SPI_MAX_XFER_LEN : 2,
 	};
 	unsigned int inst;
-	int access_ret, ret;
+	int ret;
 
-	ret = ad4134_claim_reg_access(st);
-	if (ret)
-		return ret;
+	ACQUIRE(__ad4134_reg_access_mode, claim)(st);
+	if (ACQUIRE_ERR(__ad4134_reg_access_mode, &claim))
+		return -EBUSY;
 
 	inst = AD4134_REG_READ_MASK | reg;
 	ad4134_prepare_spi_tx_buf(inst, 0, st->tx_buf);
 
 	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	if (ret)
-		goto out_read_release;
+		return ret;
 
 	*val = st->rx_buf[1];
 
@@ -443,12 +441,7 @@ static int ad4134_register_read(struct ad4134_state *st, unsigned int reg,
 	if (st->crc_en && st->rx_buf[2] != st->tx_buf[2])
 		dev_dbg(&st->spi->dev, "reg read CRC check failed\n");
 
-out_read_release:
-	access_ret = ad4134_release_reg_access(st);
-	if (access_ret)
-		dev_err(&st->spi->dev, "error on access release: %d\n", access_ret);
-
-	return ret;
+	return 0;
 }
 
 static int ad4134_reg_read(void *context, unsigned int reg, unsigned int *val)
