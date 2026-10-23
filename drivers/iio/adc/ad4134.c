@@ -684,6 +684,7 @@ static int ad4134_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct reset_control *rst;
 	struct iio_dev *indio_dev;
+	struct mux_state *mux_st;
 	struct ad4134_state *st;
 	int ret;
 
@@ -748,12 +749,12 @@ static int ad4134_probe(struct spi_device *spi)
 		 * AD4134 SILICON must be set to select AD4134 SDO. See AD4134
 		 * IIO documentation for details.
 		 */
-		st->mux_st[AD4134_SDO_INPUT] =
-			devm_mux_state_get_optional_selected(dev, "reg_access");
-		if (IS_ERR(st->mux_st[AD4134_SDO_INPUT]))
-			return dev_err_probe(dev, PTR_ERR(st->mux_st[AD4134_SDO_INPUT]),
+		mux_st = devm_mux_state_get_optional_selected(dev, "reg_access");
+		if (IS_ERR(mux_st))
+			return dev_err_probe(dev, PTR_ERR(mux_st),
 					     "failed to get reg_access mux-state\n");
 
+		st->mux_st[AD4134_SDO_INPUT] = mux_st;
 		ret = ad4134_min_io_mode_setup(st);
 		if (ret)
 			return dev_err_probe(dev, ret, "failed to setup minimum I/O mode\n");
@@ -762,16 +763,20 @@ static int ad4134_probe(struct spi_device *spi)
 		 * This controls a multiplexer OUTSIDE OF AD4134 SILICON.
 		 * See AD4134 IIO documentation for details.
 		 */
-		st->mux_st[AD4134_SDO_INPUT] = devm_mux_state_get(dev, "reg_access");
-		if (IS_ERR(st->mux_st[AD4134_SDO_INPUT]))
-			return dev_err_probe(dev, PTR_ERR(st->mux_st[AD4134_SDO_INPUT]),
+		mux_st = devm_mux_state_get(dev, "reg_access");
+		if (IS_ERR(mux_st))
+			return dev_err_probe(dev, PTR_ERR(mux_st),
 					     "failed to get reg_access mux-state\n");
 
+		st->mux_st[AD4134_SDO_INPUT] = mux_st;
+
+		mux_st = devm_mux_state_get(dev, "data_read");
 		st->mux_st[AD4134_DOUT0_INPUT] = devm_mux_state_get(dev, "data_read");
-		if (IS_ERR(st->mux_st[AD4134_DOUT0_INPUT]))
-			return dev_err_probe(dev, PTR_ERR(st->mux_st[AD4134_DOUT0_INPUT]),
+		if (IS_ERR(mux_st))
+			return dev_err_probe(dev, PTR_ERR(mux_st),
 					     "failed to get data_read mux-state\n");
 
+		st->mux_st[AD4134_DOUT0_INPUT] = mux_st;
 		indio_dev->setup_ops = &ad4134_buffer_setup_ops;
 	}
 
