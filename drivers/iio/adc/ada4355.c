@@ -198,14 +198,7 @@ static const struct iio_chan_spec ada4355_channels[] = {
 static int ada4355_post_setup(struct iio_dev *indio_dev)
 {
 	struct ada4355_state *st = iio_priv(indio_dev);
-	u8 pn_status[3][32];
-	int opt_delay, c, s;
 	int ret;
-	unsigned int reg_cntrl;
-	unsigned int i;
-	unsigned int j;
-	unsigned int delay;
-	unsigned int val;
 
 	// Set the numbers of lanes
 	ret = iio_backend_num_lanes_set(st->back, st->num_lanes);
