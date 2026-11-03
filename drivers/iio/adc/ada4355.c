@@ -72,6 +72,12 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 	.max_samp_rate_hz = 125000000UL,
 };
 
+static const struct ada4355_chip_info ada4356_chip_info = {
+	.name = "ada4356",
+	.id = ADA4355_CHIP_ID,
+	.max_samp_rate_hz = 125000000UL,
+};
+
 struct ada4355_state {
 	struct iio_backend *back;
 	struct spi_device	*spi;
@@ -419,7 +425,7 @@ static int ada4355_probe(struct spi_device *spi)
 
 static const struct spi_device_id ada4355_id[] = {
 	{ .name = "ada4355", .driver_data = (kernel_ulong_t)&ada4355_chip_info },
-	{ .name = "ada4356", .driver_data = (kernel_ulong_t)&ada4355_chip_info },
+	{ .name = "ada4356", .driver_data = (kernel_ulong_t)&ada4356_chip_info },
 	{ }
 };
 
@@ -427,7 +433,7 @@ MODULE_DEVICE_TABLE(spi, ada4355_id);
 
 static const struct of_device_id ada4355_of_match[] = {
 	{ .compatible = "adi,ada4355", .data = &ada4355_chip_info },
-	{ .compatible = "adi,ada4356", .data = &ada4355_chip_info },
+	{ .compatible = "adi,ada4356", .data = &ada4356_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ada4355_of_match);
