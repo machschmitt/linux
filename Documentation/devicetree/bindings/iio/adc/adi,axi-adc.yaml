@@ -38,6 +38,7 @@ properties:
       - adi,axi-ad408x
       - adi,axi-ad7606x
       - adi,axi-ad485x
+      - adi,axi-ada4355
 
   reg:
     maxItems: 1
