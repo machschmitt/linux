@@ -56,6 +56,8 @@
 //HDL address: 0x32
 #define ADA4355_ENABLE_ERROR_MASK		0x00C8
 
+#define ADA4355_MAX_TEST_POINTS			32
+
 static const int ada4355_scale_table[][2] = {
 	{2000, 0}, /* 2V differential range (±1V) for 1V reference ADC */
 };
@@ -85,6 +87,9 @@ struct ada4355_state {
 	struct clk		*clk;
 	/* Protect against concurrent accesses to the device and data content */
 	struct mutex		lock;
+	DECLARE_BITMAP(calib_map, ADA4355_MAX_TEST_POINTS * 2);
+	/* number of bits of the map */
+	unsigned int calib_map_size;
 	const struct ada4355_chip_info *chip_info;
 	unsigned int		num_lanes;
 };
