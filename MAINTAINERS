@@ -1800,6 +1800,7 @@ L:	linux-iio@vger.kernel.org
 S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/iio/adc/adi,ada4355.yaml
+F:	drivers/iio/adc/ada4355.c
 
 ANALOG DEVICES INC ADE9000 DRIVER
 M:	Antoniu Miclaus <antoniu.miclaus@analog.com>
