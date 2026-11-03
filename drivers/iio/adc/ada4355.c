@@ -193,7 +193,6 @@ static const struct iio_info ada4355_iio_info = {
 
 static const struct iio_chan_spec ada4355_channels[] = {
 	ADA4355_CHAN(0, 0, 14, 's', 2),
-	ADA4355_CHAN(1, 1, 14, 's', 2),
 };
 
 static int ada4355_post_setup(struct iio_dev *indio_dev)
@@ -217,14 +216,12 @@ static int ada4355_post_setup(struct iio_dev *indio_dev)
 	ret = iio_backend_interface_data_align(st->back, 1000);
 
 	ret = iio_backend_chan_enable(st->back, 0);
-	ret = iio_backend_chan_enable(st->back, 1);
 
 	ret = iio_backend_frame_setup(st->back, st->num_lanes);
 	if (ret)
 		return ret;
 
 	ret = iio_backend_chan_disable(st->back, 0);
-	ret = iio_backend_chan_disable(st->back, 1);
 
 	ret = regmap_write(st->regmap, ADA4355_TEST_MODE_REG, ADA4355_TEST_MODE_OFF);
 	if (ret)
