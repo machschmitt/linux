@@ -572,6 +572,17 @@ config AD9467
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad9467.
 
+config ADA4355
+	tristate "Analog Devices ADA4355 uModule Data Acquisition Module"
+	depends on SPI
+	depends on CF_AXI_ADC
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for Analog Devices ADA4355
+	  14-bit, 125MSPS, high-speed dual-channel analog to digital
+	  converters (ADC) that realize a complete current to bits data
+	  acquisition solution. Provides direct access via sysfs.
+
 config ADE9000
 	tristate "Analog Devices ADE9000 Multiphase Energy, and Power Quality Monitoring IC Driver"
 	depends on SPI
