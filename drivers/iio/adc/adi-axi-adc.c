@@ -519,8 +519,29 @@ static int find_opt(u8 *field, u32 size, u32 *ret_start)
 	return max_cnt;
 }
 
+static unsigned int adi_axi_adc_find_opt(const unsigned long *calib_map,
+					 unsigned int start, unsigned int nbits,
+					 unsigned int *val)
+{
+	unsigned int bit = start, end, start_cnt, cnt = 0;
+
+	for_each_clear_bitrange_from(bit, end, calib_map, nbits + start) {
+		if (end - bit > cnt) {
+			cnt = end - bit;
+			start_cnt = bit;
+		}
+	}
+
+	if (cnt)
+		*val = start_cnt + cnt / 2;
+
+	return cnt;
+}
+
 /* TODO check out whether can split _frame_setup() code by lane */
 static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
+					    unsigned long *calib_map,
+					    unsigned int calib_map_size,
 					    unsigned int num_lanes)
 {
 	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
@@ -532,6 +553,9 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 	unsigned int j;
 	unsigned int delay;
 	unsigned int val;
+
+	/* all points invalid */
+	bitmap_fill(st->calib_map, st->calib_map_size);
 
 	// frame calibration
 	//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, (1 << 2));
@@ -579,7 +603,9 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 	}
 	pr_cont("\n");
 
-	c = find_opt(&pn_status[0][0], 32, &s);
+	//c = find_opt(&pn_status[0][0], 32, &s);
+	adi_axi_adc_find_opt(&pn_status[0][0], 32, &s, &c);
+
 	opt_delay = s + c / 2;
 	//axiadc_write(axi_adc_st, 0x808, opt_delay);
 	ret = axi_adc_iodelays_set(back, 0, opt_delay);
@@ -650,7 +676,8 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 	}
 
 	for (unsigned int i = 0; i < num_lanes; i++) {
-		c = find_opt(&pn_status[i][0], 32, &s);
+		//c = find_opt(&pn_status[i][0], 32, &s);
+		adi_axi_adc_find_opt(&pn_status[0][0], 32, &s, &c);
 		opt_delay = s + c / 2;
 		//axiadc_write(axi_adc_st, 0x800 + (i * 4), opt_delay);
 		ret = axi_adc_iodelays_set(back, i, opt_delay);
