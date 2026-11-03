@@ -67,7 +67,7 @@ struct ada4355_chip_info {
 };
 
 static const struct ada4355_chip_info ada4355_chip_info = {
-	.name = "ADA4355",
+	.name = "ada4355",
 	.id = ADA4355_CHIP_ID,
 	.max_samp_rate_hz = 125000000UL,
 };
