@@ -879,9 +879,6 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_interface_data_align, "IIO_BACKEND");
  */
 int iio_backend_frame_setup(struct iio_backend *back, unsigned int num_lanes)
 {
-	//if (!num_lanes)
-	//	return -EINVAL;
-
 	return iio_backend_op_call(back, frame_setup, num_lanes);
 }
 EXPORT_SYMBOL_NS_GPL(iio_backend_frame_setup, "IIO_BACKEND");
