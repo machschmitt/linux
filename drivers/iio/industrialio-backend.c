@@ -877,9 +877,10 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_interface_data_align, "IIO_BACKEND");
  * RETURNS:
  * 0 on success, negative error number on failure.
  */
-int iio_backend_frame_setup(struct iio_backend *back, unsigned int num_lanes)
+int iio_backend_frame_setup(struct iio_backend *back, unsigned long *calib_map,
+			    unsigned int calib_map_size, unsigned int num_lanes)
 {
-	return iio_backend_op_call(back, frame_setup, num_lanes);
+	return iio_backend_op_call(back, frame_setup, calib_map, calib_map_size, num_lanes);
 }
 EXPORT_SYMBOL_NS_GPL(iio_backend_frame_setup, "IIO_BACKEND");
 /**
