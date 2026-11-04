@@ -76,6 +76,20 @@ enum iio_backend_interface_type {
 	IIO_BACKEND_INTERFACE_MAX
 };
 
+/**
+ * enum iio_backend_calib_source - Digital interface error source
+ * @IIO_BACKEND_CALIB_SOURCE_NONE: Report every error source.
+ * @IIO_BACKEND_CALIB_SOURCE_DATA_LANE: Report errors of a single data lane.
+ * @IIO_BACKEND_CALIB_SOURCE_FRAME: Report errors of the frame signal.
+ * @IIO_BACKEND_CALIB_SOURCE_MAX: Number of error sources.
+ */
+enum iio_backend_calib_source {
+	IIO_BACKEND_CALIB_SOURCE_NONE,
+	IIO_BACKEND_CALIB_SOURCE_DATA_LANE,
+	IIO_BACKEND_CALIB_SOURCE_FRAME,
+	IIO_BACKEND_CALIB_SOURCE_MAX
+};
+
 enum iio_backend_filter_type {
 	IIO_BACKEND_FILTER_TYPE_DISABLED,
 	IIO_BACKEND_FILTER_TYPE_SINC1,
@@ -132,7 +146,8 @@ enum iio_backend_capabilities {
  * @debugfs_reg_access: Read or write register value of backend.
  * @filter_type_set: Set filter type.
  * @interface_data_align: Perform the data alignment process.
- * @frame_setup: Read frame setup
+ * @calibration_source_set: Select the error source monitored during
+ *			    interface calibration.
  * @num_lanes_set: Set the number of lanes enabled.
  * @crc_enable: Enable direction-specific CRC handling.
  * @crc_disable: Disable direction-specific CRC handling.
@@ -191,8 +206,9 @@ struct iio_backend_ops {
 	int (*filter_type_set)(struct iio_backend *back,
 			       enum iio_backend_filter_type type);
 	int (*interface_data_align)(struct iio_backend *back, u32 timeout_us);
-	int (*frame_setup)(struct iio_backend *back, unsigned long *calib_map,
-			   unsigned int calib_map_size, unsigned int num_lanes);
+	int (*calibration_source_set)(struct iio_backend *back,
+				      enum iio_backend_calib_source source,
+				      unsigned int lane);
 	int (*num_lanes_set)(struct iio_backend *back, unsigned int num_lanes);
 	int (*crc_enable)(struct iio_backend *back);
 	int (*crc_disable)(struct iio_backend *back);
@@ -243,8 +259,9 @@ int devm_iio_backend_request_buffer(struct device *dev,
 int iio_backend_filter_type_set(struct iio_backend *back,
 				enum iio_backend_filter_type type);
 int iio_backend_interface_data_align(struct iio_backend *back, u32 timeout_us);
-int iio_backend_frame_setup(struct iio_backend *back, unsigned long *calib_map,
-			    unsigned int calib_map_size,unsigned int num_lanes);
+int iio_backend_calibration_source_set(struct iio_backend *back,
+				       enum iio_backend_calib_source source,
+				       unsigned int lane);
 int iio_backend_num_lanes_set(struct iio_backend *back, unsigned int num_lanes);
 int iio_backend_crc_enable(struct iio_backend *back);
 int iio_backend_crc_disable(struct iio_backend *back);
