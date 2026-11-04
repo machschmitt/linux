@@ -215,7 +215,11 @@ static int ada4355_post_setup(struct iio_dev *indio_dev)
 
 	ret = iio_backend_chan_enable(st->back, 0);
 
-	ret = iio_backend_frame_setup(st->back, st->num_lanes);
+	/* all points invalid */
+	bitmap_fill(st->calib_map, st->calib_map_size);
+
+	ret = iio_backend_frame_setup(st->back, st->calib_map,
+				      st->calib_map_size, st->num_lanes);
 	if (ret)
 		return ret;
 
