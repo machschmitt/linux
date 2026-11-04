@@ -490,201 +490,32 @@ static int axi_adc_ad408x_interface_data_align(struct iio_backend *back,
 					1, timeout_us);
 }
 
-static int find_opt(u8 *field, u32 size, u32 *ret_start)
-{
-	int i, cnt = 0, max_cnt = 0, start, max_start = 0;
-
-	for (i = 0, start = -1; i < size; i++) {
-		if (field[i] == 0) {
-			if (start == -1)
-				start = i;
-			cnt++;
-		} else {
-			if (cnt > max_cnt) {
-				max_cnt = cnt;
-				max_start = start;
-			}
-				start = -1;
-				cnt = 0;
-		}
-	}
-
-	if (cnt > max_cnt) {
-		max_cnt = cnt;
-		max_start = start;
-	}
-
-	*ret_start = max_start;
-
-	return max_cnt;
-}
-
-static unsigned int adi_axi_adc_find_opt(const unsigned long *calib_map,
-					 unsigned int start, unsigned int nbits,
-					 unsigned int *val)
-{
-	unsigned int bit = start, end, start_cnt, cnt = 0;
-
-	for_each_clear_bitrange_from(bit, end, calib_map, nbits + start) {
-		if (end - bit > cnt) {
-			cnt = end - bit;
-			start_cnt = bit;
-		}
-	}
-
-	if (cnt)
-		*val = start_cnt + cnt / 2;
-
-	return cnt;
-}
-
-/* TODO check out whether can split _frame_setup() code by lane */
-static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
-					    unsigned long *calib_map,
-					    unsigned int calib_map_size,
-					    unsigned int num_lanes)
+static int axi_adc_ada4355_calibration_source_set(struct iio_backend *back,
+						  enum iio_backend_calib_source source,
+						  unsigned int lane)
 {
 	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
-	u8 pn_status[3][32];
-	int opt_delay, c, s;
-	int ret;
-	unsigned int reg_cntrl;
-	unsigned int i;
-	unsigned int j;
-	unsigned int delay;
-	unsigned int val;
+	u32 val;
 
-	// frame calibration
-	//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, (1 << 2));
-	ret = regmap_set_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
-			      ADI_AXI_ADC_LVDS_FRAME_ERROR);
-	for (delay = 0; delay < 32; delay++) {
-		ret = axi_adc_iodelays_set(back, 0, delay);
-		if (ret)
-			return ret;
-
-		ret = axi_adc_iodelays_set(back, 1, delay);
-		if (ret)
-			return ret;
-
-		bool chan_status;
-
-		ret = axi_adc_chan_status(back, 0, &chan_status);
-		if (ret)
-			return ret;
-
-		//val = axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0));
-		//axiadc_write(axi_adc_st, ADI_REG_CHAN_STATUS(0), val);
-		//axiadc_write(axi_adc_st, 0x808, delay);
-		//mdelay(1);
-		//if (axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0)) & ADI_PN_ERR)
-		if (chan_status)
-			pn_status[0][delay] = 1;
-		else
-			pn_status[0][delay] = 0;
+	switch (source) {
+	case IIO_BACKEND_CALIB_SOURCE_NONE:
+		val = 0;
+		break;
+	case IIO_BACKEND_CALIB_SOURCE_FRAME:
+		val = ADI_AXI_ADC_LVDS_FRAME_ERROR;
+		break;
+	case IIO_BACKEND_CALIB_SOURCE_DATA_LANE:
+		if (BIT(lane) & ~ADI_AXI_ADC_LVDS_LANE_ERROR)
+			return -EINVAL;
+		val = BIT(lane);
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	dev_info(st->dev, "digital interface frame tuning\n");
-
-	pr_cont("  ");
-	for (i = 0; i < 31; i++)
-		pr_cont("%02d:", i);
-	pr_cont("31\n");
-
-	pr_info("%x:", 0);
-	for (j = 0; j < 32; j++) {
-		if (pn_status[0][j])
-			pr_cont(" # ");
-		else
-			pr_cont(" o ");
-	}
-	pr_cont("\n");
-
-	//c = find_opt(&pn_status[0][0], 32, &s);
-	adi_axi_adc_find_opt(calib_map, calib_map_size, &s, &opt_delay);
-
-	//opt_delay = s + c / 2;
-	//axiadc_write(axi_adc_st, 0x808, opt_delay);
-	ret = axi_adc_iodelays_set(back, 0, opt_delay);
-	if (ret)
-		return ret;
-	ret = axi_adc_iodelays_set(back, 1, opt_delay);
-	if (ret)
-		return ret;
-	dev_info(st->dev, "frame lane : selected delay: %d\n", opt_delay);
-
-	//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, 0);
-	ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
-				ADI_AXI_ADC_LVDS_FRAME_ERROR);
-	// data calibration
-	for (unsigned int i = 0; i < num_lanes; i++) {
-		//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, (1 << i));
-		ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
-					ADI_AXI_ADC_LVDS_LANE_ERROR);
-		if (ret)
-			return ret;
-
-		for (delay = 0; delay < 32; delay++) {
-			//val = axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0));
-			//axiadc_write(axi_adc_st, ADI_REG_CHAN_STATUS(0), val);
-			bool chan_status;
-
-			ret = axi_adc_chan_status(back, i, &chan_status);
-			if (ret)
-				return ret;
-
-			//axiadc_write(axi_adc_st, 0x800 + (i * 4), delay);
-			ret = axi_adc_iodelays_set(back, i, delay);
-			if (ret)
-				return ret;
-			mdelay(1);
-			ret = axi_adc_chan_status(back, i, &chan_status);
-			if (ret)
-				return ret;
-			//if (axiadc_read(axi_adc_st, ADI_REG_CHAN_STATUS(0)) & ADI_PN_ERR)
-			if (chan_status)
-				pn_status[i][delay] = 1;
-			else
-				pn_status[i][delay] = 0;
-		}
-		//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, 0);
-		ret = regmap_clear_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
-					ADI_AXI_ADC_LVDS_LANE_ERROR);
-		if (ret)
-			return ret;
-	}
-
-	dev_info(st->dev, "second? digital interface lanes tuning:\n");
-
-	pr_cont("  ");
-	for (i = 0; i < 31; i++)
-		pr_cont("%02d:", i);
-	pr_cont("31\n");
-
-	for (i = 0; i < num_lanes; i++) {
-		pr_info("%x:", i);
-		for (j = 0; j < 32; j++) {
-			if (pn_status[i][j])
-				pr_cont(" # ");
-			else
-				pr_cont(" o ");
-		}
-		pr_cont("\n");
-	}
-
-	for (unsigned int i = 0; i < num_lanes; i++) {
-		//c = find_opt(&pn_status[i][0], 32, &s);
-		adi_axi_adc_find_opt(calib_map, calib_map_size, &s, &opt_delay);
-		//opt_delay = s + c / 2;
-		//axiadc_write(axi_adc_st, 0x800 + (i * 4), opt_delay);
-		ret = axi_adc_iodelays_set(back, i, opt_delay);
-		if (ret)
-			return ret;
-		dev_info(st->dev, "lane %d: selected delay: %d\n",
-			i, opt_delay);
-	}
-
-	return 0;
+	return regmap_update_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
+				  ADI_AXI_ADC_LVDS_FRAME_ERROR |
+				  ADI_AXI_ADC_LVDS_LANE_ERROR, val);
 }
 
 static int axi_adc_num_lanes_set(struct iio_backend *back,
@@ -938,7 +769,7 @@ static const struct iio_backend_ops adi_ada4355_ops = {
 	.interface_type_get = axi_adc_interface_type_get,
 	.oversampling_ratio_set = axi_adc_oversampling_ratio_set,
 	.interface_data_align = axi_adc_ad408x_interface_data_align,
-	.frame_setup = axi_adc_ada4355_data_frame_setup,
+	.calibration_source_set = axi_adc_ada4355_calibration_source_set,
 	.num_lanes_set = axi_adc_num_lanes_set,
 	.debugfs_reg_access = iio_backend_debugfs_ptr(axi_adc_reg_access),
 	.debugfs_print_chan_status = iio_backend_debugfs_ptr(axi_adc_debugfs_print_chan_status),
@@ -947,7 +778,8 @@ static const struct iio_backend_ops adi_ada4355_ops = {
 static const struct iio_backend_info axi_ada4355 = {
 	.name = "axi-ada4355",
 	.ops = &adi_ada4355_ops,
-	.caps = IIO_BACKEND_CAP_BUFFER | IIO_BACKEND_CAP_ENABLE,
+	.caps = IIO_BACKEND_CAP_CALIBRATION | IIO_BACKEND_CAP_BUFFER |
+		IIO_BACKEND_CAP_ENABLE,
 };
 
 static int adi_axi_adc_probe(struct platform_device *pdev)
