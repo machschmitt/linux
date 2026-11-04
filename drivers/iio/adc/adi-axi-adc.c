@@ -554,9 +554,6 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 	unsigned int delay;
 	unsigned int val;
 
-	/* all points invalid */
-	bitmap_fill(st->calib_map, st->calib_map_size);
-
 	// frame calibration
 	//axiadc_write(axi_adc_st, ADA4355_ENABLE_ERROR_MASK, (1 << 2));
 	ret = regmap_set_bits(st->regmap, ADI_AXI_ADC_REG_LVDS,
@@ -604,9 +601,9 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 	pr_cont("\n");
 
 	//c = find_opt(&pn_status[0][0], 32, &s);
-	adi_axi_adc_find_opt(&pn_status[0][0], 32, &s, &c);
+	adi_axi_adc_find_opt(calib_map, calib_map_size, &s, &opt_delay);
 
-	opt_delay = s + c / 2;
+	//opt_delay = s + c / 2;
 	//axiadc_write(axi_adc_st, 0x808, opt_delay);
 	ret = axi_adc_iodelays_set(back, 0, opt_delay);
 	if (ret)
@@ -677,8 +674,8 @@ static int axi_adc_ada4355_data_frame_setup(struct iio_backend *back,
 
 	for (unsigned int i = 0; i < num_lanes; i++) {
 		//c = find_opt(&pn_status[i][0], 32, &s);
-		adi_axi_adc_find_opt(&pn_status[0][0], 32, &s, &c);
-		opt_delay = s + c / 2;
+		adi_axi_adc_find_opt(calib_map, calib_map_size, &s, &opt_delay);
+		//opt_delay = s + c / 2;
 		//axiadc_write(axi_adc_st, 0x800 + (i * 4), opt_delay);
 		ret = axi_adc_iodelays_set(back, i, opt_delay);
 		if (ret)
