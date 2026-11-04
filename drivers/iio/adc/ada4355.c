@@ -6,16 +6,21 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/bitmap.h>
+#include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mutex.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
@@ -36,8 +41,12 @@
 #define ADA4355_PW_MODE_NORMAL			0xFC
 
 #define ADA4355_TEST_MODE_REG			0x0D
-#define ADA4355_TEST_MODE_OFF			0x00
-#define ADA4355_TEST_MODE_USER_INPUT		0x48
+#define ADA4355_TEST_MODE_MASK			GENMASK(3, 0)
+/* Reset the pattern generator whenever a test mode is selected. */
+#define ADA4355_TEST_MODE_RESET_PN		BIT(6)
+#define ADA4355_TEST_MODE_OFF			0x0
+#define ADA4355_TEST_MODE_ALT_CHECKERBOARD	0x4
+#define ADA4355_TEST_MODE_USER			0x8
 
 #define ADA4355_OUTPUT_MODE_REG			0x14
 #define ADA4355_OUTPUT_MODE_TWOSCOMP		BIT(0)
@@ -53,45 +62,74 @@
 #define ADA4355_RESOLUTION_SAMPLE_RATE_REG	0x100
 #define ADA4355_125_RATE			0x06
 
-//HDL address: 0x32
-#define ADA4355_ENABLE_ERROR_MASK		0x00C8
+/*
+ * Pattern the digital interface is calibrated against. The pattern match
+ * block of the HDL core expects this exact value.
+ */
+#define ADA4355_CALIB_PATTERN			0xFFFC
 
 #define ADA4355_MAX_TEST_POINTS			32
+/*
+ * Number of data lanes of the LVDS interface. The frame signal gets its own
+ * I/O delay line, right after the data ones.
+ */
+#define ADA4355_MAX_DATA_LANES			2
+#define ADA4355_FRAME_LANE			ADA4355_MAX_DATA_LANES
+/* One set of test points per data lane, plus one for the frame signal. */
+#define ADA4355_MAX_CALIB_MAP_SIZE \
+	(ADA4355_MAX_TEST_POINTS * (ADA4355_MAX_DATA_LANES + 1))
 
-static const int ada4355_scale_table[][2] = {
+#define ADA4355_SYNC_TIMEOUT_US			1000
+
+static const unsigned int ada4355_scale_table[][2] = {
 	{2000, 0}, /* 2V differential range (±1V) for 1V reference ADC */
+};
+
+static const char * const ada4355_test_modes[] = {
+	[ADA4355_TEST_MODE_OFF] = "off",
+	[ADA4355_TEST_MODE_ALT_CHECKERBOARD] = "checkerboard",
+	[ADA4355_TEST_MODE_USER] = "user",
 };
 
 struct ada4355_chip_info {
 	const char *name;
 	unsigned int id;
+	const struct iio_chan_spec *channels;
+	unsigned int num_channels;
+	const unsigned int (*scale_table)[2];
+	int num_scales;
+	unsigned long test_mask;
+	unsigned int test_mask_len;
 	unsigned int max_samp_rate_hz;
+	unsigned int test_points;
+	unsigned int num_lanes;
 };
 
-static const struct ada4355_chip_info ada4355_chip_info = {
-	.name = "ada4355",
-	.id = ADA4355_CHIP_ID,
-	.max_samp_rate_hz = 125000000UL,
-};
-
-static const struct ada4355_chip_info ada4356_chip_info = {
-	.name = "ada4356",
-	.id = ADA4355_CHIP_ID,
-	.max_samp_rate_hz = 125000000UL,
+struct ada4355_chan_test_mode {
+	struct ada4355_state *st;
+	unsigned int idx;
+	u8 mode;
 };
 
 struct ada4355_state {
+	const struct ada4355_chip_info *info;
 	struct iio_backend *back;
-	struct spi_device	*spi;
-	struct regmap		*regmap;
-	struct clk		*clk;
-	/* Protect against concurrent accesses to the device and data content */
-	struct mutex		lock;
-	DECLARE_BITMAP(calib_map, ADA4355_MAX_TEST_POINTS * 2);
+	struct spi_device *spi;
+	struct regmap *regmap;
+	struct clk *clk;
+	/* used for debugfs */
+	struct ada4355_chan_test_mode *chan_test;
+	/*
+	 * One section of @info->test_points bits per calibrated I/O delay
+	 * line: one per data lane and one for the frame signal. A set bit
+	 * marks an invalid test point.
+	 */
+	DECLARE_BITMAP(calib_map, ADA4355_MAX_CALIB_MAP_SIZE);
 	/* number of bits of the map */
 	unsigned int calib_map_size;
-	const struct ada4355_chip_info *chip_info;
-	unsigned int		num_lanes;
+	/* Protect against concurrent accesses to the device and data content */
+	struct mutex lock;
+	unsigned int num_lanes;
 };
 
 static const struct regmap_config ada4355_regmap_config = {
@@ -111,15 +149,24 @@ static int ada4355_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int re
 	return regmap_write(st->regmap, reg, writeval);
 }
 
-static int ada4355_get_scale(struct ada4355_state *st, int *val, int *val2)
+static void __ada4355_get_scale(struct ada4355_state *st, int index,
+				unsigned int *val, unsigned int *val2)
 {
+	const struct ada4355_chip_info *info = st->info;
+	const struct iio_chan_spec *chan = &info->channels[0];
 	unsigned int tmp;
 
-	tmp = (ada4355_scale_table[0][0] * 1000000ULL) >> 14;
+	tmp = (info->scale_table[index][0] * 1000000ULL) >>
+		chan->scan_type.realbits;
 	*val = tmp / 1000000;
 	*val2 = tmp % 1000000;
+}
 
-	return IIO_VAL_INT_PLUS_NANO;
+static int ada4355_get_scale(struct ada4355_state *st, int *val, int *val2)
+{
+	__ada4355_get_scale(st, 0, val, val2);
+
+	return IIO_VAL_INT_PLUS_MICRO;
 }
 
 static int ada4355_read_raw(struct iio_dev *indio_dev,
@@ -139,22 +186,6 @@ static int ada4355_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static int ada4355_write_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int val, int val2, long mask)
-{
-	switch (mask) {
-	case IIO_CHAN_INFO_SCALE:
-		return -EINVAL;
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		return -EINVAL;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int ada4355_update_scan_mode(struct iio_dev *indio_dev,
 				    const unsigned long *scan_mask)
 {
@@ -162,7 +193,7 @@ static int ada4355_update_scan_mode(struct iio_dev *indio_dev,
 	unsigned int c;
 	int ret;
 
-	for (c = 0; c < iio_get_masklength(indio_dev); c++) {
+	for (c = 0; c < st->info->num_channels; c++) {
 		if (test_bit(c, scan_mask))
 			ret = iio_backend_chan_enable(st->back, c);
 		else
@@ -174,19 +205,13 @@ static int ada4355_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static const struct iio_info ada4355_iio_info = {
-	.read_raw = ada4355_read_raw,
-	.update_scan_mode = ada4355_update_scan_mode,
-	.debugfs_reg_access = ada4355_debugfs_reg_access,
-};
-
 #define ADA4355_CHAN(_chan, _si, _bits, _sign, _shift)			\
 {									\
 	.type = IIO_VOLTAGE,						\
 	.indexed = 1,							\
 	.channel = _chan,						\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE),			\
-	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |		\
+		BIT(IIO_CHAN_INFO_SAMP_FREQ),				\
 	.scan_index = _si,						\
 	.scan_type = {							\
 		.sign = _sign,						\
@@ -200,46 +225,292 @@ static const struct iio_chan_spec ada4355_channels[] = {
 	ADA4355_CHAN(0, 0, 14, 's', 2),
 };
 
-static int ada4355_post_setup(struct iio_dev *indio_dev)
+static const struct ada4355_chip_info ada4355_chip_info = {
+	.name = "ada4355",
+	.id = ADA4355_CHIP_ID,
+	.channels = ada4355_channels,
+	.num_channels = ARRAY_SIZE(ada4355_channels),
+	.scale_table = ada4355_scale_table,
+	.num_scales = ARRAY_SIZE(ada4355_scale_table),
+	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
+		BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
+		BIT(ADA4355_TEST_MODE_USER),
+	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
+	.max_samp_rate_hz = 125000000UL,
+	.test_points = ADA4355_MAX_TEST_POINTS,
+	.num_lanes = 1,
+};
+
+static const struct ada4355_chip_info ada4356_chip_info = {
+	.name = "ada4356",
+	.id = ADA4355_CHIP_ID,
+	.channels = ada4355_channels,
+	.num_channels = ARRAY_SIZE(ada4355_channels),
+	.scale_table = ada4355_scale_table,
+	.num_scales = ARRAY_SIZE(ada4355_scale_table),
+	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
+		BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
+		BIT(ADA4355_TEST_MODE_USER),
+	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
+	.max_samp_rate_hz = 125000000UL,
+	.test_points = ADA4355_MAX_TEST_POINTS,
+	.num_lanes = 1,
+};
+
+static int ada4355_testmode_set(struct ada4355_state *st, unsigned int test_mode)
 {
-	struct ada4355_state *st = iio_priv(indio_dev);
+	unsigned int val = 0;
+
+	if (test_mode != ADA4355_TEST_MODE_OFF)
+		val = ADA4355_TEST_MODE_RESET_PN |
+			FIELD_PREP(ADA4355_TEST_MODE_MASK, test_mode);
+
+	return regmap_write(st->regmap, ADA4355_TEST_MODE_REG, val);
+}
+
+/*
+ * The idea is pretty simple. Find the max number of successful points in a row
+ * and get the one in the middle.
+ */
+static unsigned int ada4355_find_optimal_point(const unsigned long *calib_map,
+					       unsigned int start,
+					       unsigned int nbits,
+					       unsigned int *val)
+{
+	unsigned int bit = start, end, start_cnt, cnt = 0;
+
+	for_each_clear_bitrange_from(bit, end, calib_map, nbits + start) {
+		if (end - bit > cnt) {
+			cnt = end - bit;
+			start_cnt = bit;
+		}
+	}
+
+	if (cnt)
+		*val = start_cnt + cnt / 2;
+
+	return cnt;
+}
+
+static int ada4355_calibrate_prepare(struct ada4355_state *st)
+{
+	struct iio_backend_data_fmt data = {
+		.enable = false,
+	};
 	int ret;
 
-	// Set the numbers of lanes
-	ret = iio_backend_num_lanes_set(st->back, st->num_lanes);
+	/*
+	 * The channel spec already accounts for the 14-bit sample being left
+	 * aligned in a 16-bit word, so the backend format conversion stays off
+	 * both during and after the calibration.
+	 */
+	ret = iio_backend_data_format_set(st->back, 0, &data);
 	if (ret)
 		return ret;
 
-	// enable the sync
-	ret = iio_backend_interface_data_align(st->back, 1000);
+	ret = ada4355_testmode_set(st, ADA4355_TEST_MODE_USER);
+	if (ret)
+		return ret;
 
-	ret = iio_backend_chan_enable(st->back, 0);
+	ret = regmap_write(st->regmap, ADA4355_USER_PATT1_MSB_REG,
+			   ADA4355_CALIB_PATTERN >> 8);
+	if (ret)
+		return ret;
 
-	/* all points invalid */
-	bitmap_fill(st->calib_map, st->calib_map_size);
+	ret = regmap_write(st->regmap, ADA4355_USER_PATT1_LSB_REG,
+			   ADA4355_CALIB_PATTERN & 0xFF);
+	if (ret)
+		return ret;
 
-	ret = iio_backend_frame_setup(st->back, st->calib_map,
-				      st->calib_map_size, st->num_lanes);
+	ret = regmap_write(st->regmap, ADA4355_USER_PATT2_MSB_REG,
+			   ADA4355_CALIB_PATTERN >> 8);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(st->regmap, ADA4355_USER_PATT2_LSB_REG,
+			   ADA4355_CALIB_PATTERN & 0xFF);
+	if (ret)
+		return ret;
+
+	return iio_backend_chan_enable(st->back, 0);
+}
+
+static int ada4355_calibrate_stop(struct ada4355_state *st)
+{
+	int ret;
+
+	ret = iio_backend_calibration_source_set(st->back,
+						 IIO_BACKEND_CALIB_SOURCE_NONE,
+						 0);
 	if (ret)
 		return ret;
 
 	ret = iio_backend_chan_disable(st->back, 0);
-
-	ret = regmap_write(st->regmap, ADA4355_TEST_MODE_REG, ADA4355_TEST_MODE_OFF);
 	if (ret)
 		return ret;
+
+	return ada4355_testmode_set(st, ADA4355_TEST_MODE_OFF);
+}
+
+/*
+ * Sweep the I/O delay of one delay line while only the error source fed by
+ * that line is reported, and apply the delay in the middle of the widest run
+ * of valid test points. @offset is where this line's test points start in
+ * @st->calib_map.
+ */
+static int ada4355_calibrate_lane(struct ada4355_state *st,
+				  enum iio_backend_calib_source source,
+				  unsigned int lane, unsigned int offset)
+{
+	unsigned int test_points = st->info->test_points;
+	struct device *dev = &st->spi->dev;
+	unsigned int point, val, cnt;
+	bool stat;
+	int ret;
+
+	ret = iio_backend_calibration_source_set(st->back, source, lane);
+	if (ret)
+		return ret;
+
+	for (point = 0; point < test_points; point++) {
+		ret = iio_backend_iodelay_set(st->back, lane, point);
+		if (ret)
+			return ret;
+
+		ret = iio_backend_chan_status(st->back, 0, &stat);
+		if (ret)
+			return ret;
+
+		if (stat) {
+			dev_dbg(dev, "Invalid point(%u) for lane %u\n", point,
+				lane);
+			continue;
+		}
+
+		__clear_bit(offset + point, st->calib_map);
+	}
+
+	cnt = ada4355_find_optimal_point(st->calib_map, offset, test_points,
+					 &val);
+	if (!cnt) {
+		dev_err(dev, "No valid delay found for lane %u\n", lane);
+		return -EIO;
+	}
+
+	/* "normalize" the selected value */
+	val -= offset;
+	dev_dbg(dev, "lane %u: selected delay: %u\n", lane, val);
+
+	return iio_backend_iodelay_set(st->back, lane, val);
+}
+
+static int ada4355_calibrate(struct ada4355_state *st)
+{
+	unsigned int lane;
+	int ret;
+
+	/* all points invalid */
+	bitmap_fill(st->calib_map, st->calib_map_size);
+
+	ret = ada4355_calibrate_prepare(st);
+	if (ret)
+		return ret;
+
+	/*
+	 * The frame signal has to be aligned first: the pattern match block
+	 * only reports meaningful per-lane errors once the word boundary is
+	 * known.
+	 */
+	ret = ada4355_calibrate_lane(st, IIO_BACKEND_CALIB_SOURCE_FRAME,
+				     ADA4355_FRAME_LANE,
+				     st->num_lanes * st->info->test_points);
+	if (ret)
+		return ret;
+
+	for (lane = 0; lane < st->num_lanes; lane++) {
+		ret = ada4355_calibrate_lane(st,
+					     IIO_BACKEND_CALIB_SOURCE_DATA_LANE,
+					     lane,
+					     lane * st->info->test_points);
+		if (ret)
+			return ret;
+	}
+
+	return ada4355_calibrate_stop(st);
+}
+
+static int __ada4355_update_clock(struct ada4355_state *st, long r_clk)
+{
+	int ret;
+
+	ret = clk_set_rate(st->clk, r_clk);
+	if (ret)
+		return ret;
+
+	guard(mutex)(&st->lock);
+
+	/*
+	 * The optimal I/O delays depend on the data rate, so the digital
+	 * interface has to be re-tuned for the new clock.
+	 */
+	if (iio_backend_has_caps(st->back, IIO_BACKEND_CAP_CALIBRATION))
+		return ada4355_calibrate(st);
 
 	return 0;
 }
 
+static int ada4355_write_raw(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     int val, int val2, long mask)
+{
+	struct ada4355_state *st = iio_priv(indio_dev);
+	unsigned long sample_rate;
+	long r_clk;
+	int ret;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		r_clk = clk_round_rate(st->clk, val);
+		if (r_clk < 0 || r_clk > st->info->max_samp_rate_hz) {
+			dev_warn(&st->spi->dev,
+				 "Error setting ADC sample rate %ld", r_clk);
+			return -EINVAL;
+		}
+
+		sample_rate = clk_get_rate(st->clk);
+		/*
+		 * clk_set_rate() would also do this but since we would still
+		 * need it for avoiding an unnecessary calibration, do it now.
+		 */
+		if (sample_rate == r_clk)
+			return 0;
+
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
+		ret = __ada4355_update_clock(st, r_clk);
+		iio_device_release_direct(indio_dev);
+		return ret;
+	default:
+		return -EINVAL;
+	}
+}
+
+static const struct iio_info ada4355_iio_info = {
+	.read_raw = ada4355_read_raw,
+	.write_raw = ada4355_write_raw,
+	.update_scan_mode = ada4355_update_scan_mode,
+	.debugfs_reg_access = ada4355_debugfs_reg_access,
+};
+
 static int ada4355_setup(struct ada4355_state *st)
 {
+	struct device *dev = &st->spi->dev;
+	struct gpio_desc *gpio_vld_en;
 	unsigned int reg, id;
 	int ret;
 
-	struct gpio_desc *gpio_vld_en;
-
-	ret = regmap_write(st->regmap,  ADA4355_POWER_MODES_REG,
+	ret = regmap_write(st->regmap, ADA4355_POWER_MODES_REG,
 			   ADA4355_PW_MODE_DIGITAL_RESET);
 	if (ret)
 		return ret;
@@ -248,8 +519,8 @@ static int ada4355_setup(struct ada4355_state *st)
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap,  ADA4355_POWER_MODES_REG,
-			  (reg & ADA4355_PW_MODE_NORMAL));
+	ret = regmap_write(st->regmap, ADA4355_POWER_MODES_REG,
+			   reg & ADA4355_PW_MODE_NORMAL);
 	if (ret)
 		return ret;
 
@@ -273,66 +544,34 @@ static int ada4355_setup(struct ada4355_state *st)
 	if (ret)
 		return ret;
 
-	if (id != ADA4355_CHIP_ID) {
-		dev_err(&st->spi->dev, "Unrecognized CHIP_ID 0x%X\n", id);
-		return -EINVAL;
-	}
+	if (id != st->info->id)
+		return dev_err_probe(dev, -ENODEV,
+				     "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
+				     id, st->info->id);
 
-	ret = regmap_read(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG, &reg);
+	ret = regmap_set_bits(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
+			      ADA4355_DDR_TWO_LANE_BITWISE);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
-		(reg & ADA4355_DDR_TWO_LANE_BITWISE) | ADA4355_DDR_TWO_LANE_BITWISE);
+	ret = regmap_set_bits(st->regmap, ADA4355_TRANSFER_REG,
+			      ADA4355_TRANSFER_OVERRIDE);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(st->regmap, ADA4355_TRANSFER_REG, &reg);
+	ret = regmap_write(st->regmap, ADA4355_OUTPUT_MODE_REG,
+			   ADA4355_OUTPUT_MODE_TWOSCOMP);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, ADA4355_TRANSFER_REG, (reg | ADA4355_TRANSFER_OVERRIDE));
+	ret = regmap_write(st->regmap, ADA4355_RESOLUTION_SAMPLE_RATE_REG,
+			   ADA4355_125_RATE);
 	if (ret)
 		return ret;
 
-	// Set User input mode
-	ret = regmap_write(st->regmap, ADA4355_TEST_MODE_REG, ADA4355_TEST_MODE_USER_INPUT);
-	if (ret)
-		return ret;
-
-	// Write test_pattern = 0xFFFC;
-	ret = regmap_write(st->regmap, ADA4355_USER_PATT1_MSB_REG, 0xFF);
-	if (ret)
-		return ret;
-	ret = regmap_write(st->regmap, ADA4355_USER_PATT1_LSB_REG, 0xFC);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(st->regmap, ADA4355_USER_PATT2_MSB_REG, 0xFF);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(st->regmap, ADA4355_USER_PATT2_LSB_REG, 0xFC);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(st->regmap, ADA4355_TEST_MODE_REG, &reg);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(st->regmap, ADA4355_OUTPUT_MODE_REG, ADA4355_OUTPUT_MODE_TWOSCOMP);
-
-	ret = regmap_read(st->regmap, ADA4355_OUTPUT_MODE_REG, &reg);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(st->regmap, ADA4355_RESOLUTION_SAMPLE_RATE_REG, ADA4355_125_RATE);
-	if (ret)
-		return ret;
-
-	gpio_vld_en = devm_gpiod_get_optional(&st->spi->dev, "adi,vld-en", GPIOD_OUT_LOW);
+	gpio_vld_en = devm_gpiod_get_optional(dev, "adi,vld-en", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio_vld_en))
-		return dev_err_probe(&st->spi->dev, PTR_ERR(gpio_vld_en),
+		return dev_err_probe(dev, PTR_ERR(gpio_vld_en),
 				     "Failed to find adi,vld-en-gpios\n");
 
 	gpiod_set_value_cansleep(gpio_vld_en, 1);
@@ -340,86 +579,272 @@ static int ada4355_setup(struct ada4355_state *st)
 	return 0;
 }
 
+static int ada4355_interface_setup(struct ada4355_state *st)
+{
+	int ret;
+
+	ret = iio_backend_num_lanes_set(st->back, st->num_lanes);
+	if (ret)
+		return ret;
+
+	return iio_backend_interface_data_align(st->back,
+						ADA4355_SYNC_TIMEOUT_US);
+}
+
 static int ada4355_properties_parse(struct ada4355_state *st)
 {
-	struct spi_device *spi = st->spi;
+	struct device *dev = &st->spi->dev;
 	unsigned int val;
 	int ret;
 
-	ret = of_property_read_u32(spi->dev.of_node, "num_lanes", &val);
+	st->num_lanes = st->info->num_lanes;
+
+	ret = device_property_read_u32(dev, "num_lanes", &val);
 	if (!ret)
 		st->num_lanes = val;
-	else
-		st->num_lanes = 1;
+
+	if (!st->num_lanes || st->num_lanes > ADA4355_MAX_DATA_LANES)
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid number of lanes: %u\n",
+				     st->num_lanes);
 
 	return 0;
 }
 
+static int ada4355_test_mode_available_show(struct seq_file *s, void *ignored)
+{
+	struct ada4355_state *st = s->private;
+	unsigned int bit;
+
+	for_each_set_bit(bit, &st->info->test_mask, st->info->test_mask_len)
+		seq_printf(s, "%s\n", ada4355_test_modes[bit]);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ada4355_test_mode_available);
+
+static ssize_t ada4355_chan_test_mode_read(struct file *file,
+					   char __user *userbuf, size_t count,
+					   loff_t *ppos)
+{
+	struct ada4355_chan_test_mode *chan = file->private_data;
+	struct ada4355_state *st = chan->st;
+	char buf[128] = {0};
+	size_t len;
+	int ret;
+
+	if (chan->mode == ADA4355_TEST_MODE_OFF) {
+		len = scnprintf(buf, sizeof(buf), "No test Running...\n");
+	} else {
+		len = scnprintf(buf, sizeof(buf), "Running \"%s\" Test:\n\t",
+				ada4355_test_modes[chan->mode]);
+
+		if (iio_backend_has_caps(st->back, IIO_BACKEND_CAP_CALIBRATION)) {
+			ret = iio_backend_debugfs_print_chan_status(st->back,
+								    chan->idx,
+								    buf + len,
+								    sizeof(buf) - len);
+			if (ret < 0)
+				return ret;
+			len += ret;
+		}
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+}
+
+static ssize_t ada4355_chan_test_mode_write(struct file *file,
+					    const char __user *userbuf,
+					    size_t count, loff_t *ppos)
+{
+	struct ada4355_chan_test_mode *chan = file->private_data;
+	struct ada4355_state *st = chan->st;
+	char test_mode[32] = {0};
+	unsigned int mode;
+	int ret;
+
+	ret = simple_write_to_buffer(test_mode, sizeof(test_mode) - 1, ppos,
+				     userbuf, count);
+	if (ret < 0)
+		return ret;
+
+	for_each_set_bit(mode, &st->info->test_mask, st->info->test_mask_len) {
+		if (sysfs_streq(test_mode, ada4355_test_modes[mode]))
+			break;
+	}
+
+	if (mode == st->info->test_mask_len)
+		return -EINVAL;
+
+	guard(mutex)(&st->lock);
+
+	ret = ada4355_testmode_set(st, mode);
+	if (ret)
+		return ret;
+
+	chan->mode = mode;
+
+	return count;
+}
+
+static const struct file_operations ada4355_chan_test_mode_fops = {
+	.open = simple_open,
+	.read = ada4355_chan_test_mode_read,
+	.write = ada4355_chan_test_mode_write,
+	.llseek = default_llseek,
+	.owner = THIS_MODULE,
+};
+
+static ssize_t ada4355_dump_calib_table(struct file *file,
+					char __user *userbuf,
+					size_t count, loff_t *ppos)
+{
+	struct ada4355_state *st = file->private_data;
+	/* one newline per delay line and +1 for the string termination */
+	unsigned char map[ADA4355_MAX_CALIB_MAP_SIZE +
+			  ADA4355_MAX_DATA_LANES + 2];
+	unsigned int bit;
+	ssize_t len = 0;
+
+	guard(mutex)(&st->lock);
+	if (*ppos)
+		goto out_read;
+
+	for (bit = 0; bit < st->calib_map_size; bit++) {
+		if (bit && bit % st->info->test_points == 0)
+			len += scnprintf(map + len, sizeof(map) - len, "\n");
+
+		len += scnprintf(map + len, sizeof(map) - len, "%c",
+				 test_bit(bit, st->calib_map) ? 'x' : 'o');
+	}
+
+	len += scnprintf(map + len, sizeof(map) - len, "\n");
+out_read:
+	return simple_read_from_buffer(userbuf, count, ppos, map, len);
+}
+
+static const struct file_operations ada4355_calib_table_fops = {
+	.open = simple_open,
+	.read = ada4355_dump_calib_table,
+	.llseek = default_llseek,
+	.owner = THIS_MODULE,
+};
+
+static void ada4355_debugfs_init(struct iio_dev *indio_dev)
+{
+	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
+	struct ada4355_state *st = iio_priv(indio_dev);
+	char attr_name[32];
+	unsigned int chan;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
+
+	st->chan_test = devm_kcalloc(&st->spi->dev, st->info->num_channels,
+				     sizeof(*st->chan_test), GFP_KERNEL);
+	if (!st->chan_test)
+		return;
+
+	if (iio_backend_has_caps(st->back, IIO_BACKEND_CAP_CALIBRATION))
+		debugfs_create_file("calibration_table_dump", 0400, d, st,
+				    &ada4355_calib_table_fops);
+
+	for (chan = 0; chan < st->info->num_channels; chan++) {
+		snprintf(attr_name, sizeof(attr_name), "in_voltage%u_test_mode",
+			 chan);
+		st->chan_test[chan].idx = chan;
+		st->chan_test[chan].st = st;
+		debugfs_create_file(attr_name, 0600, d, &st->chan_test[chan],
+				    &ada4355_chan_test_mode_fops);
+	}
+
+	debugfs_create_file("in_voltage_test_mode_available", 0400, d, st,
+			    &ada4355_test_mode_available_fops);
+
+	iio_backend_debugfs_add(st->back, indio_dev);
+}
+
 static int ada4355_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	struct iio_dev *indio_dev;
-	struct regmap *regmap;
 	struct ada4355_state *st;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	st->chip_info = spi_get_device_match_data(spi);
-	if (!st->chip_info)
-		return -ENODATA;
-
-	regmap = devm_regmap_init_spi(spi, &ada4355_regmap_config);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
-	st->regmap = regmap;
 	st->spi = spi;
 
-	ret = devm_mutex_init(&spi->dev, &st->lock);
+	st->info = spi_get_device_match_data(spi);
+	if (!st->info)
+		return -ENODEV;
+
+	st->regmap = devm_regmap_init_spi(spi, &ada4355_regmap_config);
+	if (IS_ERR(st->regmap))
+		return PTR_ERR(st->regmap);
+
+	ret = devm_mutex_init(dev, &st->lock);
 	if (ret)
 		return ret;
 
-
 	ret = ada4355_properties_parse(st);
-		if (ret)
-			return ret;
+	if (ret)
+		return ret;
 
-	st->clk = devm_clk_get_enabled(&spi->dev, NULL);
+	/* One set of test points per data lane, plus one for the frame. */
+	st->calib_map_size = (st->num_lanes + 1) * st->info->test_points;
+
+	st->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(st->clk))
 		return PTR_ERR(st->clk);
 
-	indio_dev->name = st->chip_info->name;
-	indio_dev->channels = ada4355_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ada4355_channels);
-	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->name = st->info->name;
+	indio_dev->channels = st->info->channels;
+	indio_dev->num_channels = st->info->num_channels;
 	indio_dev->info = &ada4355_iio_info;
 
 	ret = ada4355_setup(st);
 	if (ret)
 		return ret;
 
-	st->back = devm_iio_backend_get(&spi->dev, NULL);
+	st->back = devm_iio_backend_get(dev, NULL);
 	if (IS_ERR(st->back))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->back),
+		return dev_err_probe(dev, PTR_ERR(st->back),
 				     "failed to get IIO backend\n");
 
-	ret = devm_iio_backend_enable(&spi->dev, st->back);
+	if (iio_backend_has_caps(st->back, IIO_BACKEND_CAP_BUFFER)) {
+		ret = devm_iio_backend_request_buffer(dev, st->back, indio_dev);
+		if (ret)
+			return ret;
+	}
+
+	if (iio_backend_has_caps(st->back, IIO_BACKEND_CAP_ENABLE)) {
+		ret = devm_iio_backend_enable(dev, st->back);
+		if (ret)
+			return ret;
+	}
+
+	ret = ada4355_interface_setup(st);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to setup the digital interface\n");
+
+	if (iio_backend_has_caps(st->back, IIO_BACKEND_CAP_CALIBRATION)) {
+		ret = ada4355_calibrate(st);
+		if (ret)
+			return ret;
+	}
+
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
 		return ret;
 
-	ret = devm_iio_backend_request_buffer(&spi->dev, st->back, indio_dev);
-	if (ret)
-		return ret;
+	ada4355_debugfs_init(indio_dev);
 
-	ret = ada4355_post_setup(indio_dev);
-	if (ret)
-		return dev_err_probe(&st->spi->dev, ret, "failed post_setup");
-
-
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return 0;
 }
 
 static const struct spi_device_id ada4355_id[] = {
@@ -427,7 +852,6 @@ static const struct spi_device_id ada4355_id[] = {
 	{ .name = "ada4356", .driver_data = (kernel_ulong_t)&ada4356_chip_info },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(spi, ada4355_id);
 
 static const struct of_device_id ada4355_of_match[] = {
