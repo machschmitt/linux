@@ -64,6 +64,7 @@ required:
   - compatible
   - reg
   - vcc-supply
+  - clocks
 
 unevaluatedProperties: false
 
@@ -82,7 +83,6 @@ examples:
             spi-cpha;
             vcc-supply = <&supply_3_3V>;
             clocks = <&ref_clk>;
-            clock-names = "adc_clk";
             adi,vld-en-gpios = <&gpio0 89 GPIO_ACTIVE_HIGH>;
             adi,gsel-gpios = <&gpio0 86 GPIO_ACTIVE_HIGH>,
                              <&gpio0 87 GPIO_ACTIVE_HIGH>;
