@@ -45,6 +45,14 @@ properties:
   vld-en-gpios:
     description: VLD Output Enable.
 
+  adi,gsel-gpios:
+    description:
+      GPIOs connected to the GSEL0 and GSEL1 balls, in that order, which select
+      the transimpedance gain. If absent, the gain is assumed to be fixed at
+      2 kOhm by the board.
+    minItems: 2
+    maxItems: 2
+
   io-backends:
     description:
       The AXI ADC IP block connected to the D+/- and DCO+/- lines of the
@@ -76,6 +84,8 @@ examples:
             clocks = <&ref_clk>;
             clock-names = "adc_clk";
             adi,vld-en-gpios = <&gpio0 89 GPIO_ACTIVE_HIGH>;
+            adi,gsel-gpios = <&gpio0 86 GPIO_ACTIVE_HIGH>,
+                             <&gpio0 87 GPIO_ACTIVE_HIGH>;
             io-backends = <&axi_adc>;
         };
     };
