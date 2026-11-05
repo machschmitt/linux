@@ -42,7 +42,7 @@ properties:
   clocks:
     maxItems: 1
 
-  vld-en-gpios:
+  adi,vld-en-gpios:
     description: VLD Output Enable.
 
   adi,gsel-gpios:
