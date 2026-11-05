@@ -25,20 +25,10 @@
 		compatible = "adi,one-bit-adc-dac";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		out-gpios = <&gpio0 86 GPIO_ACTIVE_HIGH>,
-			    <&gpio0 87 GPIO_ACTIVE_HIGH>,
-			    <&gpio0 88 GPIO_ACTIVE_HIGH>;
+		out-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
 
 		channel@0 {
 			reg = <0>;
-			label = "GSEL0";
-		};
-		channel@1 {
-			reg = <1>;
-			label = "GSEL1";
-		};
-		channel@2 {
-			reg = <2>;
 			label = "FSEL";
 		};
 	};
@@ -93,6 +83,8 @@
 		clocks = <&ada4355_fixed_clock>;
 		clock-names = "adc_clk";
 		adi,vld-en-gpios = <&gpio0 89 GPIO_ACTIVE_HIGH>;
+		adi,gsel-gpios = <&gpio0 86 GPIO_ACTIVE_HIGH>,
+				 <&gpio0 87 GPIO_ACTIVE_HIGH>;
 		io-backends = <&iio_backend>;
 		num_lanes = <2>;
 	};
