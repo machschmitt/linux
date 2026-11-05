@@ -23,6 +23,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/units.h>
 
 #include <linux/iio/backend.h>
 #include <linux/iio/iio.h>
@@ -92,8 +93,21 @@
  */
 #define ADA4355_MIN_SAMP_RATE_HZ		20000000UL
 
+/* ADC differential input span, ±1 V with the 1 V internal reference. */
+#define ADA4355_ADC_SPAN_MV			2000
+/* ADC differential input with no input current flowing. */
+#define ADA4355_ADC_BIAS_MV			825
+
+#define ADA4355_NUM_GSEL_GPIOS			2
+
+/*
+ * Transimpedance gain in ohms and the matching GSEL1:GSEL0 setting. The first
+ * entry is assumed when the driver does not control the GSEL lines.
+ */
 static const unsigned int ada4355_scale_table[][2] = {
-	{2000, 0}, /* 2V differential range (±1V) for 1V reference ADC */
+	{ 2000, 0x1 },
+	{ 20000, 0x2 },
+	{ 200000, 0x0 },
 };
 
 static const char * const ada4355_test_modes[] = {
@@ -131,6 +145,10 @@ struct ada4355_state {
 	struct clk *clk;
 	/* used for debugfs */
 	struct ada4355_chan_test_mode *chan_test;
+	/* GSEL0 and GSEL1, in that order. NULL if the board drives them. */
+	struct gpio_descs *gsel;
+	int scales[ARRAY_SIZE(ada4355_scale_table)][2];
+	unsigned int scale_idx;
 	/*
 	 * One section of @info->test_points bits per calibrated I/O delay
 	 * line: one per data lane and one for the frame signal. A set bit
@@ -161,22 +179,72 @@ static int ada4355_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int re
 	return regmap_write(st->regmap, reg, writeval);
 }
 
+/*
+ * One ADC code in milliamps of input current: the ADC LSB in millivolts over
+ * the transimpedance in ohms. The TIA output falls as the input current rises,
+ * hence the negative sign.
+ */
 static void __ada4355_get_scale(struct ada4355_state *st, int index,
-				unsigned int *val, unsigned int *val2)
+				int *val, int *val2)
 {
 	const struct ada4355_chip_info *info = st->info;
 	const struct iio_chan_spec *chan = &info->channels[0];
-	unsigned int tmp;
+	u64 tmp;
 
-	tmp = (info->scale_table[index][0] * 1000000ULL) >>
-		chan->scan_type.realbits;
-	*val = tmp / 1000000;
-	*val2 = tmp % 1000000;
+	tmp = div_u64((u64)ADA4355_ADC_SPAN_MV * NANO,
+		      info->scale_table[index][0]) >> chan->scan_type.realbits;
+	*val = 0;
+	*val2 = -(int)tmp;
 }
 
 static int ada4355_get_scale(struct ada4355_state *st, int *val, int *val2)
 {
-	__ada4355_get_scale(st, 0, val, val2);
+	*val = st->scales[st->scale_idx][0];
+	*val2 = st->scales[st->scale_idx][1];
+
+	return IIO_VAL_INT_PLUS_NANO;
+}
+
+static int ada4355_set_scale(struct ada4355_state *st, int val, int val2)
+{
+	const struct ada4355_chip_info *info = st->info;
+	unsigned long gsel;
+	unsigned int i;
+	int ret;
+
+	if (!st->gsel)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < info->num_scales; i++) {
+		if (st->scales[i][0] != val || st->scales[i][1] != val2)
+			continue;
+
+		gsel = info->scale_table[i][1];
+
+		guard(mutex)(&st->lock);
+		ret = gpiod_multi_set_value_cansleep(st->gsel, &gsel);
+		if (ret)
+			return ret;
+
+		st->scale_idx = i;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+/*
+ * The TIA biases the ADC input at ADA4355_ADC_BIAS_MV with no input current,
+ * so that is the code that has to read as zero milliamps.
+ */
+static int ada4355_get_offset(struct ada4355_state *st, int *val, int *val2)
+{
+	const struct iio_chan_spec *chan = &st->info->channels[0];
+	s64 tmp;
+
+	tmp = div_s64(((s64)ADA4355_ADC_BIAS_MV * MICRO) << chan->scan_type.realbits,
+		      ADA4355_ADC_SPAN_MV);
+	*val = div_s64_rem(-tmp, MICRO, val2);
 
 	return IIO_VAL_INT_PLUS_MICRO;
 }
@@ -190,9 +258,33 @@ static int ada4355_read_raw(struct iio_dev *indio_dev,
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:
 		return ada4355_get_scale(st, val, val2);
+	case IIO_CHAN_INFO_OFFSET:
+		return ada4355_get_offset(st, val, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = clk_get_rate(st->clk);
 		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ada4355_read_avail(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      const int **vals, int *type, int *length,
+			      long mask)
+{
+	struct ada4355_state *st = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = (const int *)st->scales;
+		*type = IIO_VAL_INT_PLUS_NANO;
+		/*
+		 * Values are stored in a 2D matrix. Without the GSEL lines the
+		 * gain is fixed, so only the assumed one is available.
+		 */
+		*length = (st->gsel ? st->info->num_scales : 1) * 2;
+		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
 	}
@@ -219,11 +311,13 @@ static int ada4355_update_scan_mode(struct iio_dev *indio_dev,
 
 #define ADA4355_CHAN(_chan, _si, _bits, _sign, _shift)			\
 {									\
-	.type = IIO_VOLTAGE,						\
+	.type = IIO_CURRENT,						\
 	.indexed = 1,							\
 	.channel = _chan,						\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |		\
+		BIT(IIO_CHAN_INFO_OFFSET) |				\
 		BIT(IIO_CHAN_INFO_SAMP_FREQ),				\
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE),	\
 	.scan_index = _si,						\
 	.scan_type = {							\
 		.sign = _sign,						\
@@ -542,6 +636,22 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 		ret = __ada4355_update_clock(st, r_clk);
 		iio_device_release_direct(indio_dev);
 		return ret;
+	case IIO_CHAN_INFO_SCALE:
+		return ada4355_set_scale(st, val, val2);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ada4355_write_raw_get_fmt(struct iio_dev *indio_dev,
+				     struct iio_chan_spec const *chan,
+				     long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -549,7 +659,9 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info ada4355_iio_info = {
 	.read_raw = ada4355_read_raw,
+	.read_avail = ada4355_read_avail,
 	.write_raw = ada4355_write_raw,
+	.write_raw_get_fmt = ada4355_write_raw_get_fmt,
 	.update_scan_mode = ada4355_update_scan_mode,
 	.debugfs_reg_access = ada4355_debugfs_reg_access,
 };
@@ -638,6 +750,41 @@ static int ada4355_setup(struct ada4355_state *st)
 		return ret;
 
 	return 0;
+}
+
+static int ada4355_gain_setup(struct ada4355_state *st)
+{
+	const struct ada4355_chip_info *info = st->info;
+	struct device *dev = &st->spi->dev;
+	unsigned long gsel;
+	unsigned int i;
+
+	for (i = 0; i < info->num_scales; i++)
+		__ada4355_get_scale(st, i, &st->scales[i][0], &st->scales[i][1]);
+
+	st->scale_idx = 0;
+
+	/*
+	 * The GSEL lines have no pulls, so if the driver is to own them it
+	 * must also set them right away. Start from the lowest gain, which
+	 * gives the widest input current range.
+	 */
+	st->gsel = devm_gpiod_get_array_optional(dev, "adi,gsel", GPIOD_OUT_LOW);
+	if (IS_ERR(st->gsel))
+		return dev_err_probe(dev, PTR_ERR(st->gsel),
+				     "Failed to get adi,gsel-gpios\n");
+
+	if (!st->gsel)
+		return 0;
+
+	if (st->gsel->ndescs != ADA4355_NUM_GSEL_GPIOS)
+		return dev_err_probe(dev, -EINVAL,
+				     "Expected %u adi,gsel-gpios, got %u\n",
+				     ADA4355_NUM_GSEL_GPIOS, st->gsel->ndescs);
+
+	gsel = info->scale_table[st->scale_idx][1];
+
+	return gpiod_multi_set_value_cansleep(st->gsel, &gsel);
 }
 
 static int ada4355_interface_setup(struct ada4355_state *st)
@@ -868,6 +1015,10 @@ static int ada4355_probe(struct spi_device *spi)
 	indio_dev->info = &ada4355_iio_info;
 
 	ret = ada4355_setup(st);
+	if (ret)
+		return ret;
+
+	ret = ada4355_gain_setup(st);
 	if (ret)
 		return ret;
 
