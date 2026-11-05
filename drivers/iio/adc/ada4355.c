@@ -81,6 +81,8 @@
 	(ADA4355_MAX_TEST_POINTS * (ADA4355_MAX_DATA_LANES + 1))
 
 #define ADA4355_SYNC_TIMEOUT_US			1000
+/* Time the duty cycle stabilizer loop needs to relock after a rate change. */
+#define ADA4355_DCS_RELOCK_US			5
 
 static const unsigned int ada4355_scale_table[][2] = {
 	{2000, 0}, /* 2V differential range (±1V) for 1V reference ADC */
@@ -474,6 +476,17 @@ static int __ada4355_update_clock(struct ada4355_state *st, long r_clk)
 		return ret;
 
 	guard(mutex)(&st->lock);
+
+	/* Let the duty cycle stabilizer settle on the new clock. */
+	fsleep(ADA4355_DCS_RELOCK_US);
+
+	/*
+	 * Changing the rate under the running state machine counts as clock
+	 * instability, so put the digital side back into a known state.
+	 */
+	ret = ada4355_digital_reset(st);
+	if (ret)
+		return ret;
 
 	/*
 	 * The optimal I/O delays depend on the data rate, so the digital
