@@ -56,7 +56,8 @@
 #define ADA4355_USER_PATT2_LSB_REG		0x1B
 #define ADA4355_USER_PATT2_MSB_REG		0x1C
 #define ADA4355_SERIAL_OUT_DATA_CNTRL_REG	0x21
-#define ADA4355_DDR_TWO_LANE_BITWISE		0x20
+#define ADA4355_SERIAL_OUT_LANE_MODE_MASK	GENMASK(6, 4)
+#define ADA4355_DDR_TWO_LANE_BITWISE		0x2
 
 #define ADA4355_SERIAL_CHANNEL_STATUS_REG	0x22
 #define ADA4355_RESOLUTION_SAMPLE_RATE_REG	0x100
@@ -549,8 +550,14 @@ static int ada4355_setup(struct ada4355_state *st)
 				     "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
 				     id, st->info->id);
 
-	ret = regmap_set_bits(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
-			      ADA4355_DDR_TWO_LANE_BITWISE);
+	/*
+	 * The power on default is DDR two lane bytewise, while the HDL core
+	 * expects bitwise, so the whole lane mode field has to be rewritten.
+	 */
+	ret = regmap_update_bits(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
+				 ADA4355_SERIAL_OUT_LANE_MODE_MASK,
+				 FIELD_PREP(ADA4355_SERIAL_OUT_LANE_MODE_MASK,
+					    ADA4355_DDR_TWO_LANE_BITWISE));
 	if (ret)
 		return ret;
 
