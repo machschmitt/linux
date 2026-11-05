@@ -84,6 +84,13 @@
 /* Time the duty cycle stabilizer loop needs to relock after a rate change. */
 #define ADA4355_DCS_RELOCK_US			5
 
+/*
+ * Sampling below this rate would require switching the serial interface over to
+ * DDR one lane wordwise plus low encode mode, which the HDL core does not
+ * support, so such rates are rejected instead.
+ */
+#define ADA4355_MIN_SAMP_RATE_HZ		20000000UL
+
 static const unsigned int ada4355_scale_table[][2] = {
 	{2000, 0}, /* 2V differential range (±1V) for 1V reference ADC */
 };
@@ -103,6 +110,7 @@ struct ada4355_chip_info {
 	int num_scales;
 	unsigned long test_mask;
 	unsigned int test_mask_len;
+	unsigned int min_samp_rate_hz;
 	unsigned int max_samp_rate_hz;
 	unsigned int test_points;
 	unsigned int num_lanes;
@@ -239,6 +247,7 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 		BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
 		BIT(ADA4355_TEST_MODE_USER),
 	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
+	.min_samp_rate_hz = ADA4355_MIN_SAMP_RATE_HZ,
 	.max_samp_rate_hz = 125000000UL,
 	.test_points = ADA4355_MAX_TEST_POINTS,
 	.num_lanes = 1,
@@ -255,6 +264,7 @@ static const struct ada4355_chip_info ada4356_chip_info = {
 		BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
 		BIT(ADA4355_TEST_MODE_USER),
 	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
+	.min_samp_rate_hz = ADA4355_MIN_SAMP_RATE_HZ,
 	.max_samp_rate_hz = 125000000UL,
 	.test_points = ADA4355_MAX_TEST_POINTS,
 	.num_lanes = 1,
@@ -510,7 +520,8 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		r_clk = clk_round_rate(st->clk, val);
-		if (r_clk < 0 || r_clk > st->info->max_samp_rate_hz) {
+		if (r_clk < 0 || r_clk < (long)st->info->min_samp_rate_hz ||
+		    r_clk > (long)st->info->max_samp_rate_hz) {
 			dev_warn(&st->spi->dev,
 				 "Error setting ADC sample rate %ld", r_clk);
 			return -EINVAL;
