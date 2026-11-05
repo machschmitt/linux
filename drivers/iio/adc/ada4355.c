@@ -57,6 +57,7 @@
 #define ADA4355_USER_PATT2_MSB_REG		0x1C
 #define ADA4355_SERIAL_OUT_DATA_CNTRL_REG	0x21
 #define ADA4355_SERIAL_OUT_LANE_MODE_MASK	GENMASK(6, 4)
+#define ADA4355_DDR_ONE_LANE_WORDWISE		0x4
 #define ADA4355_DDR_TWO_LANE_BITWISE		0x2
 
 #define ADA4355_SERIAL_CHANNEL_STATUS_REG	0x22
@@ -557,7 +558,7 @@ static int ada4355_setup(struct ada4355_state *st)
 {
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *gpio_vld_en;
-	unsigned int id;
+	unsigned int id, lane_mode;
 	int ret;
 
 	/*
@@ -605,13 +606,19 @@ static int ada4355_setup(struct ada4355_state *st)
 				     id, st->info->id);
 
 	/*
-	 * The power on default is DDR two lane bytewise, while the HDL core
-	 * expects bitwise, so the whole lane mode field has to be rewritten.
+	 * The power on default is DDR two lane bytewise, so the whole lane mode
+	 * field has to be rewritten to match the lane count in use. There is no
+	 * bitwise encoding for a single lane, hence the wordwise one.
 	 */
+	if (st->num_lanes == 1)
+		lane_mode = ADA4355_DDR_ONE_LANE_WORDWISE;
+	else
+		lane_mode = ADA4355_DDR_TWO_LANE_BITWISE;
+
 	ret = regmap_update_bits(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
 				 ADA4355_SERIAL_OUT_LANE_MODE_MASK,
 				 FIELD_PREP(ADA4355_SERIAL_OUT_LANE_MODE_MASK,
-					    ADA4355_DDR_TWO_LANE_BITWISE));
+					    lane_mode));
 	if (ret)
 		return ret;
 
