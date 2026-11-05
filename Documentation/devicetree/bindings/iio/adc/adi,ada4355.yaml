@@ -30,6 +30,8 @@ properties:
   spi-max-frequency:
     maximum: 50000000
 
+  spi-3wire: true
+
   spi-cpha: true
 
   vcc-supply:
@@ -66,6 +68,7 @@ required:
   - compatible
   - reg
   - vcc-supply
+  - spi-3wire
   - spi-cpha
   - clocks
 
@@ -82,6 +85,7 @@ examples:
             compatible = "adi,ada4355";
             reg = <0>;
             spi-max-frequency = <100000>;
+            spi-3wire;
             spi-cpha;
             vcc-supply = <&supply_3_3V>;
             clocks = <&ref_clk>;
