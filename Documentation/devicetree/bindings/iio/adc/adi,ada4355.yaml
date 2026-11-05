@@ -30,6 +30,8 @@ properties:
   spi-max-frequency:
     maximum: 50000000
 
+  spi-cpha: true
+
   vcc-supply:
     description: 3.3V power supply.
 
@@ -64,6 +66,7 @@ required:
   - compatible
   - reg
   - vcc-supply
+  - spi-cpha
   - clocks
 
 unevaluatedProperties: false
@@ -79,7 +82,6 @@ examples:
             compatible = "adi,ada4355";
             reg = <0>;
             spi-max-frequency = <100000>;
-            spi-cpol;
             spi-cpha;
             vcc-supply = <&supply_3_3V>;
             clocks = <&ref_clk>;
