@@ -440,6 +440,31 @@ static int ada4355_calibrate(struct ada4355_state *st)
 	return ada4355_calibrate_stop(st);
 }
 
+/*
+ * The internal state machine needs a stable clock to bring the ADC up. If the
+ * clock was absent or unstable by then, the ADC starts in an unknown state and
+ * only a digital reset recovers it. The same holds for clock instability during
+ * normal operation, a rate change included. Unlike the soft reset of
+ * ADA4355_CHIP_CONFIG_REG, this one leaves the user registers untouched.
+ */
+static int ada4355_digital_reset(struct ada4355_state *st)
+{
+	unsigned int reg;
+	int ret;
+
+	ret = regmap_write(st->regmap, ADA4355_POWER_MODES_REG,
+			   ADA4355_PW_MODE_DIGITAL_RESET);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(st->regmap, ADA4355_POWER_MODES_REG, &reg);
+	if (ret)
+		return ret;
+
+	return regmap_write(st->regmap, ADA4355_POWER_MODES_REG,
+			    reg & ADA4355_PW_MODE_NORMAL);
+}
+
 static int __ada4355_update_clock(struct ada4355_state *st, long r_clk)
 {
 	int ret;
@@ -508,20 +533,25 @@ static int ada4355_setup(struct ada4355_state *st)
 {
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *gpio_vld_en;
-	unsigned int reg, id;
+	unsigned int id;
 	int ret;
 
-	ret = regmap_write(st->regmap, ADA4355_POWER_MODES_REG,
-			   ADA4355_PW_MODE_DIGITAL_RESET);
-	if (ret)
-		return ret;
+	/*
+	 * Boards powering the ADC from the on chip LDO have no 1.8 V rail until
+	 * VLDEN is asserted, so this has to come before any register access. No
+	 * LDO start-up time is given, hence the conservative settling delay.
+	 */
+	gpio_vld_en = devm_gpiod_get_optional(dev, "adi,vld-en", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio_vld_en))
+		return dev_err_probe(dev, PTR_ERR(gpio_vld_en),
+				     "Failed to find adi,vld-en-gpios\n");
 
-	ret = regmap_read(st->regmap, ADA4355_POWER_MODES_REG, &reg);
-	if (ret)
-		return ret;
+	if (gpio_vld_en) {
+		gpiod_set_value_cansleep(gpio_vld_en, 1);
+		fsleep(1000);
+	}
 
-	ret = regmap_write(st->regmap, ADA4355_POWER_MODES_REG,
-			   reg & ADA4355_PW_MODE_NORMAL);
+	ret = ada4355_digital_reset(st);
 	if (ret)
 		return ret;
 
@@ -575,13 +605,6 @@ static int ada4355_setup(struct ada4355_state *st)
 			   ADA4355_125_RATE);
 	if (ret)
 		return ret;
-
-	gpio_vld_en = devm_gpiod_get_optional(dev, "adi,vld-en", GPIOD_OUT_LOW);
-	if (IS_ERR(gpio_vld_en))
-		return dev_err_probe(dev, PTR_ERR(gpio_vld_en),
-				     "Failed to find adi,vld-en-gpios\n");
-
-	gpiod_set_value_cansleep(gpio_vld_en, 1);
 
 	return 0;
 }
