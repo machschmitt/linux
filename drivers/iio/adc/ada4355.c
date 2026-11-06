@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
@@ -86,12 +87,7 @@
 /* Time the duty cycle stabilizer loop needs to relock after a rate change. */
 #define ADA4355_DCS_RELOCK_US			5
 
-/*
- * Sampling below this rate would require switching the serial interface over to
- * DDR one lane wordwise plus low encode mode, which the HDL core does not
- * support, so such rates are rejected instead.
- */
-#define ADA4355_MIN_SAMP_RATE_HZ		20000000UL
+#define ADA4355_MAX_SAMP_RATE_SPS		(125 * MEGA)
 
 /* ADC differential input span, ±1 V with the 1 V internal reference. */
 #define ADA4355_ADC_SPAN_MV			2000
@@ -125,8 +121,6 @@ struct ada4355_chip_info {
 	int num_scales;
 	unsigned long test_mask;
 	unsigned int test_mask_len;
-	unsigned int min_samp_rate_hz;
-	unsigned int max_samp_rate_hz;
 };
 
 struct ada4355_chan_test_mode {
@@ -340,8 +334,6 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 		BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
 		BIT(ADA4355_TEST_MODE_USER),
 	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
-	.min_samp_rate_hz = ADA4355_MIN_SAMP_RATE_HZ,
-	.max_samp_rate_hz = 125000000UL,
 };
 
 static const struct ada4355_chip_info ada4356_chip_info = {
@@ -355,8 +347,6 @@ static const struct ada4355_chip_info ada4356_chip_info = {
 		BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
 		BIT(ADA4355_TEST_MODE_USER),
 	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
-	.min_samp_rate_hz = ADA4355_MIN_SAMP_RATE_HZ,
-	.max_samp_rate_hz = 125000000UL,
 };
 
 static int ada4355_testmode_set(struct ada4355_state *st, unsigned int test_mode)
@@ -611,12 +601,8 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		r_clk = clk_round_rate(st->clk, val);
-		if (r_clk < 0 || r_clk < (long)st->info->min_samp_rate_hz ||
-		    r_clk > (long)st->info->max_samp_rate_hz) {
-			dev_warn(&st->spi->dev,
-				 "Error setting ADC sample rate %ld", r_clk);
-			return -EINVAL;
-		}
+		if (!in_range(r_clk, 1, ADA4355_MAX_SAMP_RATE_SPS))
+			return -ERANGE;
 
 		return ada4355_update_clock(st, r_clk);
 	case IIO_CHAN_INFO_SCALE:
