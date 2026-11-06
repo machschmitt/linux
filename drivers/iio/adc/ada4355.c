@@ -701,9 +701,8 @@ static int ada4355_setup(struct ada4355_state *st)
 		return ret;
 
 	if (id != st->info->id)
-		return dev_err_probe(dev, -ENODEV,
-				     "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
-				     id, st->info->id);
+		dev_warn(dev, "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
+			 id, st->info->id);
 
 	ret = regmap_update_bits(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
 				 ADA4355_SERIAL_OUT_LANE_MODE_MASK,
