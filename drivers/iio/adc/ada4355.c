@@ -96,10 +96,7 @@
 
 #define ADA4355_NUM_GSEL_GPIOS			2
 
-/*
- * Transimpedance gain in ohms and the matching GSEL1:GSEL0 setting. The first
- * entry is assumed when the driver does not control the GSEL lines.
- */
+/* Transimpedance gain in ohms and the matching GSEL1 and GSEL0 setting. */
 static const unsigned int ada4355_scale_table[][2] = {
 	{ 2000, 0x1 },
 	{ 20000, 0x2 },
