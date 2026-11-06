@@ -611,7 +611,6 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 	struct ada4355_state *st = iio_priv(indio_dev);
 	unsigned long sample_rate;
 	long r_clk;
-	int ret;
 
 	IIO_DEV_ACQUIRE_DIRECT_MODE(indio_dev, claim);
 	if (IIO_DEV_ACQUIRE_FAILED(claim))
