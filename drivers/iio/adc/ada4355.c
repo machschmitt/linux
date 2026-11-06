@@ -39,7 +39,6 @@
 
 #define ADA4355_POWER_MODES_REG			0x08
 #define ADA4355_PW_MODE_DIGITAL_RESET		GENMASK(1, 0)
-#define ADA4355_PW_MODE_NORMAL			0xFC
 
 #define ADA4355_TEST_MODE_REG			0x0D
 #define ADA4355_TEST_MODE_MASK			GENMASK(3, 0)
@@ -569,21 +568,26 @@ static int ada4355_digital_reset(struct ada4355_state *st)
 	if (ret)
 		return ret;
 
-	return regmap_write(st->regmap, ADA4355_POWER_MODES_REG,
-			    reg & ADA4355_PW_MODE_NORMAL);
+	return regmap_clear_bits(st->regmap, ADA4355_POWER_MODES_REG,
+				 ADA4355_PW_MODE_DIGITAL_RESET);
 }
 
-static int __ada4355_update_clock(struct ada4355_state *st, long r_clk)
+static int ada4355_update_clock(struct ada4355_state *st, long r_clk)
 {
+	unsigned long sample_rate;
 	int ret;
+
+	/* Avoid unnecessary calibration if the clock won't change. */
+	sample_rate = clk_get_rate(st->clk);
+	if (sample_rate == r_clk)
+		return 0;
+
+	guard(mutex)(&st->lock);
 
 	ret = clk_set_rate(st->clk, r_clk);
 	if (ret)
 		return ret;
 
-	guard(mutex)(&st->lock);
-
-	/* Let the duty cycle stabilizer settle on the new clock. */
 	fsleep(ADA4355_DCS_RELOCK_US);
 
 	/*
@@ -594,10 +598,6 @@ static int __ada4355_update_clock(struct ada4355_state *st, long r_clk)
 	if (ret)
 		return ret;
 
-	/*
-	 * The optimal I/O delays depend on the data rate, so the digital
-	 * interface has to be re-tuned for the new clock.
-	 */
 	if (iio_backend_has_caps(st->back, IIO_BACKEND_CAP_CALIBRATION))
 		return ada4355_calibrate(st);
 
@@ -609,7 +609,6 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long mask)
 {
 	struct ada4355_state *st = iio_priv(indio_dev);
-	unsigned long sample_rate;
 	long r_clk;
 
 	IIO_DEV_ACQUIRE_DIRECT_MODE(indio_dev, claim);
@@ -626,15 +625,7 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 
-		sample_rate = clk_get_rate(st->clk);
-		/*
-		 * clk_set_rate() would also do this but since we would still
-		 * need it for avoiding an unnecessary calibration, do it now.
-		 */
-		if (sample_rate == r_clk)
-			return 0;
-
-		return __ada4355_update_clock(st, r_clk);
+		return ada4355_update_clock(st, r_clk);
 	case IIO_CHAN_INFO_SCALE:
 		return ada4355_set_scale(st, val, val2);
 	default:
