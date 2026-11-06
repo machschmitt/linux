@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Analog Devices ADA4355 SPI ADC driver
+ * Analog Devices ADA4355 device driver
  *
- * Copyright 2026 Analog Devices Inc.
+ * Copyright (C) 2026 Analog Devices, Inc.
+ * Author: Marcelo Schmitt <marcelo.schmitt@analog.com>
  */
 
 #include <linux/bitfield.h>
@@ -1034,6 +1035,6 @@ module_spi_driver(ada4355_driver);
 MODULE_AUTHOR("Antoniu Miclaus <antoniu.miclaus@analog.com>");
 MODULE_AUTHOR("Pop Ioan Daniel <pop.ioan-daniel@analog.com>");
 MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
-MODULE_DESCRIPTION("Analog Devices ADA4355");
+MODULE_DESCRIPTION("Analog Devices ADA4355 device driver");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("IIO_BACKEND");
