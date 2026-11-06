@@ -115,8 +115,6 @@ static const char * const ada4355_test_modes[] = {
 struct ada4355_chip_info {
 	const char *name;
 	unsigned int id;
-	const struct iio_chan_spec *channels;
-	unsigned int num_channels;
 	const unsigned int (*scale_table)[2];
 	int num_scales;
 	unsigned long test_mask;
@@ -135,6 +133,7 @@ struct ada4355_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
 	struct clk *clk;
+	const struct iio_chan_spec *chan;
 	/* used for debugfs */
 	struct ada4355_chan_test_mode *chan_test;
 	/* GSEL0 and GSEL1, in that order. NULL if the board drives them. */
@@ -179,11 +178,10 @@ static void __ada4355_get_scale(struct ada4355_state *st, int index,
 				int *val, int *val2)
 {
 	const struct ada4355_chip_info *info = st->info;
-	const struct iio_chan_spec *chan = &info->channels[0];
 	u64 tmp;
 
 	tmp = div_u64((u64)ADA4355_ADC_SPAN_MV * NANO,
-		      info->scale_table[index][0]) >> chan->scan_type.realbits;
+		      info->scale_table[index][0]) >> st->chan->scan_type.realbits;
 	*val = 0;
 	*val2 = -(int)tmp;
 }
@@ -229,9 +227,8 @@ static int ada4355_set_scale(struct ada4355_state *st, int val, int val2)
  * The TIA biases the ADC input at ADA4355_ADC_BIAS_MV with no input current,
  * so that is the code that has to read as zero milliamps.
  */
-static int ada4355_get_offset(struct ada4355_state *st, int *val, int *val2)
+static int ada4355_get_offset(struct iio_chan_spec const *chan, int *val, int *val2)
 {
-	const struct iio_chan_spec *chan = &st->info->channels[0];
 	s64 tmp;
 
 	tmp = div_s64(((s64)ADA4355_ADC_BIAS_MV * MICRO) << chan->scan_type.realbits,
@@ -251,7 +248,7 @@ static int ada4355_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		return ada4355_get_scale(st, val, val2);
 	case IIO_CHAN_INFO_OFFSET:
-		return ada4355_get_offset(st, val, val2);
+		return ada4355_get_offset(chan, val, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = clk_get_rate(st->clk);
 		return IIO_VAL_INT;
@@ -282,33 +279,23 @@ static int ada4355_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
-#define ADA4355_CHAN(_chan, _si, _bits, _sign, _shift)			\
-{									\
-	.type = IIO_CURRENT,						\
-	.indexed = 1,							\
-	.channel = _chan,						\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |		\
-		BIT(IIO_CHAN_INFO_OFFSET) |				\
-		BIT(IIO_CHAN_INFO_SAMP_FREQ),				\
-	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE),	\
-	.scan_index = _si,						\
-	.scan_type = {							\
-		.sign = _sign,						\
-		.realbits = _bits,					\
-		.storagebits = 16,					\
-		.shift = _shift,					\
-	},								\
-}
-
-static const struct iio_chan_spec ada4355_channels[] = {
-	ADA4355_CHAN(0, 0, 14, 's', 2),
+static const struct iio_chan_spec ada4355_channel = {
+	.type = IIO_CURRENT,
+	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE) |
+			      BIT(IIO_CHAN_INFO_OFFSET) |
+			      BIT(IIO_CHAN_INFO_SAMP_FREQ),
+	.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),
+	.scan_type = {
+		.format = IIO_SCAN_FORMAT_SIGNED_INT,
+		.realbits = 14,
+		.storagebits = 16,
+		.shift = 2,
+	},
 };
 
 static const struct ada4355_chip_info ada4355_chip_info = {
 	.name = "ada4355",
 	.id = ADA4355_CHIP_ID,
-	.channels = ada4355_channels,
-	.num_channels = ARRAY_SIZE(ada4355_channels),
 	.scale_table = ada4355_scale_table,
 	.num_scales = ARRAY_SIZE(ada4355_scale_table),
 	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
@@ -320,8 +307,6 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 static const struct ada4355_chip_info ada4356_chip_info = {
 	.name = "ada4356",
 	.id = ADA4355_CHIP_ID,
-	.channels = ada4355_channels,
-	.num_channels = ARRAY_SIZE(ada4355_channels),
 	.scale_table = ada4355_scale_table,
 	.num_scales = ARRAY_SIZE(ada4355_scale_table),
 	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
@@ -925,9 +910,10 @@ static int ada4355_probe(struct spi_device *spi)
 		return PTR_ERR(st->clk);
 
 	indio_dev->name = st->info->name;
-	indio_dev->channels = st->info->channels;
-	indio_dev->num_channels = st->info->num_channels;
+	indio_dev->channels = &ada4355_channel;
+	indio_dev->num_channels = 1;
 	indio_dev->info = &ada4355_iio_info;
+	st->chan = &ada4355_channel;
 
 	ret = ada4355_setup(st);
 	if (ret)
