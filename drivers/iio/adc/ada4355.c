@@ -670,6 +670,7 @@ static int ada4355_setup(struct ada4355_state *st)
 {
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *gpio_vld_en;
+	struct gpio_desc *gpio_lfp;
 	unsigned int id, lane_mode;
 	int ret;
 
@@ -678,7 +679,7 @@ static int ada4355_setup(struct ada4355_state *st)
 	 * VLDEN is asserted, so this has to come before any register access. No
 	 * LDO start-up time is given, hence the conservative settling delay.
 	 */
-	gpio_vld_en = devm_gpiod_get_optional(dev, "adi,vld-en", GPIOD_OUT_LOW);
+	gpio_vld_en = devm_gpiod_get(dev, "adi,vld-en", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio_vld_en))
 		return dev_err_probe(dev, PTR_ERR(gpio_vld_en),
 				     "Failed to find adi,vld-en-gpios\n");
@@ -687,6 +688,11 @@ static int ada4355_setup(struct ada4355_state *st)
 		gpiod_set_value_cansleep(gpio_vld_en, 1);
 		fsleep(1000);
 	}
+
+	gpio_lfp = devm_gpiod_get(dev, "adi,lfp", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio_lfp))
+		return dev_err_probe(dev, PTR_ERR(gpio_lfp),
+				     "Failed to find adi,lfp-gpios\n");
 
 	ret = ada4355_digital_reset(st);
 	if (ret)
