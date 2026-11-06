@@ -126,8 +126,6 @@ struct ada4355_chip_info {
 	unsigned int test_mask_len;
 	unsigned int min_samp_rate_hz;
 	unsigned int max_samp_rate_hz;
-	unsigned int test_points;
-	unsigned int num_lanes;
 };
 
 struct ada4355_chan_test_mode {
@@ -158,7 +156,6 @@ struct ada4355_state {
 	unsigned int calib_map_size;
 	/* Protect against concurrent accesses to the device and data content */
 	struct mutex lock;
-	unsigned int num_lanes;
 };
 
 static const struct regmap_config ada4355_regmap_config = {
@@ -344,8 +341,6 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
 	.min_samp_rate_hz = ADA4355_MIN_SAMP_RATE_HZ,
 	.max_samp_rate_hz = 125000000UL,
-	.test_points = ADA4355_MAX_TEST_POINTS,
-	.num_lanes = 1,
 };
 
 static const struct ada4355_chip_info ada4356_chip_info = {
@@ -361,8 +356,6 @@ static const struct ada4355_chip_info ada4356_chip_info = {
 	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
 	.min_samp_rate_hz = ADA4355_MIN_SAMP_RATE_HZ,
 	.max_samp_rate_hz = 125000000UL,
-	.test_points = ADA4355_MAX_TEST_POINTS,
-	.num_lanes = 1,
 };
 
 static int ada4355_testmode_set(struct ada4355_state *st, unsigned int test_mode)
@@ -470,7 +463,6 @@ static int ada4355_calibrate_lane(struct ada4355_state *st,
 				  enum iio_backend_calib_source source,
 				  unsigned int lane, unsigned int offset)
 {
-	unsigned int test_points = st->info->test_points;
 	struct device *dev = &st->spi->dev;
 	unsigned int point, val, cnt;
 	bool stat;
@@ -480,7 +472,7 @@ static int ada4355_calibrate_lane(struct ada4355_state *st,
 	if (ret)
 		return ret;
 
-	for (point = 0; point < test_points; point++) {
+	for (point = 0; point < ADA4355_MAX_TEST_POINTS; point++) {
 		ret = iio_backend_iodelay_set(st->back, lane, point);
 		if (ret)
 			return ret;
@@ -498,7 +490,7 @@ static int ada4355_calibrate_lane(struct ada4355_state *st,
 		__clear_bit(offset + point, st->calib_map);
 	}
 
-	cnt = ada4355_find_optimal_point(st->calib_map, offset, test_points,
+	cnt = ada4355_find_optimal_point(st->calib_map, offset, ADA4355_MAX_TEST_POINTS,
 					 &val);
 	if (!cnt) {
 		dev_err(dev, "No valid delay found for lane %u\n", lane);
@@ -531,15 +523,15 @@ static int ada4355_calibrate(struct ada4355_state *st)
 	 */
 	ret = ada4355_calibrate_lane(st, IIO_BACKEND_CALIB_SOURCE_FRAME,
 				     ADA4355_FRAME_LANE,
-				     st->num_lanes * st->info->test_points);
+				     ADA4355_MAX_DATA_LANES * ADA4355_MAX_TEST_POINTS);
 	if (ret)
 		return ret;
 
-	for (lane = 0; lane < st->num_lanes; lane++) {
+	for (lane = 0; lane < ADA4355_MAX_DATA_LANES; lane++) {
 		ret = ada4355_calibrate_lane(st,
 					     IIO_BACKEND_CALIB_SOURCE_DATA_LANE,
 					     lane,
-					     lane * st->info->test_points);
+					     lane * ADA4355_MAX_TEST_POINTS);
 		if (ret)
 			return ret;
 	}
@@ -661,7 +653,7 @@ static int ada4355_setup(struct ada4355_state *st)
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *gpio_vld_en;
 	struct gpio_desc *gpio_lfp;
-	unsigned int id, lane_mode;
+	unsigned int id;
 	int ret;
 
 	/*
@@ -713,20 +705,10 @@ static int ada4355_setup(struct ada4355_state *st)
 				     "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
 				     id, st->info->id);
 
-	/*
-	 * The power on default is DDR two lane bytewise, so the whole lane mode
-	 * field has to be rewritten to match the lane count in use. There is no
-	 * bitwise encoding for a single lane, hence the wordwise one.
-	 */
-	if (st->num_lanes == 1)
-		lane_mode = ADA4355_DDR_ONE_LANE_WORDWISE;
-	else
-		lane_mode = ADA4355_DDR_TWO_LANE_BITWISE;
-
 	ret = regmap_update_bits(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
 				 ADA4355_SERIAL_OUT_LANE_MODE_MASK,
 				 FIELD_PREP(ADA4355_SERIAL_OUT_LANE_MODE_MASK,
-					    lane_mode));
+					    ADA4355_DDR_TWO_LANE_BITWISE));
 	if (ret)
 		return ret;
 
@@ -787,32 +769,12 @@ static int ada4355_interface_setup(struct ada4355_state *st)
 {
 	int ret;
 
-	ret = iio_backend_num_lanes_set(st->back, st->num_lanes);
+	ret = iio_backend_num_lanes_set(st->back, ADA4355_MAX_DATA_LANES);
 	if (ret)
 		return ret;
 
 	return iio_backend_interface_data_align(st->back,
 						ADA4355_SYNC_TIMEOUT_US);
-}
-
-static int ada4355_properties_parse(struct ada4355_state *st)
-{
-	struct device *dev = &st->spi->dev;
-	unsigned int val;
-	int ret;
-
-	st->num_lanes = st->info->num_lanes;
-
-	ret = device_property_read_u32(dev, "num_lanes", &val);
-	if (!ret)
-		st->num_lanes = val;
-
-	if (!st->num_lanes || st->num_lanes > ADA4355_MAX_DATA_LANES)
-		return dev_err_probe(dev, -EINVAL,
-				     "Invalid number of lanes: %u\n",
-				     st->num_lanes);
-
-	return 0;
 }
 
 static int ada4355_test_mode_available_show(struct seq_file *s, void *ignored)
@@ -915,7 +877,7 @@ static ssize_t ada4355_dump_calib_table(struct file *file,
 		goto out_read;
 
 	for (bit = 0; bit < st->calib_map_size; bit++) {
-		if (bit && bit % st->info->test_points == 0)
+		if (bit && bit % ADA4355_MAX_TEST_POINTS == 0)
 			len += scnprintf(map + len, sizeof(map) - len, "\n");
 
 		len += scnprintf(map + len, sizeof(map) - len, "%c",
@@ -994,12 +956,8 @@ static int ada4355_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = ada4355_properties_parse(st);
-	if (ret)
-		return ret;
-
 	/* One set of test points per data lane, plus one for the frame. */
-	st->calib_map_size = (st->num_lanes + 1) * st->info->test_points;
+	st->calib_map_size = (ADA4355_MAX_DATA_LANES + 1) * ADA4355_MAX_TEST_POINTS;
 
 	st->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(st->clk))
