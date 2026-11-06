@@ -612,6 +612,10 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 	long r_clk;
 	int ret;
 
+	IIO_DEV_ACQUIRE_DIRECT_MODE(indio_dev, claim);
+	if (IIO_DEV_ACQUIRE_FAILED(claim))
+		return -EBUSY;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		r_clk = clk_round_rate(st->clk, val);
@@ -630,12 +634,7 @@ static int ada4355_write_raw(struct iio_dev *indio_dev,
 		if (sample_rate == r_clk)
 			return 0;
 
-		if (!iio_device_claim_direct(indio_dev))
-			return -EBUSY;
-
-		ret = __ada4355_update_clock(st, r_clk);
-		iio_device_release_direct(indio_dev);
-		return ret;
+		return __ada4355_update_clock(st, r_clk);
 	case IIO_CHAN_INFO_SCALE:
 		return ada4355_set_scale(st, val, val2);
 	default:
