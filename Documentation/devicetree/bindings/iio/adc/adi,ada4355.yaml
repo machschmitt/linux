@@ -47,15 +47,18 @@ properties:
     maxItems: 1
 
   adi,vld-en-gpios:
-    description: VLD Output Enable.
+    description: GPIO connected to the VLDEN pin for VLD output enable.
 
   adi,gsel-gpios:
     description:
-      GPIOs connected to the GSEL0 and GSEL1 balls, in that order, which select
-      the transimpedance gain. If absent, the gain is assumed to be fixed at
-      2 kOhm by the board.
+      GPIOs connected to the GSEL0 and GSEL1 pins, in that order, for
+      transimpedance gain selection.
     minItems: 2
     maxItems: 2
+
+  adi,lfp-gpios:
+    description:
+      GPIO connected to FSEL for internal low pass filter bandwidth selection.
 
   io-backends:
     description:
@@ -71,6 +74,9 @@ required:
   - spi-3wire
   - spi-cpha
   - clocks
+  - adi,vld-en-gpios
+  - adi,gsel-gpios
+  - adi,lfp-gpios
 
 unevaluatedProperties: false
 
@@ -92,6 +98,7 @@ examples:
             adi,vld-en-gpios = <&gpio0 89 GPIO_ACTIVE_HIGH>;
             adi,gsel-gpios = <&gpio0 86 GPIO_ACTIVE_HIGH>,
                              <&gpio0 87 GPIO_ACTIVE_HIGH>;
+            adi,lfp-gpios = <&gpio0 88 GPIO_ACTIVE_HIGH>;
             io-backends = <&axi_adc>;
         };
     };
