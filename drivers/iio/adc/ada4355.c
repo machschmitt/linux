@@ -742,17 +742,12 @@ static int ada4355_gain_setup(struct ada4355_state *st)
 	st->scale_idx = 0;
 
 	/*
-	 * The GSEL lines have no pulls, so if the driver is to own them it
-	 * must also set them right away. Start from the lowest gain, which
-	 * gives the widest input current range.
+	 * Start with the lowest gain, which gives the widest input current range.
 	 */
-	st->gsel = devm_gpiod_get_array_optional(dev, "adi,gsel", GPIOD_OUT_LOW);
+	st->gsel = devm_gpiod_get_array(dev, "adi,gsel", GPIOD_OUT_LOW);
 	if (IS_ERR(st->gsel))
 		return dev_err_probe(dev, PTR_ERR(st->gsel),
 				     "Failed to get adi,gsel-gpios\n");
-
-	if (!st->gsel)
-		return 0;
 
 	if (st->gsel->ndescs != ADA4355_NUM_GSEL_GPIOS)
 		return dev_err_probe(dev, -EINVAL,
