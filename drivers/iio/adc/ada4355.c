@@ -212,6 +212,8 @@ static int ada4355_set_scale(struct ada4355_state *st, int val, int val2)
 	unsigned int i;
 	int ret;
 
+	guard(mutex)(&st->lock);
+
 	if (!st->gsel)
 		return -EOPNOTSUPP;
 
@@ -221,7 +223,6 @@ static int ada4355_set_scale(struct ada4355_state *st, int val, int val2)
 
 		gsel = info->scale_table[i][1];
 
-		guard(mutex)(&st->lock);
 		ret = gpiod_multi_set_value_cansleep(st->gsel, &gsel);
 		if (ret)
 			return ret;
