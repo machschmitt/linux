@@ -90,9 +90,9 @@
 #define ADA4355_MAX_SAMP_RATE_SPS		(125 * MEGA)
 
 /* ADC differential input span, ±1 V with the 1 V internal reference. */
-#define ADA4355_ADC_SPAN_MV			2000
+#define ADA4355_ADC_SPAN_mV			2000
 /* ADC differential input with no input current flowing. */
-#define ADA4355_ADC_BIAS_MV			825
+#define ADA4355_ADC_BIAS_mV			825
 
 #define ADA4355_NUM_GSEL_GPIOS			2
 
@@ -177,7 +177,7 @@ static void __ada4355_get_scale(struct ada4355_state *st, int index,
 	const struct ada4355_chip_info *info = st->info;
 	u64 tmp;
 
-	tmp = div_u64((u64)ADA4355_ADC_SPAN_MV * NANO,
+	tmp = div_u64((u64)ADA4355_ADC_SPAN_mV * NANO,
 		      info->scale_table[index][0]) >> st->chan->scan_type.realbits;
 	*val = 0;
 	*val2 = -(int)tmp;
@@ -221,15 +221,15 @@ static int ada4355_set_scale(struct ada4355_state *st, int val, int val2)
 }
 
 /*
- * The TIA biases the ADC input at ADA4355_ADC_BIAS_MV with no input current,
+ * The TIA biases the ADC input at ADA4355_ADC_BIAS_mV with no input current,
  * so that is the code that has to read as zero milliamps.
  */
 static int ada4355_get_offset(struct iio_chan_spec const *chan, int *val, int *val2)
 {
 	s64 tmp;
 
-	tmp = div_s64(((s64)ADA4355_ADC_BIAS_MV * MICRO) << chan->scan_type.realbits,
-		      ADA4355_ADC_SPAN_MV);
+	tmp = div_s64(((s64)ADA4355_ADC_BIAS_mV * MICRO) << chan->scan_type.realbits,
+		      ADA4355_ADC_SPAN_mV);
 	*val = div_s64_rem(-tmp, MICRO, val2);
 
 	return IIO_VAL_INT_PLUS_MICRO;
