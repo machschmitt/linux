@@ -296,8 +296,8 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 	.scale_table = ada4355_scale_table,
 	.num_scales = ARRAY_SIZE(ada4355_scale_table),
 	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
-		BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
-		BIT(ADA4355_TEST_MODE_USER),
+		     BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
+		     BIT(ADA4355_TEST_MODE_USER),
 	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
 };
 
@@ -307,8 +307,8 @@ static const struct ada4355_chip_info ada4356_chip_info = {
 	.scale_table = ada4355_scale_table,
 	.num_scales = ARRAY_SIZE(ada4355_scale_table),
 	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
-		BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
-		BIT(ADA4355_TEST_MODE_USER),
+		     BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
+		     BIT(ADA4355_TEST_MODE_USER),
 	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
 };
 
