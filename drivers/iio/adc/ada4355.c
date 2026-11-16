@@ -181,18 +181,17 @@ static int ada4355_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int re
  * the transimpedance in ohms. The TIA output falls as the input current rises,
  * hence the negative sign.
  */
-static void __ada4355_get_scale(struct ada4355_state *st, int index,
-				int *val, int *val2)
+static void ada4355_fill_scale_tb(struct ada4355_state *st,
+				  struct ada4355_chip_info const *chip_info)
 {
-	const struct ada4355_chip_info *info = st->info;
 	u64 tmp;
 
-	//tmp = div_u64((u64)ADA4355_ADC_SPAN_mV * NANO,
-	//	      info->gain_options[index][0]) >> st->chan->scan_type.realbits;
-	tmp = div_u64((u64)ADA4355_ADC_SPAN_mV * NANO,
-		      info->gain_options[index]) >> st->chan->scan_type.realbits;
-	*val = 0;
-	*val2 = -(int)tmp;
+	for (unsigned int i = 0; i < chip_info->gain_options_size; i++) {
+		tmp = div_u64((u64)ADA4355_ADC_SPAN_mV * NANO,
+			      chip_info->gain_options[i]) >> st->chan->scan_type.realbits;
+		st->scale_tb[i][0] = 0; /* Integer part */
+		st->scale_tb[i][1] = -(int)tmp; /* Fractional part */
+	}
 }
 
 static int ada4355_get_scale(struct ada4355_state *st, int *val, int *val2)
@@ -684,13 +683,9 @@ static int ada4355_setup(struct ada4355_state *st)
 
 static int ada4355_gain_setup(struct ada4355_state *st)
 {
-	const struct ada4355_chip_info *info = st->info;
 	struct device *dev = &st->spi->dev;
 	unsigned long gsel;
 	unsigned int i;
-
-	for (i = 0; i < info->gain_options_size; i++)
-		__ada4355_get_scale(st, i, &st->scale_tb[i][0], &st->scale_tb[i][1]);
 
 	st->scale_idx = 0;
 
@@ -874,6 +869,7 @@ static void ada4355_debugfs_init(struct iio_dev *indio_dev)
 
 static int ada4355_probe(struct spi_device *spi)
 {
+	const struct ada4355_chip_info *chip_info;
 	struct device *dev = &spi->dev;
 	struct iio_dev *indio_dev;
 	struct ada4355_state *st;
@@ -886,8 +882,8 @@ static int ada4355_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	st->spi = spi;
 
-	st->info = spi_get_device_match_data(spi);
-	if (!st->info)
+	chip_info = spi_get_device_match_data(spi);
+	if (!chip_info)
 		return -ENODATA;
 
 	st->regmap = devm_regmap_init_spi(spi, &ada4355_regmap_config);
@@ -905,7 +901,7 @@ static int ada4355_probe(struct spi_device *spi)
 	if (IS_ERR(st->clk))
 		return PTR_ERR(st->clk);
 
-	indio_dev->name = st->info->name;
+	indio_dev->name = chip_info->name;
 	indio_dev->channels = &ada4355_channel;
 	indio_dev->num_channels = 1;
 	indio_dev->info = &ada4355_iio_info;
@@ -918,6 +914,8 @@ static int ada4355_probe(struct spi_device *spi)
 	ret = ada4355_gain_setup(st);
 	if (ret)
 		return ret;
+
+	ada4355_fill_scale_tb(st, chip_info);
 
 	st->back = devm_iio_backend_get(dev, NULL);
 	if (IS_ERR(st->back))
