@@ -98,9 +98,15 @@
 
 /* Transimpedance gain in ohms and the matching GSEL1 and GSEL0 setting. */
 static const unsigned int ada4355_scale_table[][2] = {
-	{ 2000, 0x1 },
-	{ 20000, 0x2 },
-	{ 200000, 0x0 },
+	{ 2000, 0x1 }, /* Tz = 2kOhms, −80 to +800 uA input range */
+	{ 20000, 0x2 }, /* Tz = 20kOhms, −8.0 to +80 uA input range */
+	{ 200000, 0x0 }, /* Tz= 200kOhms, −0.8 to +8.0 uA input range */
+};
+
+static const unsigned int ada4356_scale_table[][2] = {
+	{ 4540, 0x1 }, /* Tz = 4.54kΩ, +3 to +300 uA input range */
+	{ 11000, 0x2 }, /* Tz = 11kΩ, +1 to +100 uA input range */
+	{ 133000, 0x0 }, /* Tz = 133kΩ, +0.1 to +10 uA input range */
 };
 
 static const char * const ada4355_test_modes[] = {
@@ -304,8 +310,8 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 static const struct ada4355_chip_info ada4356_chip_info = {
 	.name = "ada4356",
 	.id = ADA4355_CHIP_ID,
-	.scale_table = ada4355_scale_table,
-	.num_scales = ARRAY_SIZE(ada4355_scale_table),
+	.scale_table = ada4356_scale_table,
+	.num_scales = ARRAY_SIZE(ada4356_scale_table),
 	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
 		     BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
 		     BIT(ADA4355_TEST_MODE_USER),
