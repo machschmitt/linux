@@ -137,7 +137,7 @@ struct ada4355_state {
 	const struct iio_chan_spec *chan;
 	/* used for debugfs */
 	struct ada4355_chan_test_mode *chan_test;
-	/* GSEL0 and GSEL1, in that order. NULL if the board drives them. */
+	/* GSEL0 and GSEL1, in that order. */
 	struct gpio_descs *gsel;
 	int scales[ARRAY_SIZE(ada4355_scale_table)][2];
 	unsigned int scale_idx;
