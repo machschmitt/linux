@@ -120,8 +120,6 @@ struct ada4355_chip_info {
 	unsigned int id;
 	const unsigned int (*scale_table)[2];
 	int num_scales;
-	unsigned long test_mask;
-	unsigned int test_mask_len;
 };
 
 struct ada4355_chan_test_mode {
@@ -301,10 +299,6 @@ static const struct ada4355_chip_info ada4355_chip_info = {
 	.id = ADA4355_CHIP_ID,
 	.scale_table = ada4355_scale_table,
 	.num_scales = ARRAY_SIZE(ada4355_scale_table),
-	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
-		     BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
-		     BIT(ADA4355_TEST_MODE_USER),
-	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
 };
 
 static const struct ada4355_chip_info ada4356_chip_info = {
@@ -312,10 +306,6 @@ static const struct ada4355_chip_info ada4356_chip_info = {
 	.id = ADA4355_CHIP_ID,
 	.scale_table = ada4356_scale_table,
 	.num_scales = ARRAY_SIZE(ada4356_scale_table),
-	.test_mask = BIT(ADA4355_TEST_MODE_OFF) |
-		     BIT(ADA4355_TEST_MODE_ALT_CHECKERBOARD) |
-		     BIT(ADA4355_TEST_MODE_USER),
-	.test_mask_len = ADA4355_TEST_MODE_USER + 1,
 };
 
 static int ada4355_testmode_set(struct ada4355_state *st, unsigned int test_mode)
@@ -728,11 +718,8 @@ static int ada4355_interface_setup(struct ada4355_state *st)
 
 static int ada4355_test_mode_available_show(struct seq_file *s, void *ignored)
 {
-	struct ada4355_state *st = s->private;
-	unsigned int bit;
-
-	for_each_set_bit(bit, &st->info->test_mask, st->info->test_mask_len)
-		seq_printf(s, "%s\n", ada4355_test_modes[bit]);
+	for (unsigned int mode = 0; mode < ARRAY_SIZE(ada4355_test_modes); mode++)
+		seq_printf(s, "%s\n", ada4355_test_modes[mode]);
 
 	return 0;
 }
@@ -775,7 +762,7 @@ static ssize_t ada4355_chan_test_mode_write(struct file *file,
 	struct ada4355_chan_test_mode *chan = file->private_data;
 	struct ada4355_state *st = chan->st;
 	char test_mode[32] = {0};
-	unsigned int mode;
+	unsigned int mode = 0;
 	int ret;
 
 	ret = simple_write_to_buffer(test_mode, sizeof(test_mode) - 1, ppos,
@@ -783,12 +770,12 @@ static ssize_t ada4355_chan_test_mode_write(struct file *file,
 	if (ret < 0)
 		return ret;
 
-	for_each_set_bit(mode, &st->info->test_mask, st->info->test_mask_len) {
+	for (; mode < ARRAY_SIZE(ada4355_test_modes); mode++) {
 		if (sysfs_streq(test_mode, ada4355_test_modes[mode]))
 			break;
 	}
 
-	if (mode == st->info->test_mask_len)
+	if (mode == ARRAY_SIZE(ada4355_test_modes))
 		return -EINVAL;
 
 	guard(mutex)(&st->lock);
