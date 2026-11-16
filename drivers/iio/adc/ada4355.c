@@ -96,17 +96,23 @@
 
 #define ADA4355_NUM_GSEL_GPIOS			2
 
-/* Transimpedance gain in ohms and the matching GSEL1 and GSEL0 setting. */
-static const unsigned int ada4355_scale_table[][2] = {
-	{ 2000, 0x1 }, /* Tz = 2kOhms, −80 to +800 uA input range */
-	{ 20000, 0x2 }, /* Tz = 20kOhms, −8.0 to +80 uA input range */
-	{ 200000, 0x0 }, /* Tz= 200kOhms, −0.8 to +8.0 uA input range */
+enum ada4355_tz_options {
+	ADA4355_TZ0,
+	ADA4355_TZ1,
+	ADA4355_TZ2,
 };
 
-static const unsigned int ada4356_scale_table[][2] = {
-	{ 4540, 0x1 }, /* Tz = 4.54kΩ, +3 to +300 uA input range */
-	{ 11000, 0x2 }, /* Tz = 11kΩ, +1 to +100 uA input range */
-	{ 133000, 0x0 }, /* Tz = 133kΩ, +0.1 to +10 uA input range */
+/* Transimpedance gain in ohms and the matching GSEL1 and GSEL0 setting. */
+static const unsigned int ada4355_gain_options[] = {
+	[ADA4355_TZ1] = 2000, /* Tz = 2 kOhms, −80 to +800 uA input range */
+	[ADA4355_TZ2] = 20000, /* Tz = 20 kOhms, −8.0 to +80 uA input range */
+	[ADA4355_TZ0] = 200000, /* Tz= 200 kOhms, −0.8 to +8.0 uA input range */
+};
+
+static const unsigned int ada4356_gain_options[] = {
+	[ADA4355_TZ1] = 4540, /* Tz = 4.54 kOhms, +3 to +300 uA input range */
+	[ADA4355_TZ2] = 11000, /* Tz = 11 kOhms, +1 to +100 uA input range */
+	[ADA4355_TZ0] = 133000, /* Tz = 133 kOhms, +0.1 to +10 uA input range */
 };
 
 static const char * const ada4355_test_modes[] = {
@@ -118,8 +124,8 @@ static const char * const ada4355_test_modes[] = {
 struct ada4355_chip_info {
 	const char *name;
 	unsigned int id;
-	const unsigned int (*scale_table)[2];
-	int num_scales;
+	const unsigned int *gain_options;
+	int gain_options_size;
 };
 
 struct ada4355_chan_test_mode {
@@ -139,7 +145,7 @@ struct ada4355_state {
 	struct ada4355_chan_test_mode *chan_test;
 	/* GSEL0 and GSEL1, in that order. */
 	struct gpio_descs *gsel;
-	int scales[ARRAY_SIZE(ada4355_scale_table)][2];
+	int scale_tb[ARRAY_SIZE(ada4355_gain_options)][2];
 	unsigned int scale_idx;
 	/*
 	 * One section of @info->test_points bits per calibrated I/O delay
@@ -181,16 +187,18 @@ static void __ada4355_get_scale(struct ada4355_state *st, int index,
 	const struct ada4355_chip_info *info = st->info;
 	u64 tmp;
 
+	//tmp = div_u64((u64)ADA4355_ADC_SPAN_mV * NANO,
+	//	      info->gain_options[index][0]) >> st->chan->scan_type.realbits;
 	tmp = div_u64((u64)ADA4355_ADC_SPAN_mV * NANO,
-		      info->scale_table[index][0]) >> st->chan->scan_type.realbits;
+		      info->gain_options[index]) >> st->chan->scan_type.realbits;
 	*val = 0;
 	*val2 = -(int)tmp;
 }
 
 static int ada4355_get_scale(struct ada4355_state *st, int *val, int *val2)
 {
-	*val = st->scales[st->scale_idx][0];
-	*val2 = st->scales[st->scale_idx][1];
+	*val = st->scale_tb[st->scale_idx][0];
+	*val2 = st->scale_tb[st->scale_idx][1];
 
 	return IIO_VAL_INT_PLUS_NANO;
 }
@@ -207,11 +215,11 @@ static int ada4355_set_scale(struct ada4355_state *st, int val, int val2)
 	if (!st->gsel)
 		return -EOPNOTSUPP;
 
-	for (i = 0; i < info->num_scales; i++) {
-		if (st->scales[i][0] != val || st->scales[i][1] != val2)
+	for (i = 0; i < info->gain_options_size; i++) {
+		if (st->scale_tb[i][0] != val || st->scale_tb[i][1] != val2)
 			continue;
 
-		gsel = info->scale_table[i][1];
+		gsel = i;
 
 		ret = gpiod_multi_set_value_cansleep(st->gsel, &gsel);
 		if (ret)
@@ -267,13 +275,13 @@ static int ada4355_read_avail(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		*vals = (const int *)st->scales;
+		*vals = (const int *)st->scale_tb;
 		*type = IIO_VAL_INT_PLUS_NANO;
 		/*
 		 * Values are stored in a 2D matrix. Without the GSEL lines the
 		 * gain is fixed, so only the assumed one is available.
 		 */
-		*length = (st->gsel ? st->info->num_scales : 1) * 2;
+		*length = (st->gsel ? st->info->gain_options_size : 1) * 2;
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
@@ -297,15 +305,15 @@ static const struct iio_chan_spec ada4355_channel = {
 static const struct ada4355_chip_info ada4355_chip_info = {
 	.name = "ada4355",
 	.id = ADA4355_CHIP_ID,
-	.scale_table = ada4355_scale_table,
-	.num_scales = ARRAY_SIZE(ada4355_scale_table),
+	.gain_options = ada4355_gain_options,
+	.gain_options_size = ARRAY_SIZE(ada4355_gain_options),
 };
 
 static const struct ada4355_chip_info ada4356_chip_info = {
 	.name = "ada4356",
 	.id = ADA4355_CHIP_ID,
-	.scale_table = ada4356_scale_table,
-	.num_scales = ARRAY_SIZE(ada4356_scale_table),
+	.gain_options = ada4356_gain_options,
+	.gain_options_size = ARRAY_SIZE(ada4356_gain_options),
 };
 
 static int ada4355_testmode_set(struct ada4355_state *st, unsigned int test_mode)
@@ -681,8 +689,8 @@ static int ada4355_gain_setup(struct ada4355_state *st)
 	unsigned long gsel;
 	unsigned int i;
 
-	for (i = 0; i < info->num_scales; i++)
-		__ada4355_get_scale(st, i, &st->scales[i][0], &st->scales[i][1]);
+	for (i = 0; i < info->gain_options_size; i++)
+		__ada4355_get_scale(st, i, &st->scale_tb[i][0], &st->scale_tb[i][1]);
 
 	st->scale_idx = 0;
 
@@ -699,7 +707,7 @@ static int ada4355_gain_setup(struct ada4355_state *st)
 				     "Expected %u adi,gsel-gpios, got %u\n",
 				     ADA4355_NUM_GSEL_GPIOS, st->gsel->ndescs);
 
-	gsel = info->scale_table[st->scale_idx][1];
+	gsel = ADA4355_TZ1;
 
 	return gpiod_multi_set_value_cansleep(st->gsel, &gsel);
 }
