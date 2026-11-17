@@ -234,7 +234,7 @@ static int ada4355_set_scale(struct ada4355_state *st, int val, int val2)
 }
 
 /*
- * The TIA biases the ADC input at ADA4355_ADC_BIAS_mV with no input current,
+ * The the ADC input is biased at ADA4355_ADC_BIAS_mV with no input current,
  * so that is the code that has to read as zero milliamps.
  */
 static int ada4355_get_offset(struct iio_chan_spec const *chan, int *val, int *val2)
