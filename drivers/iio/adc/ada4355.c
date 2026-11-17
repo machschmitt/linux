@@ -147,6 +147,7 @@ struct ada4355_state {
 	struct gpio_descs *gsel;
 	/* Precomputed scale for each gain option, as {integer, nano} pairs. */
 	int scale_tb[ARRAY_SIZE(ada4355_gain_options)][2];
+	unsigned int scale_tb_size;
 	unsigned int scale_idx;
 	/*
 	 * One section of @info->test_points bits per calibrated I/O delay
@@ -187,7 +188,8 @@ static void ada4355_fill_scale_tb(struct ada4355_state *st,
 	u64 numerator, denominator;
 	u32 rem;
 
-	for (unsigned int i = 0; i < chip_info->gain_options_size; i++) {
+	st->scale_tb_size = chip_info->gain_options_size;
+	for (unsigned int i = 0; i < st->scale_tb_size; i++) {
 		numerator = (u64)ADA4355_ADC_SPAN_mV * NANO * MILLI;
 		denominator = BIT_ULL(st->chan->scan_type.realbits) * chip_info->gain_options[i];
 		numerator = div64_u64(numerator, denominator);
