@@ -102,17 +102,16 @@ enum ada4355_tz_options {
 	ADA4355_TZ2,
 };
 
-/* Transimpedance gain in ohms and the matching GSEL1 and GSEL0 setting. */
-static const unsigned int ada4355_gain_options[] = {
-	[ADA4355_TZ1] = 2000, /* Tz = 2 kOhms, −80 to +800 uA input range */
-	[ADA4355_TZ2] = 20000, /* Tz = 20 kOhms, −8.0 to +80 uA input range */
-	[ADA4355_TZ0] = 200000, /* Tz= 200 kOhms, −0.8 to +8.0 uA input range */
+static const unsigned int ada4355_tz_options_ohms[] = {
+	[ADA4355_TZ1] = 2000, /* -80 to +800 uA input range */
+	[ADA4355_TZ2] = 20000, /* -8.0 to +80 uA input range */
+	[ADA4355_TZ0] = 200000, /* -0.8 to +8.0 uA input range */
 };
 
-static const unsigned int ada4356_gain_options[] = {
-	[ADA4355_TZ1] = 4540, /* Tz = 4.54 kOhms, +3 to +300 uA input range */
-	[ADA4355_TZ2] = 11000, /* Tz = 11 kOhms, +1 to +100 uA input range */
-	[ADA4355_TZ0] = 133000, /* Tz = 133 kOhms, +0.1 to +10 uA input range */
+static const unsigned int ada4356_tz_options_ohms[] = {
+	[ADA4355_TZ1] = 4540, /* 3 to 300 uA input range */
+	[ADA4355_TZ2] = 11000, /* 1 to 100 uA input range */
+	[ADA4355_TZ0] = 133000, /* 0.1 to 10 uA input range */
 };
 
 static const char * const ada4355_test_modes[] = {
@@ -146,7 +145,7 @@ struct ada4355_state {
 	/* GSEL0 and GSEL1, in that order. */
 	struct gpio_descs *gsel;
 	/* Precomputed scale for each gain option, as {integer, nano} pairs. */
-	int scale_tb[ARRAY_SIZE(ada4355_gain_options)][2];
+	int scale_tb[ARRAY_SIZE(ada4355_tz_options_ohms)][2];
 	unsigned int scale_tb_size;
 	unsigned int scale_idx;
 	/*
@@ -299,15 +298,15 @@ static const struct iio_chan_spec ada4355_channel = {
 static const struct ada4355_chip_info ada4355_chip_info = {
 	.name = "ada4355",
 	.id = ADA4355_CHIP_ID,
-	.gain_options = ada4355_gain_options,
-	.gain_options_size = ARRAY_SIZE(ada4355_gain_options),
+	.gain_options = ada4355_tz_options_ohms,
+	.gain_options_size = ARRAY_SIZE(ada4355_tz_options_ohms),
 };
 
 static const struct ada4355_chip_info ada4356_chip_info = {
 	.name = "ada4356",
 	.id = ADA4355_CHIP_ID,
-	.gain_options = ada4356_gain_options,
-	.gain_options_size = ARRAY_SIZE(ada4356_gain_options),
+	.gain_options = ada4356_tz_options_ohms,
+	.gain_options_size = ARRAY_SIZE(ada4356_tz_options_ohms),
 };
 
 static int ada4355_testmode_set(struct ada4355_state *st, unsigned int test_mode)
