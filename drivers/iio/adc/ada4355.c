@@ -191,7 +191,7 @@ static void ada4355_fill_scale_tb(struct ada4355_state *st,
 		numerator = (u64)ADA4355_ADC_SPAN_mV * NANO * MILLI;
 		denominator = BIT_ULL(st->chan->scan_type.realbits) * chip_info->gain_options[i];
 		numerator = div64_u64(numerator, denominator);
-		st->scale_tb[i][0] = -(int)div_u64_rem(numerator, NANO, &rem);
+		st->scale_tb[i][0] = div_u64_rem(numerator, NANO, &rem);
 		st->scale_tb[i][1] = -(int)rem;
 	}
 }
