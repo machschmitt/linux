@@ -118,11 +118,23 @@ static const unsigned int ada4356_tz_options_ohms[] = {
 	[ADA4355_TZ0] = 133000, /* 0.1 to 10 uA input range */
 };
 
+static const char * const ada4355_test_modes[] = {
+	[ADA4355_TEST_MODE_OFF] = "off",
+	[ADA4355_TEST_MODE_ALT_CHECKERBOARD] = "checkerboard",
+	[ADA4355_TEST_MODE_USER] = "user",
+};
+
 struct ada4355_chip_info {
 	const char *name;
 	unsigned int id;
 	const unsigned int *gain_options;
 	int gain_options_size;
+};
+
+struct ada4355_chan_test_mode {
+	struct ada4355_state *st;
+	unsigned int idx;
+	u8 mode;
 };
 
 struct ada4355_state {
@@ -131,6 +143,8 @@ struct ada4355_state {
 	struct regmap *regmap;
 	struct clk *clk;
 	const struct iio_chan_spec *chan;
+	/* used for debugfs */
+	struct ada4355_chan_test_mode *chan_test;
 	/* GSEL0 and GSEL1, in that order. */
 	struct gpio_descs *gsel;
 	/* Precomputed scale for each gain option, as {integer, nano} pairs. */
@@ -688,6 +702,115 @@ static int ada4355_interface_setup(struct ada4355_state *st)
 						ADA4355_SYNC_TIMEOUT_US);
 }
 
+static int ada4355_test_mode_available_show(struct seq_file *s, void *ignored)
+{
+	for (unsigned int mode = 0; mode < ARRAY_SIZE(ada4355_test_modes); mode++)
+		seq_printf(s, "%s\n", ada4355_test_modes[mode]);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ada4355_test_mode_available);
+
+static ssize_t ada4355_chan_test_mode_read(struct file *file,
+					   char __user *userbuf, size_t count,
+					   loff_t *ppos)
+{
+	struct ada4355_chan_test_mode *chan = file->private_data;
+	struct ada4355_state *st = chan->st;
+	char buf[128] = {0};
+	size_t len;
+	int ret;
+
+	if (chan->mode == ADA4355_TEST_MODE_OFF) {
+		len = scnprintf(buf, sizeof(buf), "No test Running...\n");
+	} else {
+		len = scnprintf(buf, sizeof(buf), "Running \"%s\" Test:\n\t",
+				ada4355_test_modes[chan->mode]);
+
+		if (iio_backend_has_caps(st->back, IIO_BACKEND_CAP_CALIBRATION)) {
+			ret = iio_backend_debugfs_print_chan_status(st->back,
+								    chan->idx,
+								    buf + len,
+								    sizeof(buf) - len);
+			if (ret < 0)
+				return ret;
+			len += ret;
+		}
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+}
+
+static ssize_t ada4355_chan_test_mode_write(struct file *file,
+					    const char __user *userbuf,
+					    size_t count, loff_t *ppos)
+{
+	struct ada4355_chan_test_mode *chan = file->private_data;
+	struct ada4355_state *st = chan->st;
+	char test_mode[32] = {0};
+	unsigned int mode = 0;
+	int ret;
+
+	ret = simple_write_to_buffer(test_mode, sizeof(test_mode) - 1, ppos,
+				     userbuf, count);
+	if (ret < 0)
+		return ret;
+
+	for (; mode < ARRAY_SIZE(ada4355_test_modes); mode++) {
+		if (sysfs_streq(test_mode, ada4355_test_modes[mode]))
+			break;
+	}
+
+	if (mode == ARRAY_SIZE(ada4355_test_modes))
+		return -EINVAL;
+
+	guard(mutex)(&st->lock);
+
+	ret = ada4355_testmode_set(st, mode);
+	if (ret)
+		return ret;
+
+	chan->mode = mode;
+
+	return count;
+}
+
+static const struct file_operations ada4355_chan_test_mode_fops = {
+	.open = simple_open,
+	.read = ada4355_chan_test_mode_read,
+	.write = ada4355_chan_test_mode_write,
+	.llseek = default_llseek,
+	.owner = THIS_MODULE,
+};
+
+static void ada4355_debugfs_init(struct iio_dev *indio_dev)
+{
+	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
+	struct ada4355_state *st = iio_priv(indio_dev);
+	char attr_name[32];
+	unsigned int chan;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
+
+	st->chan_test = devm_kcalloc(&st->spi->dev, 1,
+				     sizeof(*st->chan_test), GFP_KERNEL);
+	if (!st->chan_test)
+		return;
+
+	snprintf(attr_name, sizeof(attr_name), "in_voltage%u_test_mode",
+		 chan);
+	st->chan_test[chan].idx = chan;
+	st->chan_test[chan].st = st;
+	debugfs_create_file(attr_name, 0600, d, &st->chan_test[chan],
+				&ada4355_chan_test_mode_fops);
+
+	debugfs_create_file("in_voltage_test_mode_available", 0400, d, st,
+			    &ada4355_test_mode_available_fops);
+
+	iio_backend_debugfs_add(st->back, indio_dev);
+}
+
 static int ada4355_probe(struct spi_device *spi)
 {
 	const struct ada4355_chip_info *chip_info;
@@ -765,7 +888,13 @@ static int ada4355_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	return devm_iio_device_register(dev, indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (ret)
+		return ret;
+
+	ada4355_debugfs_init(indio_dev);
+
+	return 0;
 }
 
 static const struct spi_device_id ada4355_id[] = {
