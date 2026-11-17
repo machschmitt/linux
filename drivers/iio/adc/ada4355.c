@@ -145,6 +145,7 @@ struct ada4355_state {
 	struct ada4355_chan_test_mode *chan_test;
 	/* GSEL0 and GSEL1, in that order. */
 	struct gpio_descs *gsel;
+	/* Precomputed scale for each gain option, as {integer, nano} pairs. */
 	int scale_tb[ARRAY_SIZE(ada4355_gain_options)][2];
 	unsigned int scale_idx;
 	/*
@@ -184,13 +185,15 @@ static int ada4355_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int re
 static void ada4355_fill_scale_tb(struct ada4355_state *st,
 				  struct ada4355_chip_info const *chip_info)
 {
-	u64 tmp;
+	u64 numerator, denominator;
+	u32 rem;
 
 	for (unsigned int i = 0; i < chip_info->gain_options_size; i++) {
-		tmp = div_u64((u64)ADA4355_ADC_SPAN_mV * NANO,
-			      chip_info->gain_options[i]) >> st->chan->scan_type.realbits;
-		st->scale_tb[i][0] = 0; /* Integer part */
-		st->scale_tb[i][1] = -(int)tmp; /* Fractional part */
+		numerator = (u64)ADA4355_ADC_SPAN_mV * NANO * MILLI;
+		denominator = BIT_ULL(st->chan->scan_type.realbits) * chip_info->gain_options[i];
+		numerator = div64_u64(numerator, denominator);
+		st->scale_tb[i][0] = -(int)div_u64_rem(numerator, NANO, &rem);
+		st->scale_tb[i][1] = -(int)rem;
 	}
 }
 
