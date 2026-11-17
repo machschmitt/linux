@@ -208,17 +208,12 @@ static int ada4355_get_scale(struct ada4355_state *st, int *val, int *val2)
 
 static int ada4355_set_scale(struct ada4355_state *st, int val, int val2)
 {
-	const struct ada4355_chip_info *info = st->info;
 	unsigned long gsel;
-	unsigned int i;
 	int ret;
 
 	guard(mutex)(&st->lock);
 
-	if (!st->gsel)
-		return -EOPNOTSUPP;
-
-	for (i = 0; i < info->gain_options_size; i++) {
+	for (unsigned int i = 0; i < st->scale_tb_size; i++) {
 		if (st->scale_tb[i][0] != val || st->scale_tb[i][1] != val2)
 			continue;
 
@@ -280,11 +275,7 @@ static int ada4355_read_avail(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*vals = (const int *)st->scale_tb;
 		*type = IIO_VAL_INT_PLUS_NANO;
-		/*
-		 * Values are stored in a 2D matrix. Without the GSEL lines the
-		 * gain is fixed, so only the assumed one is available.
-		 */
-		*length = (st->gsel ? st->info->gain_options_size : 1) * 2;
+		*length = st->scale_tb_size * 2;
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
