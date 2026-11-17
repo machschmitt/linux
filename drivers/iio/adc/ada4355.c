@@ -178,9 +178,8 @@ static int ada4355_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int re
 }
 
 /*
- * One ADC code in milliamps of input current: the ADC LSB in millivolts over
- * the transimpedance in ohms. The TIA output falls as the input current rises,
- * hence the negative sign.
+ * The ADC output code decreases as the input current increases so the scale to
+ * milliamps is sign reversed.
  */
 static void ada4355_fill_scale_tb(struct ada4355_state *st,
 				  struct ada4355_chip_info const *chip_info)
