@@ -594,7 +594,8 @@ static const struct iio_info ada4355_iio_info = {
 	.debugfs_reg_access = ada4355_debugfs_reg_access,
 };
 
-static int ada4355_setup(struct ada4355_state *st)
+static int ada4355_setup(struct ada4355_state *st,
+			 struct ada4355_chip_info const *chip_info)
 {
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *gpio_vld_en;
@@ -646,9 +647,9 @@ static int ada4355_setup(struct ada4355_state *st)
 	if (ret)
 		return ret;
 
-	if (id != st->info->id)
+	if (id != chip_info->id)
 		dev_warn(dev, "Mismatch CHIP_ID, got 0x%X, expected 0x%X\n",
-			 id, st->info->id);
+			 id, chip_info->id);
 
 	ret = regmap_update_bits(st->regmap, ADA4355_SERIAL_OUT_DATA_CNTRL_REG,
 				 ADA4355_SERIAL_OUT_LANE_MODE_MASK,
@@ -901,7 +902,7 @@ static int ada4355_probe(struct spi_device *spi)
 	indio_dev->info = &ada4355_iio_info;
 	st->chan = &ada4355_channel;
 
-	ret = ada4355_setup(st);
+	ret = ada4355_setup(st, chip_info);
 	if (ret)
 		return ret;
 
