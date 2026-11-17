@@ -680,13 +680,7 @@ static int ada4355_gain_setup(struct ada4355_state *st)
 {
 	struct device *dev = &st->spi->dev;
 	unsigned long gsel;
-	unsigned int i;
 
-	st->scale_idx = 0;
-
-	/*
-	 * Start with the lowest gain, which gives the widest input current range.
-	 */
 	st->gsel = devm_gpiod_get_array(dev, "adi,gsel", GPIOD_OUT_LOW);
 	if (IS_ERR(st->gsel))
 		return dev_err_probe(dev, PTR_ERR(st->gsel),
@@ -697,6 +691,8 @@ static int ada4355_gain_setup(struct ada4355_state *st)
 				     "Expected %u adi,gsel-gpios, got %u\n",
 				     ADA4355_NUM_GSEL_GPIOS, st->gsel->ndescs);
 
+	/* Start with the widest input current range configuration. */
+	st->scale_idx = ADA4355_TZ1;
 	gsel = ADA4355_TZ1;
 
 	return gpiod_multi_set_value_cansleep(st->gsel, &gsel);
@@ -906,11 +902,11 @@ static int ada4355_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	ada4355_fill_scale_tb(st, chip_info);
+
 	ret = ada4355_gain_setup(st);
 	if (ret)
 		return ret;
-
-	ada4355_fill_scale_tb(st, chip_info);
 
 	st->back = devm_iio_backend_get(dev, NULL);
 	if (IS_ERR(st->back))
